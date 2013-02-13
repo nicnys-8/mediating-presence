@@ -1,0 +1,76 @@
+
+<html>
+    <head>
+        <title>Ignoring mouse events - Test</title>
+                
+        <script>
+            
+            var backCanvas;
+            var frontCanvas;
+            
+            var button;
+                                    
+            // Set up the two canvases and the button
+            function init() {
+                
+                backCanvas = document.getElementById("myCanvas");
+                backCanvas.style.backgroundColor = "red";
+                
+                frontCanvas = document.getElementById("myCanvas2");
+                frontCanvas.style.backgroundColor = "green";
+                frontCanvas.style.opacity = 0.5;
+                
+                /* Make the canvas ignore mouse events, allowing
+                 them to pass through to the element below */
+                frontCanvas.style.pointerEvents = "none";
+                
+                backCanvas.addEventListener('click', mouseClick, false);
+                
+                
+                button = document.getElementById("myButton");
+            }
+            
+            // Switch color of the canvas in the back
+            function mouseClick() {
+                if (backCanvas.style.backgroundColor == "red") {
+                    backCanvas.style.backgroundColor = "blue";
+                } else {
+                    backCanvas.style.backgroundColor = "red";
+                }
+            }
+            
+            // Turn front canvas pass-through on or off
+            function buttonClick() {
+                if (frontCanvas.style.pointerEvents == "auto") {
+                    frontCanvas.style.pointerEvents = "none";
+                    button.value  = "Pass-through on";
+                    
+                } else {
+                    frontCanvas.style.pointerEvents = "auto";
+                    button.value = "Pass-through off";
+                }
+            }
+            
+            </script>
+        
+    </head>
+    
+    <body style="font-family: monospace; background-color: white;" onLoad="init();">
+        
+        The smaller rectangle is transparent and lies on top of the bigger one.
+        Clicking the larger rectangle makes it change color.
+        <div>
+            <input type="button" id="myButton" onclick="buttonClick()" value="Pass-through on" > </input>
+        </div>
+        
+        <div style="position: relative;">
+            <canvas id="myCanvas" width="500" height="500"
+                style="position: absolute; left: 0; top: 0; z-index: 0;"></canvas>
+
+            <canvas id="myCanvas2" width="250" height="250"
+                style="position: absolute; left: 0; top: 0; z-index: 1;"></canvas>
+        </div>
+
+    </body>
+    
+</html>
