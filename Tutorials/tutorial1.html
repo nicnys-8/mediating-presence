@@ -1,0 +1,26 @@
+<!--
+ From Zigfu's website:
+ "This app is a blank page that will simply display an alert when the Zig plugin loads.
+ ...
+ Note that you don't have to have an event handler for the loaded event. It's a good way of testing the basic functionality of the plugin, and for doing something different on your site based on whether or not the user has the plugin installed."
+ -->
+
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Zig Plugin Test</title>
+        
+        <script src="../lib/zig.js"></script>
+        
+        <script>
+            function init() {
+                zig.addEventListener('loaded', function() {
+                                     alert('Hello motion world!');
+                                     });
+            }
+            </script>
+    </head>
+    <body onload="init();">
+        First tutorial! An alert is displayed if the Zig plugin loads.
+    </body>
+</html>
