@@ -12,6 +12,7 @@
             
             function loaded() {
                 
+                
                 var radardiv = document.getElementById('radar');
                 /* The radar object will respond to events from the zig object
                  and move the dots around accordingly. It is also responsible
@@ -31,6 +32,7 @@
                         radardiv.removeChild(user.radarelement);
                     },
                     ondataupdate: function (zigdata) {
+                        console.log(zigdata);
                         for (var userid in zigdata.users) {
                             var user = zigdata.users[userid];
                             var pos = user.position;
@@ -42,6 +44,8 @@
                             var pixelheight = parentElement.offsetHeight;
                             var heightscale = pixelheight / zrange;
                             var widthscale = pixelwidth / xrange;
+                            
+                            
                             el.style.left = (((pos[0] / xrange) + 0.5) * pixelwidth - (el.offsetWidth / 2)) + "px";
                             el.style.top = ((pos[2] / zrange) * pixelheight - (el.offsetHeight / 2)) + "px";
                         }
@@ -63,7 +67,7 @@
             {
                 width: 400px;
                 height: 400px;
-                border: 1px solid black;
+                border: 1px solid red;
                 position: relative;
                 overflow: hidden;
             }
