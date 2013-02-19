@@ -1,81 +1,61 @@
 <!--
- From Zigfu's website:
- "This app is a blank page that will simply display an alert when the Zig plugin loads.
- ...
- Note that you don't have to have an event handler for the loaded event. It's a good way of testing the basic functionality of the plugin, and for doing something different on your site based on whether or not the user has the plugin installed."
+ Accesses the Kinect RGB and depth video streams.
  -->
 
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Zig Plugin Test</title>
+        <title>Kinect camera access test</title>
         
         <script src="../lib/zig.js"></script>
+        <script src="../lib/kinectVideoDecoder.js"></script>
         
         <script>
             
-            var codexStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
-			var codexInt = [];
-			for(var i = 0; i < 256; i++) {
-				var idx = codexStr.indexOf(String.fromCharCode(i));
-				codexInt[i] = idx;
-			}
-			var Base64 =
-			{
-			    // assuming that the input string encodes a number of bytes divisible by 3
-			    decode : function (input)
-			    {
-			        var output = new Array(input.length);//*3/4);
-			        var inLength = input.length;
-			        var outIndex = 0;
-			        for (var i = 0; i < inLength; i += 4) {
-			            var enc1 = codexInt[input.charCodeAt(i)];
-			            var enc2 = codexInt[input.charCodeAt(i+1)];
-			            var enc3 = codexInt[input.charCodeAt(i+2)];
-			            var enc4 = codexInt[input.charCodeAt(i+3)];
-                        
-			            var chr1 = (enc1 << 2) | (enc2 >> 4);
-			            var chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
-			            var chr3 = ((enc3 & 3) << 6) | enc4;
-			            
-                        
-			            output[outIndex] = chr1;
-			            output[outIndex+1] = chr2;
-			            output[outIndex+2] = chr3;
-                        output[outIndex+3] = 255;
-			            outIndex += 4;
-			        }
-                    
-			        return output;
-			    }
-			}
-            
             function init() {
                 
-                var canvas = document.getElementById("myCanvas");
-                var context = canvas.getContext("2d");
+                var rgbCanvas = document.getElementById("rgbCanvas");
+                var rgbContext = rgbCanvas.getContext("2d");
                 
-                var bajs = false;
+                var depthCanvas = document.getElementById("depthCanvas");
+                var depthContext = depthCanvas.getContext("2d");
+                
+                var firstEvent = false;
                 zig.embed();
-                console.log(zig);
                 
                 var plugin = document.getElementById("ZigPlugin"); // the <object> element
-                plugin.requestStreams({updateImage:true});
+                
+                plugin.requestStreams({updateDepth:true, updateImage:true});
                 
                 plugin.addEventListener("NewFrame", function() { // triggered every new kinect frame
-                                        var rgbImage = Base64.decode(plugin.imageMap);
-                                        var hej = context.createImageData(canvas.width, canvas.height);
-                                        // hej.data = rgbImage;
+                                        var temp = rgbContext.createImageData(rgbCanvas.width, rgbCanvas.height);
                                         
-                                        for (var i = 0; i < hej.width * hej.height * 4; ) {
-                                        hej.data[i] = rgbImage[i++];
+                                        // Draw the rgb image
+                                        var rgbImage = kinectVideoDecoder.decodeRGB(plugin.imageMap);
+                                        
+                                        for (var i = 0; i < rgbImage.length; i++) {
+                                        temp.data[i] = rgbImage[i];
                                         }
-                                        if (!bajs) {
-                                        console.log(hej);
-                                        bajs = true;
+                                        rgbContext.putImageData(temp, 0, 0);
+                                        
+                                        // Draw the depth image
+                                        var depthImage = kinectVideoDecoder.decodeDepth(plugin.depthMap);
+                                        var index = 0;
+                                        
+                                        var depthValue;
+                                        for (var i = 0; i < depthImage.length; i+=2) {
+                                        
+                                        depthValue = depthImage[i] | (depthImage[i + 1] << 8);
+                                        depthValue = depthValue / 2047;
+                                        depthValue = depthValue * 255;
+                                        
+                                        temp.data[index++] = depthValue;
+                                        temp.data[index++] = 0;
+                                        temp.data[index++] = 0;
+                                        temp.data[index++] = 255;
                                         }
-                                        context.putImageData(hej, 0, 0);
-                                        // canvas.style.backgroundColor = "red";
+                                        
+                                        depthContext.putImageData(temp, 0, 0);
                                         });
             }
             </script>
@@ -89,9 +69,14 @@
         </div>
         
         <div style="position: relative;">
-            <canvas id="myCanvas" width="160" height="120"
-                style="position: absolute; left: 0; top: 0; z-index: 0;">
+            <canvas id="rgbCanvas" width="160" height="120"
+                style="position: relative; left: 0; top: 0; z-index: 0;">
             </canvas>
+            
+            <canvas id="depthCanvas" width="160" height="120"
+                style="position: relative; left: 200; top: 130; z-index: 0;">
+            </canvas>
+            
         </div>
         
     </body>
