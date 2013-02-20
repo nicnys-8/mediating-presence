@@ -13,14 +13,20 @@
         <script>
             
             // Just some variables, might be moved later...
-            var rgbCanvas = document.getElementById("rgbCanvas");
-            var rgbContext = rgbCanvas.getContext("2d");
-            var depthCanvas = document.getElementById("depthCanvas");
-            var depthContext = depthCanvas.getContext("2d");
+            var plugin;
             
-            var refImage;
-            var temp = rgbContext.createImageData(rgbCanvas.width, rgbCanvas.height);
+            var depthCanvas;
+            var depthContext;
+            var depthData;
+            var rgbCanvas;
+            var rgbContext
+            var refCanvas;
+            var refContext;
             
+            var refImageData;
+            var refData;
+            var refImageCountdown = -1;
+            var temp;
             var mask;
             
             
@@ -28,110 +34,200 @@
              Requests video streams and starts periodically updating the canvases
              */
             function init() {
-                var firstEvent = false;
-                zig.embed();
+                plugin = document.getElementById("ZigPlugin");
+                //zig.embed();
                 
-                var plugin = document.getElementById("ZigPlugin");
+                depthCanvas = document.getElementById("depthCanvas");
+                depthContext = depthCanvas.getContext("2d");
+                rgbCanvas = document.getElementById("rgbCanvas");
+                rgbContext = rgbCanvas.getContext("2d");
+                refCanvas = document.getElementById("referenceCanvas");
+                refContext = refCanvas.getContext("2d");
+                
+                temp = rgbContext.createImageData(rgbCanvas.width, rgbCanvas.height);
+                refImageData = rgbContext.createImageData(rgbCanvas.width, rgbCanvas.height);
+                refData = refImageData.data;
+                
+                mask = new Array(rgbCanvas.width * rgbCanvas.height);
+                fillWithOnes(mask);
+                
                 plugin.requestStreams({updateDepth:true, updateImage:true});
-                plugin.addEventListener("NewFrame", function() { // triggered every new kinect frame
-                                        drawRGBImage();
-                                        drawDepthImage();
+                // Execute the following every new kinect frame
+                plugin.addEventListener("NewFrame", function() {
+                                        
+                                        // Take a snapshot from the Kinect depth video and draw
+                                        // it in a canvas
+                                        var depthData = kinectVideoDecoder.decodeDepth(plugin.depthMap);
+                                        depthToImageData(temp.data, depthData);
+                                        depthContext.putImageData(temp, 0, 0);
+                                        
+                                        // Update difference mask
+                                        if (refImageCountdown != -1) {
+                                        refineReferenceImage(refData, temp.data);
+                                        setDifferenceMask(mask, refData, temp.data);
+                                        }
+                                        
+                                        // Take a snapshot from the Kinect RGB video and draw
+                                        // a thresholded version in a canvas
+                                        var rgbData = kinectVideoDecoder.decodeRGB(plugin.imageMap);
+                                        fillWithMaskedData(temp.data, rgbData, mask);
+                                        rgbContext.putImageData(temp, 0, 0);
+                                        
+                                        //imageFromMask(temp.data, mask);
+                                        refContext.putImageData(refImageData, 0, 0);
                                         });
             }
             
             
             /*
-             Take a snapshot from the Kinect RGB video and draw
-             it in a canvas
+             Ugly and using only red for now...
              */
-            function drawPlainRGBImage() {
-                var rgbImage = kinectVideoDecoder.decodeRGB(plugin.imageMap);
-                for (var i = 0; i < rgbImage.length; i++) {
-                    temp.data[i] = rgbImage[i];
-                }
-                rgbContext.putImageData(temp, 0, 0);
-            }
-            
-            /*
-             Take a snapshot from the Kinect RGB video and draw
-             a thresholded version in a canvas
-             */
-            function drawRGBImage() {
-                var rgbImage = kinectVideoDecoder.decodeRGB(plugin.imageMap);
+            function fillWithMaskedData(resultData, newData, mask) {
                 var index = 0;
                 for (var i = 0; i < mask.length; i++) {
+                    index = i * 4;
                     if (mask[i] == 1) {
-                        temp.data[index++] = rgbImage[index];
-                        temp.data[index++] = rgbImage[index];
-                        temp.data[index++] = rgbImage[index];
-                        temp.data[index++] = 255; // Alpha value is set to max
+                        resultData[index] = newData[index];
+                        resultData[index + 1] = newData[index + 1];
+                        resultData[index + 2] = newData[index + 2];
+                        resultData[index + 3] = 255; // Full opacity
                     } else {
-                        temp.data[index++] = 0;
-                        temp.data[index++] = 0;
-                        temp.data[index++] = 0;
-                        temp.data[index++] = 255; // Alpha value is set to max
+                        resultData[index] = 0;
+                        resultData[index + 1] = 0;
+                        resultData[index + 2] = 0;
+                        resultData[index + 3] = 255; // Full opacity
                     }
                 }
-                rgbContext.putImageData(temp, 0, 0);
+                // rgbContext.putImageData(temp, 0, 0);
             }
             
             
             /*
-             Take a snapshot from the Kinect depth video and draw
-             it in a canvas
+             Fill a data array with raw Kinect depth data
              */
-            function drawDepthImage() {
-                var depthImage = kinectVideoDecoder.decodeDepth(plugin.depthMap);
+            function depthToImageData(resultData, depthData) {
                 var index = 0;
                 var depthValue;
-                for (var i = 0; i < depthImage.length; i+=2) {
-                    depthValue = depthImage[i] | (depthImage[i + 1] << 8);
+                for (var i = 0; i < depthData.length; i += 2) {
+                    depthValue = depthData[i] | (depthData[i + 1] << 8);
                     depthValue = depthValue / 2047;
                     depthValue = depthValue * 255;
                     
-                    temp.data[index++] = depthValue;
-                    temp.data[index++] = 0;
-                    temp.data[index++] = 0;
-                    temp.data[index++] = 255;
+                    resultData[index++] = depthValue;
+                    resultData[index++] = 0;
+                    resultData[index++] = 0;
+                    resultData[index++] = 255;
                 }
-                
-                // If a reference image has been taken,
-                // subtract it from the new depth image
-                if (refImage) {
-                    produceMask();
-                }
-                depthContext.putImageData(temp, 0, 0);
             }
             
             
             /*
-             Produces a binary mask where each bit is set to 1
-             if the corresponding pixels in refImage and temp differ,
-             otherwise 0
+             Creates an array containing a 1 for each pixel in rgbCanvas
              */
-            function produceMask() {
-                var thresholdValue = 5;
+            function fillWithOnes(array) {
+                for (var i = 0; i < array.length; i++) {
+                    mask[i] = 1;
+                }
+            }
+            
+            
+            /*
+            function setDifferenceMask(mask, imageData1, imageData2) {
+                var thresholdValue = 64;
+                var difference;
+                var index = 0;
+                
                 // Do this another way....EWEFFWFFDFE
-                var pixelsInCanvas = (rgbCanvas.width * rgbCanvas.height) / 4;
-                var mask = new Array(pixelsInCanvas);
                 for (var i = 0; i < mask.length; i++) {
-                    if ( Math.abs(temp.data[i] - refImage.data[i]) > thresholdValue) {
+                    index = i * 4;
+                    if (imageData1[index] == 0) {
+                        difference = 0;
+                    } else {
+                        difference = Math.abs(imageData1[index] - imageData2[index]);
+                    //}
+                    if (difference > thresholdValue) {
                         mask[i] = 1;
                     } else {
                         mask[i] = 0;
                     }
                 }
-                
-                
+            }*/
+            
                 /*
-                 Take a snapshot of the depth video stream to be used
-                 for thresholding
+                 Produces a binary mask where each bit is set to 1
+                 if the corresponding pixel's red values in imageData1 and imageData2 differ,
+                 otherwise 0
                  */
-                function takeRefImage() {
-                    refImage = depthContext.getImageData(0, 0, depthCanvas.width, depthCanvas.height);
+            function setDifferenceMask(mask, refData, newData) {
+                var thresholdValue = 100;
+                var difference;
+                var index = 0;
+                
+                for (var i = 0; i < mask.length; i++) {
+                    index = i * 4;
+                    // Compare the red component
+                    difference = Math.abs(refData[index] - newData[index]);
+                    if (newData[index] == 0) difference = 0;
+                    if (difference > thresholdValue) {
+                        mask[i] = 1;
+                    } else {
+                        mask[i] = 0;
+                    }
                 }
-                
-                
+            }
+            
+            function imageFromMask(imageData, mask) {
+                var index = 0;
+                for (var i = 0; i < mask.length; i++) {
+                    if (mask[i] == 1) {
+                        imageData[index++] = 255;
+                        imageData[index++] = 255;
+                        imageData[index++] = 255;
+                        imageData[index++] = 255;
+                    } else {
+                        imageData[index++] = 0
+                        imageData[index++] = 0;
+                        imageData[index++] = 0;
+                        imageData[index++] = 255;;
+                    }
+                }
+            }
+            
+            
+            /*
+             Take a snapshot of the depth video stream to be used
+             for thresholding
+             */
+            function refineReferenceImage(refData, newData) {
+                // If it's the first step of the reference image process,
+                // copy the current depht image data
+                if (refImageCountdown == 10) {
+                    for (var i = 0; i < refData.length; i++) {
+                        refData[i] = newData[i];
+                    }
+                    refImageCountdown--;
+                    return;
+                }
+                // Then fill in the reference image ten times in a row
+                // to avoid unecessary black spots
+                if (refImageCountdown > 0) {
+                    
+                    var length = refData.length;
+                    for (var i = 0; i < length; i++) {
+                        if (refData[i] == 0) refData[i] = newData[i];
+                    }
+                    // Finally, decrease the counter
+                    refImageCountdown--;
+                    console.log("yo");
+                }
+            }
+            
+            
+            function startTakingRefImages() {
+                refImageCountdown = 100;
+            }
+            
+            
             </script>
     </head>
     <body onload="init();">
@@ -144,17 +240,21 @@
         
         <div style="position: relative;">
             <canvas id="rgbCanvas" width="160" height="120"
-                style="position: relative; left: 0; top: 0; z-index: 0;">
+                style="position: relative;;">
             </canvas>
             
             <canvas id="depthCanvas" width="160" height="120"
-                style="position: relative; left: 200; top: 130; z-index: 0;">
+                style="position: relative;;">
+            </canvas>
+            
+            <canvas id="referenceCanvas" width="160" height="120"
+                style="position: relative;">
             </canvas>
             
         </div>
         
         <div>
-            <input type="button" id="refButton" onclick="takeRefImage()" value="Take reference image" > </input>
+            <input type="button" id="refButton" onclick="startTakingRefImages()" value="Take reference image" > </input>
         </div>
         
     </body>

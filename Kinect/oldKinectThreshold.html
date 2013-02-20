@@ -13,16 +13,18 @@
         <script>
             
             // Just some variables, might be moved later...
+            var plugin;
             
-            var depthCanvas;// = document.getElementById("depthCanvas");
-            var depthContext;// = depthCanvas.getContext("2d");
-            
-            var rgbCanvas;// = document.getElementById("rgbCanvas");
-            var rgbContext;// = rgbCanvas.getContext("2d");
+            var depthCanvas;
+            var depthContext;
+            var depthData;
+            var rgbCanvas;
+            var rgbContext
+            var rgbData;
             
             var refImage;
-            var temp;// = rgbContext.createImageData(rgbCanvas.width, rgbCanvas.height);
-            
+            var refImageCountdown;
+            var temp;
             var mask;
             
             
@@ -30,34 +32,33 @@
              Requests video streams and starts periodically updating the canvases
              */
             function init() {
+                plugin = document.getElementById("ZigPlugin");
+                //zig.embed();
                 
                 depthCanvas = document.getElementById("depthCanvas");
                 depthContext = depthCanvas.getContext("2d");
-                
                 rgbCanvas = document.getElementById("rgbCanvas");
                 rgbContext = rgbCanvas.getContext("2d");
                 
                 temp = rgbContext.createImageData(rgbCanvas.width, rgbCanvas.height);
-
                 
-                //var firstEvent = false;
-                zig.embed();
+                clearMask();
                 
-                var plugin = document.getElementById("ZigPlugin");
                 plugin.requestStreams({updateDepth:true, updateImage:true});
                 plugin.addEventListener("NewFrame", function() { // triggered every new kinect frame
-                                        drawRGBImage();
                                         drawDepthImage();
+                                        drawRGBImage();
+                                        takeNewRefImage();
                                         });
             }
-            
             
             /*
              Take a snapshot from the Kinect RGB video and draw
              it in a canvas
              */
             function drawPlainRGBImage() {
-                var rgbImage = kinectVideoDecoder.decodeRGB(plugin.imageMap);
+                
+                rgbImage = kinectVideoDecoder.decodeRGB(plugin.imageMap);
                 for (var i = 0; i < rgbImage.length; i++) {
                     temp.data[i] = rgbImage[i];
                 }
@@ -68,20 +69,21 @@
              Take a snapshot from the Kinect RGB video and draw
              a thresholded version in a canvas
              */
-            function drawRGBImage() {
-                var rgbImage = kinectVideoDecoder.decodeRGB(plugin.imageMap);
+            function drawRGBImage(image) {
+                var rgbData = kinectVideoDecoder.decodeRGB(plugin.imageMap);
                 var index = 0;
                 for (var i = 0; i < mask.length; i++) {
+                    index = i * 4;
                     if (mask[i] == 1) {
-                        temp.data[index++] = rgbImage[index];
-                        temp.data[index++] = rgbImage[index];
-                        temp.data[index++] = rgbImage[index];
-                        temp.data[index++] = 255; // Alpha value is set to max
+                        temp.data[index] = rgbData[index];
+                        temp.data[index + 1] = rgbData[index + 1];
+                        temp.data[index + 2] = rgbData[index + 2];
+                        temp.data[index + 3] = 255; // Full opacity
                     } else {
-                        temp.data[index++] = 0;
-                        temp.data[index++] = 0;
-                        temp.data[index++] = 0;
-                        temp.data[index++] = 255; // Alpha value is set to max
+                        temp.data[index] = 255;
+                        temp.data[index + 1] = 255;
+                        temp.data[index + 2] = 255;
+                        temp.data[index + 3] = 255; // Full opacity
                     }
                 }
                 rgbContext.putImageData(temp, 0, 0);
@@ -93,11 +95,11 @@
              it in a canvas
              */
             function drawDepthImage() {
-                var depthImage = kinectVideoDecoder.decodeDepth(plugin.depthMap);
+                var depthData = kinectVideoDecoder.decodeDepth(plugin.depthMap);
                 var index = 0;
                 var depthValue;
-                for (var i = 0; i < depthImage.length; i+=2) {
-                    depthValue = depthImage[i] | (depthImage[i + 1] << 8);
+                for (var i = 0; i < depthData.length; i+=2) {
+                    depthValue = depthData[i] | (depthData[i + 1] << 8);
                     depthValue = depthValue / 2047;
                     depthValue = depthValue * 255;
                     
@@ -115,6 +117,16 @@
                 depthContext.putImageData(temp, 0, 0);
             }
             
+            /*
+             Creates an array containing a 1 for each pixel in rgbCanvas
+             */
+            function clearMask() {
+                var pixelsInCanvas = (rgbCanvas.width * rgbCanvas.height);
+                mask = new Array(pixelsInCanvas);
+                for (var i = 0; i < mask.length; i++) {
+                    mask[i] = 1;
+                }
+            }
             
             /*
              Produces a binary mask where each bit is set to 1
@@ -122,12 +134,18 @@
              otherwise 0
              */
             function produceMask() {
-                var thresholdValue = 5;
+                var thresholdValue = 96;
+                var difference;
+                var index = 0;
                 // Do this another way....EWEFFWFFDFE
-                var pixelsInCanvas = (rgbCanvas.width * rgbCanvas.height) / 4;
-                var mask = new Array(pixelsInCanvas);
                 for (var i = 0; i < mask.length; i++) {
-                    if ( Math.abs(temp.data[i] - refImage.data[i]) > thresholdValue) {
+                    index = i * 4;
+                    if (temp.data[index] == 0) {
+                        difference = 0;
+                    } else {
+                        difference = Math.abs(temp.data[index] - refImage.data[index]);
+                    }
+                    if ( difference > thresholdValue) {
                         mask[i] = 1;
                     } else {
                         mask[i] = 0;
@@ -135,16 +153,35 @@
                 }
             }
             
-                
-                /*
-                 Take a snapshot of the depth video stream to be used
-                 for thresholding
-                 */
-                function takeRefImage() {
+            
+            /*
+             Take a snapshot of the depth video stream to be used
+             for thresholding
+             */
+            function takeNewRefImage() {
+                // If it's the first step of the reference image process,
+                // copy the current depht image data
+                if (refImageCountdown == 10) {
                     refImage = depthContext.getImageData(0, 0, depthCanvas.width, depthCanvas.height);
                 }
-                
-                
+                // Then fill in the reference image ten times in a row
+                // to avoid unecessary black spots
+                if (refImageCountdown > 0) {
+                    
+                    var length = refImage.height * refImage.width;
+                    for (var i = 0; i < length; i++) {
+                        if (refImage[i] == 0) refImage[i] = temp.data[i];
+                    }
+                    // Finally, decrease the counter
+                    refImageCountdown--;
+                }
+            }
+            
+            function startTakingRefImages() {
+                refImageCountdown = 10;
+            }
+            
+            
             </script>
     </head>
     <body onload="init();">
@@ -167,7 +204,7 @@
         </div>
         
         <div>
-            <input type="button" id="refButton" onclick="takeRefImage()" value="Take reference image" > </input>
+            <input type="button" id="refButton" onclick="startTakingRefImages()" value="Take reference image" > </input>
         </div>
         
     </body>
