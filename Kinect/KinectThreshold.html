@@ -1,0 +1,161 @@
+<!--
+ thresholds the Kinect RGB video based on data from the depth video
+ -->
+
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Kinect camera access test</title>
+        
+        <script src="../lib/zig.js"></script>
+        <script src="../lib/kinectVideoDecoder.js"></script>
+        
+        <script>
+            
+            // Just some variables, might be moved later...
+            var rgbCanvas = document.getElementById("rgbCanvas");
+            var rgbContext = rgbCanvas.getContext("2d");
+            var depthCanvas = document.getElementById("depthCanvas");
+            var depthContext = depthCanvas.getContext("2d");
+            
+            var refImage;
+            var temp = rgbContext.createImageData(rgbCanvas.width, rgbCanvas.height);
+            
+            var mask;
+            
+            
+            /*
+             Requests video streams and starts periodically updating the canvases
+             */
+            function init() {
+                var firstEvent = false;
+                zig.embed();
+                
+                var plugin = document.getElementById("ZigPlugin");
+                plugin.requestStreams({updateDepth:true, updateImage:true});
+                plugin.addEventListener("NewFrame", function() { // triggered every new kinect frame
+                                        drawRGBImage();
+                                        drawDepthImage();
+                                        });
+            }
+            
+            
+            /*
+             Take a snapshot from the Kinect RGB video and draw
+             it in a canvas
+             */
+            function drawPlainRGBImage() {
+                var rgbImage = kinectVideoDecoder.decodeRGB(plugin.imageMap);
+                for (var i = 0; i < rgbImage.length; i++) {
+                    temp.data[i] = rgbImage[i];
+                }
+                rgbContext.putImageData(temp, 0, 0);
+            }
+            
+            /*
+             Take a snapshot from the Kinect RGB video and draw
+             a thresholded version in a canvas
+             */
+            function drawRGBImage() {
+                var rgbImage = kinectVideoDecoder.decodeRGB(plugin.imageMap);
+                var index = 0;
+                for (var i = 0; i < mask.length; i++) {
+                    if (mask[i] == 1) {
+                        temp.data[index++] = rgbImage[index];
+                        temp.data[index++] = rgbImage[index];
+                        temp.data[index++] = rgbImage[index];
+                        temp.data[index++] = 255; // Alpha value is set to max
+                    } else {
+                        temp.data[index++] = 0;
+                        temp.data[index++] = 0;
+                        temp.data[index++] = 0;
+                        temp.data[index++] = 255; // Alpha value is set to max
+                    }
+                }
+                rgbContext.putImageData(temp, 0, 0);
+            }
+            
+            
+            /*
+             Take a snapshot from the Kinect depth video and draw
+             it in a canvas
+             */
+            function drawDepthImage() {
+                var depthImage = kinectVideoDecoder.decodeDepth(plugin.depthMap);
+                var index = 0;
+                var depthValue;
+                for (var i = 0; i < depthImage.length; i+=2) {
+                    depthValue = depthImage[i] | (depthImage[i + 1] << 8);
+                    depthValue = depthValue / 2047;
+                    depthValue = depthValue * 255;
+                    
+                    temp.data[index++] = depthValue;
+                    temp.data[index++] = 0;
+                    temp.data[index++] = 0;
+                    temp.data[index++] = 255;
+                }
+                
+                // If a reference image has been taken,
+                // subtract it from the new depth image
+                if (refImage) {
+                    produceMask();
+                }
+                depthContext.putImageData(temp, 0, 0);
+            }
+            
+            
+            /*
+             Produces a binary mask where each bit is set to 1
+             if the corresponding pixels in refImage and temp differ,
+             otherwise 0
+             */
+            function produceMask() {
+                var thresholdValue = 5;
+                // Do this another way....EWEFFWFFDFE
+                var pixelsInCanvas = (rgbCanvas.width * rgbCanvas.height) / 4;
+                var mask = new Array(pixelsInCanvas);
+                for (var i = 0; i < mask.length; i++) {
+                    if ( Math.abs(temp.data[i] - refImage.data[i]) > thresholdValue) {
+                        mask[i] = 1;
+                    } else {
+                        mask[i] = 0;
+                    }
+                }
+                
+                
+                /*
+                 Take a snapshot of the depth video stream to be used
+                 for thresholding
+                 */
+                function takeRefImage() {
+                    refImage = depthContext.getImageData(0, 0, depthCanvas.width, depthCanvas.height);
+                }
+                
+                
+            </script>
+    </head>
+    <body onload="init();">
+        
+        <div id="pluginContainer">
+            <object id="ZigPlugin" type="application/x-zig" width="0" height="0">
+                <param name="onload" value="zigPluginLoaded">
+                    </object>
+        </div>
+        
+        <div style="position: relative;">
+            <canvas id="rgbCanvas" width="160" height="120"
+                style="position: relative; left: 0; top: 0; z-index: 0;">
+            </canvas>
+            
+            <canvas id="depthCanvas" width="160" height="120"
+                style="position: relative; left: 200; top: 130; z-index: 0;">
+            </canvas>
+            
+        </div>
+        
+        <div>
+            <input type="button" id="refButton" onclick="takeRefImage()" value="Take reference image" > </input>
+        </div>
+        
+    </body>
+</html>
