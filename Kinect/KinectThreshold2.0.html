@@ -115,7 +115,7 @@
                     depthValue = depthValue / 2047;
                     depthValue = depthValue * 255;
                     
-                    resultData,data[index++] = depthValue;
+                    resultData.data[index++] = depthValue;
                     resultData.data[index++] = 0;
                     resultData.data[index++] = 0;
                     resultData.data[index++] = 255;
@@ -187,7 +187,7 @@
             
             
             function startTakingRefImages() {
-                refImageCountdown = 100;
+                refImageCountdown = 10;
             }
             
             
