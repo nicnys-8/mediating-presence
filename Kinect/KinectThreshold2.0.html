@@ -18,15 +18,10 @@
             var plugin;
             
             var depthContext;
-            var depthData;
-            
             var rgbContext
-            
             var refContext;
             var refImageData;
             
-            var refImageCountdown = -1;
-            var temp;
             var mask;
             
             
@@ -44,7 +39,6 @@
                 var refCanvas = document.getElementById("referenceCanvas");
                 refContext = refCanvas.getContext("2d");
                 
-                temp = rgbContext.createImageData(rgbCanvas.width, rgbCanvas.height);
                 refImageData = rgbContext.createImageData(rgbCanvas.width, rgbCanvas.height);
                 
                 mask = new Array(rgbCanvas.width * rgbCanvas.height);
@@ -63,33 +57,28 @@
              Right canvas: Shows the reference image used for thresholding
              */
             function updateCanvases() {
-                // Take a snapshot from the Kinect depth video and draw
-                // it in a canvas
-                var depthData = kinectVideoDecoder.decodeDepth(plugin.depthMap);
-                depthToImageData(temp, depthData);
-                depthContext.putImageData(temp, 0, 0);
                 
-                // Update difference mask
-                if (referenceImageIsTaken()) {
-                    refineReferenceImage(refImageData, temp);
-                    setDifferenceMask(mask, refImageData, temp);
-                }
+                // Create a temporary imageData object to use for all the work below
+                temp = rgbContext.createImageData(rgbCanvas.width, rgbCanvas.height);
                 
                 // Take a snapshot from the Kinect RGB video and draw
-                // a thresholded version in a canvas
+                // a thresholded version in the leftmost canvas
                 var rgbData = kinectVideoDecoder.decodeRGB(plugin.imageMap);
                 fillWithMaskedData(temp, rgbData, mask);
                 rgbContext.putImageData(temp, 0, 0);
                 
-                /*
-                 // Process the image a bit to make it look nicer
-                 var rgbCanvas = document.getElementById("rgbCanvas");
-                 var tempCanvas = StampGL.shrink(rgbCanvas, null);
-                 rgbContext.drawImage(tempCanvas, 0, 0, tempCanvas.width, tempCanvas.height);
-                 */
+                // Take a snapshot from the Kinect depth video and draw
+                // it in the middle canvas
+                var depthData = kinectVideoDecoder.decodeDepth(plugin.depthMap);
+                depthToImageData(temp, depthData);
+                depthContext.putImageData(temp, 0, 0);
                 
-                //imageFromMask(temp.data, mask);
-                refContext.putImageData(refImageData, 0, 0);
+                // Update and display difference mask in the rightmost canvas
+                if (referenceImageIsTaken()) {
+                    refineReferenceImage(refImageData, temp);
+                    setDifferenceMask(mask, refImageData, temp);
+                    refContext.putImageData(refImageData, 0, 0);
+                }
             }
             
             
@@ -143,7 +132,7 @@
              */
             function fillWithOnes(array) {
                 for (var i = 0; i < array.length; i++) {
-                    mask[i] = 1;
+                    array[i] = 1;
                 }
             }
             
@@ -171,6 +160,12 @@
                 }
             }
             
+            
+/*------------------------------------------------------------
+---Reference image stuff, everything below is a bit stupid---
+------------------------------------------------------------*/
+            
+            var refImageCountdown = -1;
             
             /*
              Take a snapshot of the depth video stream to be used
