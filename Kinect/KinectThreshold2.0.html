@@ -19,11 +19,13 @@
             var plugin;
             
             var depthContext;
-            var rgbContext
+            var videoCanvas;
+            var rgbContext;
             var refContext;
             var refImageData;
             
             var mask;
+            var temp;
             
             
             /**
@@ -34,14 +36,16 @@
                 
                 var depthCanvas = document.getElementById("depthCanvas");
                 depthContext = depthCanvas.getContext("2d");
-                var rgbCanvas = document.getElementById("rgbCanvas");
-                rgbContext = rgbCanvas.getContext("2d");
+                videoCanvas = document.getElementById("rgbCanvas");
+                rgbContext = videoCanvas.getContext("2d");
                 var refCanvas = document.getElementById("referenceCanvas");
                 refContext = refCanvas.getContext("2d");
                 
                 refData = new Array(depthCanvas.width * depthCanvas.height); // Reference data stored for depth thresholding
-                mask = new Array(rgbCanvas.width * rgbCanvas.height); // Binary ask used for thresholding
-                fillWithOnes(mask);
+                mask = new Array(videoCanvas.width * videoCanvas.height); // Binary ask used for thresholding
+                ImageHandling.fillWithOnes(mask);
+                
+                temp = rgbContext.createImageData(videoCanvas.width, videoCanvas.height);
                 
                 plugin.requestStreams({updateDepth:true, updateImage:true}); // Start the video streams
                 plugin.addEventListener("NewFrame", updateCanvases); // Start updating the canvases every new kinect frame
@@ -52,15 +56,15 @@
              Periodically updates the canvases
              */
             function updateCanvases() {
-                
                 // Create a temporary imageData object to use for all the work below
-                temp = rgbContext.createImageData(rgbCanvas.width, rgbCanvas.height);
                 
                 /* Take a snapshot from the Kinect RGB video and draw
                 a thresholded version in the leftmost canvas */
-                temp.data = kinectVideoDecoder.decodeRGB(plugin.imageMap);
-                ImageHandling.applyMask(temp.data, mask);
+                var rgbData = kinectVideoDecoder.decodeRGB(plugin.imageMap, temp.data);
+
+                //temp.data = rgbData;
                 rgbContext.putImageData(temp, 0, 0);
+                
                 
                 /* Take a snapshot from the Kinect depth video and draw
                 it in the middle canvas */
@@ -95,7 +99,7 @@
                 // If it's the first step of the reference image process,
                 // copy the current depht image data
                 if (refImageCountdown == 10) {
-                    for (var i = 0; i < refData.data.length; i++) {
+                    for (var i = 0; i < refData.length; i++) {
                         refData[i] = newData[i];
                     }
                     refImageCountdown--;

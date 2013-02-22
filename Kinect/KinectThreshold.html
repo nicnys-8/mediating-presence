@@ -11,6 +11,7 @@
         <script src="../lib/kinectVideoDecoder.js"></script>
         <script src="../lib/webgl-utils.js"></script>
         <script src="../lib/blend-gl-stamp.js"></script>
+        <script src="../lib/imageHandling.js"></script>
         
         <script>
             
@@ -65,8 +66,10 @@
             function updateCanvases() {
                 // Take a snapshot from the Kinect depth video and draw
                 // it in a canvas
-                var depthData = kinectVideoDecoder.decodeDepth(plugin.depthMap);
-                depthToImageData(temp, depthData);
+                
+                var depthData = new Array((plugin.depthMap.length / 4));
+                kinectVideoDecoder.decodeDepth(plugin.depthMap, depthData);
+                ImageHandling.expandToRGBA(depthData, temp.data);
                 depthContext.putImageData(temp, 0, 0);
                 
                 // Update difference mask
@@ -75,11 +78,13 @@
                     setDifferenceMask(mask, refImageData, temp);
                 }
                 
+                var stemp = depthContext.createImageData(rgbCanvas.width, rgbCanvas.height);
                 // Take a snapshot from the Kinect RGB video and draw
                 // a thresholded version in a canvas
-                var rgbData = kinectVideoDecoder.decodeRGB(plugin.imageMap);
-                fillWithMaskedData(temp, rgbData, mask);
-                rgbContext.putImageData(temp, 0, 0);
+                var rgbData = new Array(plugin.imageMap.length);
+                kinectVideoDecoder.decodeRGB(plugin.imageMap, rgbData);
+                fillWithMaskedData(stemp, rgbData, mask);
+                rgbContext.putImageData(stemp, 0, 0);
                 
                 //imageFromMask(temp.data, mask);
                 refContext.putImageData(refImageData, 0, 0);
