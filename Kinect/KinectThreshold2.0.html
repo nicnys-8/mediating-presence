@@ -15,6 +15,8 @@
         
         <script>
             
+            const NROFREFS = 50;
+            
             // Just some variables, might be moved later...
             var plugin;
             
@@ -65,22 +67,22 @@
                 //temp.data = rgbData;
                 rgbContext.putImageData(temp, 0, 0);
                 
-                
                 /* Take a snapshot from the Kinect depth video and draw
                 it in the middle canvas */
-                var depthData = kinectVideoDecoder.decodeDepth(plugin.depthMap);
-                temp.data = ImageHandling.expandToRGBA(depthData);
+                var depthData = new Array(19200);
+                kinectVideoDecoder.decodeDepth(plugin.depthMap, depthData);
+                ImageHandling.expandToRGBA(depthData, temp.data);
                 depthContext.putImageData(temp, 0, 0);
-            
-                // Display the reference image
-                temp.data = ImageHandling.expandToRGBA(refData);
-                refContext.putImageData(temp, 0, 0);
                 
                 // Update the difference mask
                 if (referenceImageIsTaken()) {
                     refineReferenceImage(refData, depthData);
                     ImageHandling.computeDifferenceMask(mask, refData, temp.data);
                 }
+                
+                // Display the reference image
+                ImageHandling.expandToRGBA(refData, temp.data);
+                refContext.putImageData(temp, 0, 0);
             }
             
 /*------------------------------------------------------------
@@ -98,7 +100,7 @@
             function refineReferenceImage(refData, newData) {
                 // If it's the first step of the reference image process,
                 // copy the current depht image data
-                if (refImageCountdown == 10) {
+                if (refImageCountdown == NROFREFS) {
                     for (var i = 0; i < refData.length; i++) {
                         refData[i] = newData[i];
                     }
@@ -124,7 +126,7 @@
              Start taking reference images...
              */
             function startTakingRefImages() {
-                refImageCountdown = 10;
+                refImageCountdown = NROFREFS;
             }
             
             

@@ -2,6 +2,7 @@
  thresholds the Kinect RGB video based on data from the depth video
  -->
 
+
 <!DOCTYPE html>
 <html>
     <head>
@@ -28,6 +29,7 @@
             
             var refImageCountdown = -1;
             var temp;
+            var tump;
             var mask;
             
             
@@ -45,7 +47,8 @@
                 var refCanvas = document.getElementById("referenceCanvas");
                 refContext = refCanvas.getContext("2d");
                 
-                temp = rgbContext.createImageData(rgbCanvas.width, rgbCanvas.height);
+                temp = depthContext.createImageData(rgbCanvas.width, rgbCanvas.height);
+                tump = rgbContext.createImageData(rgbCanvas.width, rgbCanvas.height);
                 refImageData = rgbContext.createImageData(rgbCanvas.width, rgbCanvas.height);
                 
                 mask = new Array(rgbCanvas.width * rgbCanvas.height);
@@ -67,27 +70,31 @@
                 // Take a snapshot from the Kinect depth video and draw
                 // it in a canvas
                 
-                var depthData = new Array((plugin.depthMap.length / 4));
+                var depthData = new Array(19200);
                 kinectVideoDecoder.decodeDepth(plugin.depthMap, depthData);
+                
                 ImageHandling.expandToRGBA(depthData, temp.data);
+                
+                //console.log(temp.data.length);
+                
                 depthContext.putImageData(temp, 0, 0);
                 
                 // Update difference mask
                 if (referenceImageIsTaken()) {
-                    refineReferenceImage(refImageData, temp);
-                    setDifferenceMask(mask, refImageData, temp);
+                   // refineReferenceImage(refImageData, temp);
+                   // setDifferenceMask(mask, refImageData, temp);
                 }
                 
-                var stemp = depthContext.createImageData(rgbCanvas.width, rgbCanvas.height);
                 // Take a snapshot from the Kinect RGB video and draw
                 // a thresholded version in a canvas
+                
                 var rgbData = new Array(plugin.imageMap.length);
-                kinectVideoDecoder.decodeRGB(plugin.imageMap, rgbData);
-                fillWithMaskedData(stemp, rgbData, mask);
-                rgbContext.putImageData(stemp, 0, 0);
+                kinectVideoDecoder.decodeRGB(plugin.imageMap, temp.data);
+                //fillWithMaskedData(temp, rgbData, mask);
+                rgbContext.putImageData(tump, 0, 0);
                 
                 //imageFromMask(temp.data, mask);
-                refContext.putImageData(refImageData, 0, 0);
+                //refContext.putImageData(refImageData, 0, 0);
             }
             
             
