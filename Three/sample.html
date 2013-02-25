@@ -61,15 +61,12 @@
         // add the sphere to the scene
         scene.add(sphere0);
         sphere0.add(sphere1);
-        sphere1.translateX(100);
+        sphere1.translateX(300);
         
         sphere1.add(sphere2);
-        sphere2.translateX(50);
+        sphere2.translateX(100);
         
-        sphere0.translateZ(-300);
-        
-        
-
+        sphere0.translateZ(-500);
         
         // and the camera
         scene.add(camera);
@@ -94,8 +91,7 @@
         function tick() {
             window.requestAnimFrame(tick);
             renderer.render(scene, camera);
-            sphere0.rotation.y += 0.01
-            sphere1.rotation.y += 0.05
+
         }
         
         

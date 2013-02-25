@@ -67,11 +67,11 @@
                 
                 /* Take a snapshot from the Kinect RGB video and draw
                 a thresholded version in the leftmost canvas */
-                var rgbData = kinectVideoDecoder.decodeRGB(plugin.imageMap, temp.data);
+                kinectVideoDecoder.decodeRGB(plugin.imageMap, temp.data);
 
                 //temp.data = rgbData;
                 
-                ImageHandling.applyMask(mask, temp.data);
+                ImageHandling.applyMaskOnRGB(mask, temp.data);
                 rgbContext.putImageData(temp, 0, 0);
                 
                 /* Take a snapshot from the Kinect depth video and draw
