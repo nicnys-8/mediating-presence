@@ -19,7 +19,8 @@
     
     <script src="../lib/jquery.js"></script>
     <script src="../lib/three.js"></script>
-	<script type="text/javascript">
+    <script src="../lib/webgl-utils.js"></script>    
+    <script type="text/javascript">
         
         // Scene size
         var WIDTH = 400,
@@ -41,39 +42,34 @@
         // attach the render-supplied DOM element
         $container.append(renderer.domElement);
         
-        var camera = new THREE.PerspectiveCamera(  VIEW_ANGLE,
-                                                 ASPECT,
-                                                 NEAR,
-                                                 FAR  );
+        var camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
         // the camera starts at 0,0,0 so pull it back a bit
         camera.position.z = 300;
         
         var scene = new THREE.Scene();
-        
-        // create the sphere's material
-        var sphereMaterial = new THREE.MeshLambertMaterial(
-                                                           {
-                                                           color: 0xCC0000
-                                                           });
         
         // set up the sphere vars
         var radius = 50, segments = 16, rings = 16;
         
         // create a new mesh with sphere geometry -
         // we will cover the sphereMaterial next!
-        var sphere = new THREE.Mesh(
-                                    new THREE.SphereGeometry(radius, segments, rings),
-                                    sphereMaterial);
-        
-        var sphere2 = new THREE.Mesh(
-                                    new THREE.SphereGeometry(radius, segments, rings),
-                                    sphereMaterial);
+        var sphere0 = new THREE.Mesh( new THREE.SphereGeometry(radius, segments, rings), new THREE.MeshLambertMaterial({ color: "red" }));
+        var sphere1 = new THREE.Mesh( new THREE.SphereGeometry(radius, segments, rings), new THREE.MeshLambertMaterial({ color: "green" }));
+        var sphere2 = new THREE.Mesh( new THREE.SphereGeometry(radius, segments, rings), new THREE.MeshLambertMaterial({ color: "blue" }));
+
         
         // add the sphere to the scene
-        scene.add(sphere);
-        sphere.add(sphere2);
-        sphere2.translateX(150);
-        sphere.translateY(150);
+        scene.add(sphere0);
+        sphere0.add(sphere1);
+        sphere1.translateX(100);
+        
+        sphere1.add(sphere2);
+        sphere2.translateX(50);
+        
+        sphere0.translateZ(-300);
+        
+        
+
         
         // and the camera
         scene.add(camera);
@@ -90,6 +86,19 @@
         scene.add(pointLight);
         
         // draw!
-        renderer.render(scene, camera);
+        //renderer.render(scene, camera);
+        tick();
+        
+        var rotation_matrix = new THREE.Matrix4().makeRotationX(.01); // Animated rotation will be in .01 radians along object's X axis
+        
+        function tick() {
+            window.requestAnimFrame(tick);
+            renderer.render(scene, camera);
+            sphere0.rotation.y += 0.01
+            sphere1.rotation.y += 0.05
+        }
+        
+        
+        
         </script>
 </html>
