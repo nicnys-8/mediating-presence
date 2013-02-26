@@ -20,30 +20,33 @@
         <div id="message"></div>
         
         <script src="../js/THREEx.Three.js"></script>
-        <script src="../js/THREEx.KeyboardState.js"></script>
+        <!--script src="../js/THREEx.KeyboardState.js"></script-->
         <script src="../js/THREEx.FullScreen.js"></script>
         <script src="../js/THREEx.WindowResize.js"></script>
         <script src="../js/THREEx.Projector.js"></script>
         
         <script>
-            /* 	Three.js  */
             
-            // MAIN
+            // Camera constants
+            const VIEW_ANGLE = 45;
             
-            //if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+            const SCREEN_WIDTH = window.innerWidth;
+            const SCREEN_HEIGHT = window.innerHeight;
             
+            const ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT;
+            const NEAR = 0.1;
+            const FAR = 20000;
+            
+            // Other constants
             const CUBE_SIDE = 50;
             
-            var floor;
+            var picked = false;
             
+            var floor;
             var container, scene, camera, renderer, controls;
-            var keyboard;
-            var clock;
             
             var mouseXOnMouseDown = 0;
             var MovingCube;
-            var SCREEN_WIDTH;
-            var SCREEN_HEIGHT;
             
             init();
             tick();
@@ -53,38 +56,34 @@
                 scene = new THREE.Scene();
                 
                 // Keyboard
-                keyboard = new THREEx.KeyboardState();
+                //keyboard = new THREEx.KeyboardState();
                 
                 // Clock
-                clock = new THREE.Clock();
+                //clock = new THREE.Clock();
                 
                 // create a point light
                 var pointLight = new THREE.PointLight( 0xFFFFFF );
                 
                 // set its position
-                pointLight.position.x = 10;
+                pointLight.position.x = 200;
                 pointLight.position.y = 50;
                 pointLight.position.z = 130;
                 
                 // add to the scene
                 scene.add(pointLight);
                 
-                // CAMERA
-                SCREEN_WIDTH = window.innerWidth;
-                SCREEN_HEIGHT = window.innerHeight;
-                
-                var VIEW_ANGLE = 45, ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT, NEAR = 0.1, FAR = 20000;
-                camera = new THREE.PerspectiveCamera( VIEW_ANGLE, ASPECT, NEAR, FAR);
+                // Camera
+                camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
                 scene.add(camera);
                 camera.position.set(0,150,400);
                 camera.lookAt(scene.position);
                 
                 // Renderer
-                renderer = new THREE.WebGLRenderer( {antialias:true} );
+                renderer = new THREE.WebGLRenderer({antialias: true});
                 renderer.setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
-                container = document.createElement( 'div' );
-                document.body.appendChild( container );
-                container.appendChild( renderer.domElement );
+                container = document.createElement('div');
+                document.body.appendChild(container);
+                container.appendChild(renderer.domElement);
                 
                 // Events -- Find out exactly what these do later!
                 THREEx.WindowResize(renderer, camera);
@@ -99,29 +98,25 @@
                 scene.add(light);
                 
                 // Floor
-                var floorTexture = new THREE.ImageUtils.loadTexture( '../images/starSky.png' );
-                floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping;
-                floorTexture.repeat.set( 10, 10 );
-                var floorMaterial = new THREE.MeshBasicMaterial( { map: floorTexture } );
+                
+                /*
+                 var floorTexture = new THREE.ImageUtils.loadTexture( '../images/starSky.png' );
+                 floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping;
+                 floorTexture.repeat.set( 10, 10 );
+                 */
+                
+                
+                var floorMaterial = new THREE.MeshLambertMaterial();
                 var floorGeometry = new THREE.PlaneGeometry(1000, 1000, 10, 10);
                 floor = new THREE.Mesh(floorGeometry, floorMaterial);
-                floor.position.y = -0.5; //
+                floor.position.y = -0.5; // Move a tiny bit to prevent flicker
                 floor.doubleSided = true;
                 scene.add(floor);
                 
                 // Cube
 				var geometry = new THREE.CubeGeometry(CUBE_SIDE, CUBE_SIDE, CUBE_SIDE);
-                
-                // Cube colors
-                geometry.faces[0].color.setHex(0xff0000);
-                geometry.faces[1].color.setHex(0x00ff00);
-                geometry.faces[2].color.setHex(0x00ff00);
-                geometry.faces[3].color.setHex(0x00ff00);
-                geometry.faces[4].color.setHex(0x0000ff);
-                geometry.faces[5].color.setHex(0xffff00);
-                
-				var material = new THREE.MeshLambertMaterial({vertexColors: THREE.FaceColors});
-                
+				var material = new THREE.MeshLambertMaterial();
+                material.color.setHex(0xff0000);
                 movingCube =  new THREE.Mesh(geometry, material);
                 movingCube.position.set(0, 25.1, 0);
                 scene.add( movingCube );
@@ -133,7 +128,6 @@
             
 			function onDocumentMouseDown(event) {
 				event.preventDefault();
-				
                 
                 var mouse3D = new THREE.Vector3();
                 mouse3D.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -145,92 +139,94 @@
                 pr.unprojectVector(mouse3D, camera);
                 
                 var ray = new THREE.Ray(camera.position, mouse3D.subSelf(camera.position).normalize());
-
-                var intersects = ray.intersectObject(floor);
                 
-                //mouseXOnMouseDown = event.clientX - SCREEN_WIDTH / 2;
-                /*movingCube.position.set(mouseXOnMouseDown,
-                                        movingCube.position.y,
-                                        movingCube.position.z);
-                 */
-                console.log(intersects[0].point.x);
+                var intersectFloor = ray.intersectObject(floor);
                 
-                //movingCube.position.set(intersects[0].point);
-
-                movingCube.position.set(intersects[0].point.x,
-                                        intersects[0].point.y + CUBE_SIDE / 2,
-                                        intersects[0].point.z);
+                if (intersectFloor[0]) {
+                    var intersectionPoint = intersectFloor[0].point;
+                    if (picked) {
+                        movingCube.position.set(intersectionPoint.x,
+                                                intersectionPoint.y + CUBE_SIDE / 2,
+                                                intersectionPoint.z);
+                        movingCube.material.color.setHex(0xff0000);
+                        picked = false;
+                    }
+                }
                 
-                // console.log("Intersects at: " + intersects.position.x);
-                // console.log(movingCube.position);
+                var intersectsCube = ray.intersectObject(movingCube);
+                if (intersectsCube[0]) {
+                    if (!picked) picked = true;
+                    movingCube.material.color.setHex(0x00ff00);
+                }
 			}
             
             
+            /**
+             The main update loop
+             */
             function tick() {
                 requestAnimationFrame(tick);
-                
-                
                 render();
-                update();
+                //update();
             }
             
-            
-            function update() {
-                var delta = clock.getDelta(); // seconds.
-                var moveDistance = 200 * delta; // 200 pixels per second
-                var rotateAngle = Math.PI / 2 * delta;   // pi/2 radians (90 degrees) per second
-                
-                // local coordinates
-                
-                // move forwards / backwards
-                if ( keyboard.pressed("W") )
-                movingCube.translateZ( -moveDistance );
-                if ( keyboard.pressed("S") )
-                movingCube.translateZ(  moveDistance );
-                // rotate left/right
-                if ( keyboard.pressed("A") )
-                {
-                    var rotation_matrix = new THREE.Matrix4().makeRotationY(rotateAngle);
-                    movingCube.matrix.multiplySelf(rotation_matrix);
-                    movingCube.rotation.getRotationFromMatrix(movingCube.matrix);
-                }
-                if ( keyboard.pressed("D") )
-                {
-                    var rotation_matrix = new THREE.Matrix4().makeRotationY(-rotateAngle);
-                    movingCube.matrix.multiplySelf(rotation_matrix);
-                    movingCube.rotation.getRotationFromMatrix(movingCube.matrix);
-                }
-                if ( keyboard.pressed("Q") )
-                movingCube.translateX( -moveDistance );
-                if ( keyboard.pressed("E") )
-                movingCube.translateX(  moveDistance );
-                // rotate up/down
-                if ( keyboard.pressed("R") )
-                {
-                    var rotation_matrix = new THREE.Matrix4().makeRotationX(rotateAngle);
-                    movingCube.matrix.multiplySelf(rotation_matrix);
-                    movingCube.rotation.getRotationFromMatrix(movingCube.matrix);
-                }
-                if ( keyboard.pressed("F") )
-                {
-                    var rotation_matrix = new THREE.Matrix4().makeRotationX(-rotateAngle);
-                    movingCube.matrix.multiplySelf(rotation_matrix);
-                    movingCube.rotation.getRotationFromMatrix(movingCube.matrix);
-                }
-                
-                
-                // global coordinates
-                if ( keyboard.pressed("left") )
-                movingCube.position.x -= moveDistance;
-                if ( keyboard.pressed("right") )
-                movingCube.position.x += moveDistance;
-                if ( keyboard.pressed("up") )
-                movingCube.position.z -= moveDistance;
-                if ( keyboard.pressed("down") )
-                movingCube.position.z += moveDistance;
-                
-                controls.update();
-            }
+            /*
+             function update() {
+             var delta = clock.getDelta(); // seconds.
+             var moveDistance = 200 * delta; // 200 pixels per second
+             var rotateAngle = Math.PI / 2 * delta;   // pi/2 radians (90 degrees) per second
+             
+             // local coordinates
+             
+             // move forwards / backwards
+             if ( keyboard.pressed("W") )
+             movingCube.translateZ( -moveDistance );
+             if ( keyboard.pressed("S") )
+             movingCube.translateZ(  moveDistance );
+             // rotate left/right
+             if ( keyboard.pressed("A") )
+             {
+             var rotation_matrix = new THREE.Matrix4().makeRotationY(rotateAngle);
+             movingCube.matrix.multiplySelf(rotation_matrix);
+             movingCube.rotation.getRotationFromMatrix(movingCube.matrix);
+             }
+             if ( keyboard.pressed("D") )
+             {
+             var rotation_matrix = new THREE.Matrix4().makeRotationY(-rotateAngle);
+             movingCube.matrix.multiplySelf(rotation_matrix);
+             movingCube.rotation.getRotationFromMatrix(movingCube.matrix);
+             }
+             if ( keyboard.pressed("Q") )
+             movingCube.translateX( -moveDistance );
+             if ( keyboard.pressed("E") )
+             movingCube.translateX(  moveDistance );
+             // rotate up/down
+             if ( keyboard.pressed("R") )
+             {
+             var rotation_matrix = new THREE.Matrix4().makeRotationX(rotateAngle);
+             movingCube.matrix.multiplySelf(rotation_matrix);
+             movingCube.rotation.getRotationFromMatrix(movingCube.matrix);
+             }
+             if ( keyboard.pressed("F") )
+             {
+             var rotation_matrix = new THREE.Matrix4().makeRotationX(-rotateAngle);
+             movingCube.matrix.multiplySelf(rotation_matrix);
+             movingCube.rotation.getRotationFromMatrix(movingCube.matrix);
+             }
+             
+             
+             // global coordinates
+             if ( keyboard.pressed("left") )
+             movingCube.position.x -= moveDistance;
+             if ( keyboard.pressed("right") )
+             movingCube.position.x += moveDistance;
+             if ( keyboard.pressed("up") )
+             movingCube.position.z -= moveDistance;
+             if ( keyboard.pressed("down") )
+             movingCube.position.z += moveDistance;
+             
+             controls.update();
+             }*/
             
             function render()
             {
