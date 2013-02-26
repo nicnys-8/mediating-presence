@@ -1,26 +1,16 @@
 <!doctype html>
 <html lang="en">
     <head>
-        <title>Three.js -- Template</title>
+        <title>Moving Cube</title>
         <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-                <style>
-                    body
-                    {
-                        font-family: Monospace;
-                        font-weight: bold;
-                        background-color: #ccccff;
-                        margin: 0px;
-                        overflow: hidden;
-                    }
-                    </style>
+                
                 </head>
-    <body>
+    <body style="overflow:hidden; margin:0px">
         
         <div id="message"></div>
         
         <script src="../js/THREEx.Three.js"></script>
-        <!--script src="../js/THREEx.KeyboardState.js"></script-->
         <script src="../js/THREEx.FullScreen.js"></script>
         <script src="../js/THREEx.WindowResize.js"></script>
         <script src="../js/THREEx.Projector.js"></script>
@@ -55,23 +45,6 @@
                 // Scene
                 scene = new THREE.Scene();
                 
-                // Keyboard
-                //keyboard = new THREEx.KeyboardState();
-                
-                // Clock
-                //clock = new THREE.Clock();
-                
-                // create a point light
-                var pointLight = new THREE.PointLight( 0xFFFFFF );
-                
-                // set its position
-                pointLight.position.x = 200;
-                pointLight.position.y = 50;
-                pointLight.position.z = 130;
-                
-                // add to the scene
-                scene.add(pointLight);
-                
                 // Camera
                 camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
                 scene.add(camera);
@@ -85,12 +58,8 @@
                 document.body.appendChild(container);
                 container.appendChild(renderer.domElement);
                 
-                // Events -- Find out exactly what these do later!
+                // Events -- Find out exactly what this does later!
                 THREEx.WindowResize(renderer, camera);
-                THREEx.FullScreen.bindKey({ charCode : 'm'.charCodeAt(0) });
-                
-                // Controls
-                controls = new THREE.TrackballControls( camera );
                 
                 // Light
                 var light = new THREE.PointLight(0xffffff);
@@ -98,18 +67,10 @@
                 scene.add(light);
                 
                 // Floor
-                
-                /*
-                 var floorTexture = new THREE.ImageUtils.loadTexture( '../images/starSky.png' );
-                 floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping;
-                 floorTexture.repeat.set( 10, 10 );
-                 */
-                
-                
                 var floorMaterial = new THREE.MeshLambertMaterial();
                 var floorGeometry = new THREE.PlaneGeometry(1000, 1000, 10, 10);
                 floor = new THREE.Mesh(floorGeometry, floorMaterial);
-                floor.position.y = -0.5; // Move a tiny bit to prevent flicker
+                floor.position.y = -0.5; // Move a tiny bit to prevent flickering
                 floor.doubleSided = true;
                 scene.add(floor);
                 
@@ -122,11 +83,13 @@
                 scene.add( movingCube );
                 
                 // Mouse events
-				document.addEventListener('mousedown', onDocumentMouseDown, false);
+				document.addEventListener('mousedown', mouseClicked, false);
             }
             
-            
-			function onDocumentMouseDown(event) {
+            /**
+             This is called whenever the mouse is clicked
+             */
+			function mouseClicked(event) {
 				event.preventDefault();
                 
                 var mouse3D = new THREE.Vector3();
@@ -162,75 +125,12 @@
             
             
             /**
-             The main update loop
+             Update loop
              */
             function tick() {
                 requestAnimationFrame(tick);
-                render();
+                renderer.render(scene, camera)
                 //update();
-            }
-            
-            /*
-             function update() {
-             var delta = clock.getDelta(); // seconds.
-             var moveDistance = 200 * delta; // 200 pixels per second
-             var rotateAngle = Math.PI / 2 * delta;   // pi/2 radians (90 degrees) per second
-             
-             // local coordinates
-             
-             // move forwards / backwards
-             if ( keyboard.pressed("W") )
-             movingCube.translateZ( -moveDistance );
-             if ( keyboard.pressed("S") )
-             movingCube.translateZ(  moveDistance );
-             // rotate left/right
-             if ( keyboard.pressed("A") )
-             {
-             var rotation_matrix = new THREE.Matrix4().makeRotationY(rotateAngle);
-             movingCube.matrix.multiplySelf(rotation_matrix);
-             movingCube.rotation.getRotationFromMatrix(movingCube.matrix);
-             }
-             if ( keyboard.pressed("D") )
-             {
-             var rotation_matrix = new THREE.Matrix4().makeRotationY(-rotateAngle);
-             movingCube.matrix.multiplySelf(rotation_matrix);
-             movingCube.rotation.getRotationFromMatrix(movingCube.matrix);
-             }
-             if ( keyboard.pressed("Q") )
-             movingCube.translateX( -moveDistance );
-             if ( keyboard.pressed("E") )
-             movingCube.translateX(  moveDistance );
-             // rotate up/down
-             if ( keyboard.pressed("R") )
-             {
-             var rotation_matrix = new THREE.Matrix4().makeRotationX(rotateAngle);
-             movingCube.matrix.multiplySelf(rotation_matrix);
-             movingCube.rotation.getRotationFromMatrix(movingCube.matrix);
-             }
-             if ( keyboard.pressed("F") )
-             {
-             var rotation_matrix = new THREE.Matrix4().makeRotationX(-rotateAngle);
-             movingCube.matrix.multiplySelf(rotation_matrix);
-             movingCube.rotation.getRotationFromMatrix(movingCube.matrix);
-             }
-             
-             
-             // global coordinates
-             if ( keyboard.pressed("left") )
-             movingCube.position.x -= moveDistance;
-             if ( keyboard.pressed("right") )
-             movingCube.position.x += moveDistance;
-             if ( keyboard.pressed("up") )
-             movingCube.position.z -= moveDistance;
-             if ( keyboard.pressed("down") )
-             movingCube.position.z += moveDistance;
-             
-             controls.update();
-             }*/
-            
-            function render()
-            {
-                renderer.render(scene, camera);
             }
             
             </script>
