@@ -12,13 +12,13 @@
 		<script>
             
             // Camera variables
-            const VIEW_ANGLE = 70;
+            const VIEW_ANGLE = 90;
             const ASPECT = window.innerWidth / window.innerHeight;
             const NEAR = 1;
             const FAR = 1000;
             
             // Cube
-            const CUBESIDE = 200;
+            const CUBE_SIDE = 200;
             
 			var container;
             
@@ -49,7 +49,7 @@
 				scene = new THREE.Scene();
                 
 				// Cube
-				var geometry = new THREE.CubeGeometry(CUBESIDE, CUBESIDE, CUBESIDE);
+				var geometry = new THREE.CubeGeometry(CUBE_SIDE, CUBE_SIDE, CUBE_SIDE);
                 
                 // Cube colors
                 geometry.faces[0].color.setHex(0xff0000);
@@ -134,7 +134,7 @@
                 
                 cube.translateX((mouseX - mouseXOnMouseDown) * 0.01);
                 cube.translateY(-(mouseY - mouseYOnMouseDown) * 0.01);
-                // cube.rotation.y += 0.01;
+                //cube.rotation.y += 0.01;
                 renderer.render(scene, camera);
 			}
             
