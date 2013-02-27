@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
     <head>
-        <title>Moving Cube</title>
+        <title>Cube Game</title>
         <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
                 
@@ -10,11 +10,12 @@
         
         <div id="message"></div>
         
-        <script src="../js/lib/THREEx.Three.js"></script>
+        <script src="../js/lib/Three.js"></script>
         <script src="../js/lib/THREEx.FullScreen.js"></script>
         <script src="../js/lib/THREEx.WindowResize.js"></script>
         <script src="../js/lib/THREEx.Projector.js"></script>
         <script src="../js/lib/THREEx.Projector.js"></script>
+        <script src="../js/moving-cube.js"></script>
         
         <script>
             
@@ -28,16 +29,13 @@
             const NEAR = 0.1;
             const FAR = 20000;
             
-            // Other constants
-            const CUBE_SIDE = 50;
-            
-            var picked = false;
-            
             var floor;
             var container, scene, camera, renderer, controls;
             
             var mouseXOnMouseDown = 0;
             var MovingCube;
+            
+            var intersectionPoint;
             
             init();
             tick();
@@ -76,16 +74,16 @@
                 scene.add(floor);
                 
                 // Cube
-				var geometry = new THREE.CubeGeometry(CUBE_SIDE, CUBE_SIDE, CUBE_SIDE);
-				var material = new THREE.MeshLambertMaterial();
-                material.color.setHex(0xff0000);
-                movingCube =  new THREE.Mesh(geometry, material);
-                movingCube.position.set(0, 25.1, 0);
-                scene.add( movingCube );
+                movingCube =  new MovingCube();
+                movingCube.position.set(0, 25, 0);
+                scene.add(movingCube);
+                intersectionPoint = movingCube.position;
                 
                 // Mouse events
 				document.addEventListener('mousedown', mouseClicked, false);
             }
+            
+            
             
             /**
              This is called whenever the mouse is clicked
@@ -98,31 +96,24 @@
                 mouse3D.y = -(event.clientY / window.innerHeight) * 2 + 1;
                 mouse3D.z = 0.5;
                 
-                var pr = new THREE.Projector();
-                
-                pr.unprojectVector(mouse3D, camera);
+                var projector = new THREE.Projector();
+                projector.unprojectVector(mouse3D, camera);
                 
                 var ray = new THREE.Ray(camera.position, mouse3D.subSelf(camera.position).normalize());
                 
-                var intersectFloor = ray.intersectObject(floor);
-                
-                if (intersectFloor[0]) {
-                    var intersectionPoint = intersectFloor[0].point;
-                    if (picked) {
-                        movingCube.position.set(intersectionPoint.x,
-                                                intersectionPoint.y + CUBE_SIDE / 2,
-                                                intersectionPoint.z);
-                        movingCube.material.color.setHex(0xff0000);
-                        picked = false;
+                if (movingCube.isSelected()) {
+                    var intersectFloor = ray.intersectObject(floor);
+                    if (intersectFloor[0]) {
+                        intersectionPoint = intersectFloor[0].point;
+                        movingCube.setSelected(false);
+                    }
+                } else if (!movingCube.isSelected()) {
+                    var intersectsCube = ray.intersectObject(movingCube);
+                    if (intersectsCube[0]) { // Check if a cube was hit
+                        movingCube.setSelected(true);
                     }
                 }
-                
-                var intersectsCube = ray.intersectObject(movingCube);
-                if (intersectsCube[0]) {
-                    if (!picked) picked = true;
-                    movingCube.material.color.setHex(0x00ff00);
-                }
-			}
+            }
             
             
             /**
@@ -130,7 +121,9 @@
              */
             function tick() {
                 requestAnimationFrame(tick);
+                movingCube.moveTowardPoint(intersectionPoint, 1, 1);
                 renderer.render(scene, camera)
+                
                 //update();
             }
             

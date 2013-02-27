@@ -33,3 +33,27 @@ MovingCube.prototype.setSelected = function(bool) {
 MovingCube.prototype.isSelected = function() {
     return this.selected;
 }
+
+
+/**
+ Move (at most) the specified distance toward the specified point
+ */
+MovingCube.prototype.moveTowardPoint = function(point, dx, dz) {
+    // X movement
+    if (Math.abs(this.position.x - point.x) < dx)  {
+        // MOVE TO THE CORRECT POSITION
+    } else if (this.position.x < point.x) {
+        this.translateX(dx);
+    } else if (this.position.x > point.x) {
+        this.translateX(-dx);
+    }
+    
+    // Z movement
+    if (Math.abs(this.position.z - point.z) < dz)  {
+        // MOVE TO THE CORRECT POSITION
+    } else if (this.position.z < point.z) {
+        this.translateZ(dz);
+    } else if (this.position.z > point.z) {
+        this.translateZ(-dz);
+    }
+}
