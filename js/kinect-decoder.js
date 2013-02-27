@@ -70,9 +70,11 @@ var kinectVideoDecoder = function() {
             if (max2 < temp[2 * i + 1]) max2 = temp[2 * i + 1];
             if (maxTot < output[i]) maxTot = output[i];
         }
+        /*
         console.log("Max 1: " + max1);
         console.log("Max 2: " + max2);
         console.log("MaxTot: " + maxTot);
+         */
     };
     
     return {decodeRGB: decodeRGB, decodeDepth: decodeDepth};
