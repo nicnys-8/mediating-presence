@@ -43,14 +43,14 @@
                 display:block;
                 padding:30% 0% 0% 0%;
             }
-		</style>
+            </style>
 		
-        <script type="text/javascript" src="lib/mediaext.js"></script>
-        <script type="text/javascript" src="lib/geometry.js"></script>
+        <script type="text/javascript" src="js/mediaext.js"></script>
+        <script type="text/javascript" src="js/geometry.js"></script>
         <script type="text/javascript" src="lib/sylvester.js"></script>
         <script type="text/javascript" src="lib/zig.js"></script>
-        <script type="text/javascript" src="lib/kinectVideoDecoder.js"></script>
-        <script type="text/javascript" src="lib/imageHandling.js"></script>
+        <script type="text/javascript" src="js/kinect-decoder.js"></script>
+        <script type="text/javascript" src="js/image-handling.js"></script>
 		
         <script>
             
@@ -139,15 +139,15 @@
                 kinectVideoDecoder.decodeDepth(plugin.depthMap, depthData);
 				
 				/*
-                // Update the difference mask
-                if (referenceImageIsTaken()) {
-                    refineReferenceImage(refData, depthData);
-                    ImageHandling.computeDifferenceMask(refData, depthData, mask);
-                }
-                
-                // Display the reference image
-                ImageHandling.depthToRGBA(refData, temp.data);
-                refContext.putImageData(temp, 0, 0);
+                 // Update the difference mask
+                 if (referenceImageIsTaken()) {
+                 refineReferenceImage(refData, depthData);
+                 ImageHandling.computeDifferenceMask(refData, depthData, mask);
+                 }
+                 
+                 // Display the reference image
+                 ImageHandling.depthToRGBA(refData, temp.data);
+                 refContext.putImageData(temp, 0, 0);
 				 */
 				
 				// OBS!!
@@ -165,10 +165,10 @@
                 
 				clearTimeout(redrawTimer);
 				redrawTimer = null;
-                    
+                
 				hide("stepOne");
 				show("stepTwo");
-					
+                
 				drawCalibrationMarkers();
 				setTimeout(takeSnapshot, 500);
             }
@@ -185,14 +185,14 @@
 			}
 			
             function takeSnapshot() {
-            
+                
 				kinectVideoDecoder.decodeDepth(plugin.depthMap, depthRef);
 				
 				cpIndex = 0;
-			
+                
 				snapshotContext.drawImage(currentVideoFrame, 0, 0, kWidth, kHeight);
 				calibrationContext.drawImage(snapshotImage, 0, 0, kWidth, kHeight);
-			
+                
 				var videoCanvas2 = $("videoCanvas2");
 				var videoContext2 = videoCanvas2.getContext("2d");
                 
@@ -203,7 +203,7 @@
 				videoCanvas2.onmousemove = function(e) {
 					
 					if (!videoCanvas2.isDrawing)
-						return;
+                    return;
 					
 					var x = e.pageX - this.offsetLeft;
 					var y = e.pageY - this.offsetTop;
@@ -215,7 +215,7 @@
 				videoCanvas2.onmousedown = function(e) {
 					
 					if (videoCanvas2.isDone)
-						return;
+                    return;
 					
 					videoCanvas2.isDrawing = true;
 					
@@ -231,7 +231,7 @@
 				videoCanvas2.onmouseup = function(e) {
 					
 					if (videoCanvas2.isDone)
-						return;
+                    return;
 					
 					videoCanvas2.isDrawing = false;
 					
@@ -257,7 +257,7 @@
                         updateColorInstructions();
                     }
 				};
-
+                
 				updateColorInstructions();
 				
 				hide("stepTwo");
@@ -272,7 +272,7 @@
 				
                 hide("doneSpan");
                 show("crossSpan");
-               
+                
 				calibrationContext.drawImage(snapshotImage, 0, 0, kWidth, kHeight);
 				
 				for (var i = 0; i < cpIndex; i++) {
@@ -400,7 +400,7 @@
             function mask() {
                 
 				if (transform == null)
-					return;
+                return;
 				
 				ImageHandling.depthToRGBA(depthData, videoData.data);
 				currentVideoFrame.getContext("2d").putImageData(videoData, 0, 0);
@@ -410,9 +410,9 @@
                 var r; // = $V([0, 0, 0]);
                 
 				var max = -1000000000,
-					min = 1000000000,
-					avg = 0,
-					zcount = 0;
+                min = 1000000000,
+                avg = 0,
+                zcount = 0;
 				
                 var index = 0;
                 for (var y = 0; y < 120; y++) {
@@ -424,7 +424,7 @@
 						// max = Math.max(max, z);
 						
 						if (z == 0)
-							continue;
+                        continue;
                         
 						r =  $V([x, y, z]); // r.setElements([x, y, depthData[index]]);
                         v3 = r0.subtract(r);
@@ -457,14 +457,14 @@
 								ctx.fill();
 								
 								/*
-								$("drawCanvas").getContext("2d").fillStyle = "yellow";
-								$("drawCanvas").getContext("2d").fillRect(p.x - 2, p.y - 2, 4, 4);
+                                 $("drawCanvas").getContext("2d").fillStyle = "yellow";
+                                 $("drawCanvas").getContext("2d").fillRect(p.x - 2, p.y - 2, 4, 4);
 								 */
 								/*
-								videoData.data[index * 4 + 0] = 255;
-								videoData.data[index * 4 + 1] = 255;
-								videoData.data[index * 4 + 2] = 0;
-								videoData.data[index * 4 + 3] = 255;
+                                 videoData.data[index * 4 + 0] = 255;
+                                 videoData.data[index * 4 + 1] = 255;
+                                 videoData.data[index * 4 + 2] = 0;
+                                 videoData.data[index * 4 + 3] = 255;
 								 */
 							}
                         }
