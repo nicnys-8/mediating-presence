@@ -11,10 +11,9 @@
         <div id="message"></div>
         
         <script src="../js/lib/Three.js"></script>
-        <script src="../js/lib/THREEx.FullScreen.js"></script>
+        <!--script src="../js/lib/THREEx.FullScreen.js"></script>
         <script src="../js/lib/THREEx.WindowResize.js"></script>
-        <script src="../js/lib/THREEx.Projector.js"></script>
-        <script src="../js/lib/THREEx.Projector.js"></script>
+        <script src="../js/lib/THREEx.Projector.js"></script-->
         <script src="../js/moving-cube.js"></script>
         
         <script>
@@ -57,8 +56,8 @@
                 document.body.appendChild(container);
                 container.appendChild(renderer.domElement);
                 
-                // Events -- Find out exactly what this does later!
-                THREEx.WindowResize(renderer, camera);
+                // Events -- OY!!!! Find out exactly what this does later!
+                //THREEx.WindowResize(renderer, camera);
                 
                 // Light
                 var light = new THREE.PointLight(0xffffff);
@@ -69,7 +68,11 @@
                 var floorMaterial = new THREE.MeshLambertMaterial();
                 var floorGeometry = new THREE.PlaneGeometry(1000, 1000, 10, 10);
                 floor = new THREE.Mesh(floorGeometry, floorMaterial);
+                
+                
+                floor.rotation.x -= Math.PI / 2; // Rotate the floor correctly
                 floor.position.y = -0.5; // Move a tiny bit to prevent flickering
+                
                 floor.doubleSided = true;
                 scene.add(floor);
                 
@@ -78,6 +81,16 @@
                 movingCube.position.set(0, 25, 0);
                 scene.add(movingCube);
                 intersectionPoint = movingCube.position;
+                
+                // Obstacle
+                var geometry = new THREE.CubeGeometry(CUBE_SIDE, CUBE_SIDE, CUBE_SIDE);
+                var material = new THREE.MeshLambertMaterial();
+                material.color.setHex(0x0000ff);
+                
+                
+                obstacle =  new THREE.Mesh(geometry, material);
+                obstacle.position.set(200, 25, 100);
+                scene.add(obstacle);
                 
                 // Mouse events
 				document.addEventListener('mousedown', mouseClicked, false);
@@ -99,16 +112,20 @@
                 var projector = new THREE.Projector();
                 projector.unprojectVector(mouse3D, camera);
                 
-                var ray = new THREE.Ray(camera.position, mouse3D.subSelf(camera.position).normalize());
+                var ray = new THREE.Raycaster(camera.position, (mouse3D.sub(camera.position)).normalize());
                 
                 if (movingCube.isSelected()) {
-                    var intersectFloor = ray.intersectObject(floor);
+                    var intersectFloor = ray.intersectObjects([floor], false);
+                                        
                     if (intersectFloor[0]) {
                         intersectionPoint = intersectFloor[0].point;
                         movingCube.setSelected(false);
                     }
-                } else if (!movingCube.isSelected()) {
-                    var intersectsCube = ray.intersectObject(movingCube);
+                } else {                    
+                    var intersectsCube = ray.intersectObjects([movingCube], false);
+                    
+                    
+                    //var intersectsCube = ray.intersectObject(movingCube);
                     if (intersectsCube[0]) { // Check if a cube was hit
                         movingCube.setSelected(true);
                     }

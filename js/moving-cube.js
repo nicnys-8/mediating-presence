@@ -42,18 +42,29 @@ MovingCube.prototype.moveTowardPoint = function(point, dx, dz) {
     // X movement
     if (Math.abs(this.position.x - point.x) < dx)  {
         // MOVE TO THE CORRECT POSITION
-    } else if (this.position.x < point.x) {
-        this.translateX(dx);
-    } else if (this.position.x > point.x) {
-        this.translateX(-dx);
+    } else {
+        // Translate by dx in the specified direction
+        this.translateX(((this.position.x < point.x) ? dx : -dx));
+        
     }
     
     // Z movement
     if (Math.abs(this.position.z - point.z) < dz)  {
         // MOVE TO THE CORRECT POSITION
-    } else if (this.position.z < point.z) {
-        this.translateZ(dz);
-    } else if (this.position.z > point.z) {
-        this.translateZ(-dz);
+        // Translate by dx in the specified direction
+    } else {
+        // Translate by dx in the specified direction
+        this.translateZ(((this.position.z < point.z) ? dz : -dz));
     }
 }
+
+
+/**
+*/
+MovingCube.prototype.collidesAtPoint = function(point) {
+
+}
+
+
+
+
