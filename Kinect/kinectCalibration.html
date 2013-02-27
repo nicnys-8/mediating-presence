@@ -78,7 +78,9 @@
 									 new CalibrationPoint("yellow", "bottom left"),
 									 new CalibrationPoint("white", "center")];
             
-			var depthData = new Array(160 * 120), depthRef = new Array(160 * 120);
+			var depthData = new Array(160 * 120),
+                depthRef = new Array(160 * 120),
+                planeError = new Array(160 * 120);
 			var currentVideoFrame, videoData;
 			
 			function $(nodeName) {
@@ -340,15 +342,15 @@
 			}
 			
             var transform = null;
-            var n, r0, v3, resultData = [];
+            var n, r0, resultData = [];
             var tmpPoly;
 			
 			function done() {
-				// Calculate transform! :)
                 
                 hide("stepThree");
                 show("stepFour");
                 
+                // Geometric transform to map points in camera space to the browser window (will probably be replaced by projective transformation)
                 transform = new Geometry.Transform([{x:calibrationPoints[0].browserX, y:calibrationPoints[0].browserY},
                                                     {x:calibrationPoints[1].browserX, y:calibrationPoints[1].browserY},
                                                     {x:calibrationPoints[2].browserX, y:calibrationPoints[2].browserY},
@@ -368,6 +370,9 @@
 				
 				console.log(tmpPoly);
 				
+                // Use three calibration points to compute a mathematical plane that corresponds to the 3D surface
+                // Three points creates two vectors that span a plane in R3. The plane is defined by a point on the plane
+                // and the normal vector of the plane. z-values is grabbed from the Kinect depth data
 				var x1 = calibrationPoints[2].cameraX;
 				var y1 = calibrationPoints[2].cameraY;
 				var z1 = depthRef[Math.round(y1 * 160 + x1)];
@@ -390,63 +395,116 @@
                 var v1 = p2.subtract(p1);
                 var v2 = p3.subtract(p1);
                 
+                // The normal vector is given by the cross product of the two vectors
                 n = v1.cross(v2).toUnitVector();
                 
+                // One of the points is used as reference
                 r0 = p1;
-				
-				// mask();
-			}
+                
+                // Set x, y, z to improve readability later,
+                // maybe not a super idea.. :}
+				n.x = n.e(1);
+                n.y = n.e(2);
+                n.z = n.e(3);
+                
+                r0.x = r0.e(1);
+                r0.y = r0.e(2);
+                r0.z = r0.e(3);
+                
+				var max = -1000000000,
+                    min = 1000000000,
+                    avg = 0,
+                    zcount = 0; // Some statistics...
+                
+                // Calculate initial distances to the mathematical plane
+                // since the model probably won't be 100% accurate
+                for (var y = 0, index = 0; y < 120; y++) {
+                    for (var x = 0; x < 160; x++, index++) {
+                        
+						var z = depthRef[index];
+						
+						if (z == 0) { // z == 0 means no depth data is available for this point
+                            planeError[index] = 0; // Instead set to special value that indicates unknown distance?
+                            continue;
+                        }
+                        
+						var r =  $V([x, y, z]);
+                        var v = r.subtract(r0);
+
+                        // Scalar projection onto the unit normal vector gives the (signed) distance to the plane
+                        var distance = v.dot(n);
+                        
+						var p = transform.transformPoint({x:x, y:y});
+                        
+						if (p.x >= 0 &&
+                            p.y >= 0 &&
+                            p.x <= window.innerWidth &&
+                            p.y <= window.innerHeight) {
+							max = Math.max(max, distance);
+							min = Math.min(min, distance);
+							avg += distance;
+							zcount++;
+                        }
+                        
+                        planeError[index] = distance;
+                    }
+                }
+                console.log("Plane error (min, avg, max): " + min + ", " + avg / zcount + ", " + max);
+                // console.log("Unknowns:" );
+            }
             
             function mask() {
                 
 				if (transform == null)
-                return;
+                    return;
 				
 				ImageHandling.depthToRGBA(depthData, videoData.data);
 				currentVideoFrame.getContext("2d").putImageData(videoData, 0, 0);
 				Geometry.drawPolys([tmpPoly], currentVideoFrame.getContext("2d"));
 				$("drawCanvas").getContext("2d").drawImage(currentVideoFrame, 0, 0, window.innerWidth, window.innerHeight);
 				
-                var r; // = $V([0, 0, 0]);
-                
 				var max = -1000000000,
-                min = 1000000000,
-                avg = 0,
-                zcount = 0;
+                    min = 1000000000,
+                    avg = 0,
+                    zcount = 0;
 				
-                var index = 0;
-                for (var y = 0; y < 120; y++) {
-                    for (var x = 0; x < 160; x++) {
+                for (var y = 0, index = 0; y < 120; y++) {
+                    for (var x = 0; x < 160; x++, index++) {
                         
-						// index = y * 160 + x;
-						var z = depthData[index++];
+						var z = depthData[index];
 						
-						// max = Math.max(max, z);
-						
+                        // Ignore points where depth data is missing
 						if (z == 0)
-                        continue;
+                            continue;
                         
-						r =  $V([x, y, z]); // r.setElements([x, y, depthData[index]]);
-                        v3 = r0.subtract(r);
-                        var v3m = v3.subtract(n.x(n.dot(v3)));
-                        var rm = r0.subtract(v3m);
-                        var distance = rm.distanceFrom(r);
+                        // Distance is calculated as described above (temporarily in function "done")
+                        // The initial distance is subtracted to compensate for the offset between the
+                        // calculated 3D plane and "reality"
+                        /*
+                        var r =  $V([x, y, z]);
+                        var v = r.subtract(r0);
+                        var distance = v.dot(n) - planeError[index];
+                        */
+                        var distance = ((x - r0.x) * n.x +
+                                        (y - r0.y) * n.y +
+                                        (z - r0.z) * n.z) - planeError[index];
                         
+                        // Transform the point to browser coordinates
+                        // TODO: Reverse order - only transform points when the distance is within thresholds
 						var p = transform.transformPoint({x:x, y:y});
 						
-						if (p.x >= 0 && p.y >= 0 && p.x <= window.innerWidth && p.y <= window.innerHeight) {
-							// console.log(distance);
+						if (p.x >= 0 &&
+                            p.y >= 0 &&
+                            p.x <= window.innerWidth &&
+                            p.y <= window.innerHeight) {
 							
 							max = Math.max(max, distance);
 							min = Math.min(min, distance);
 							avg += distance;
 							zcount++;
 							
-							if (distance > 15 && distance < 24) {
-								// console.log(p);
-								
-								// drawX($("drawCanvas").getContext("2d"), p.x, p.y, "yellow");
-								
+                            // A touch occurs at a certain depth threshold (to be determined/calculated) :)
+							if (distance > 0.1 && distance < 0.7) {
 								
 								var ctx = $("drawCanvas").getContext("2d");
 								
@@ -455,11 +513,7 @@
 								ctx.fillStyle = "yellow";
 								ctx.closePath();
 								ctx.fill();
-								
-								/*
-                                 $("drawCanvas").getContext("2d").fillStyle = "yellow";
-                                 $("drawCanvas").getContext("2d").fillRect(p.x - 2, p.y - 2, 4, 4);
-								 */
+
 								/*
                                  videoData.data[index * 4 + 0] = 255;
                                  videoData.data[index * 4 + 1] = 255;
@@ -471,7 +525,7 @@
                     }
                 }
 				
-				console.log(min + ", " + avg / zcount + ", " + max);
+				// console.log(min + ", " + avg / zcount + ", " + max);
 				
 				// setTimeout(mask, 50);
             }
