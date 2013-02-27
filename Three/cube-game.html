@@ -34,6 +34,7 @@
             var mouseXOnMouseDown = 0;
             var MovingCube;
             
+            var obstacles = [];
             var intersectionPoint;
             
             init();
@@ -88,9 +89,12 @@
                 material.color.setHex(0x0000ff);
                 
                 
+                // Obstacles
                 obstacle =  new THREE.Mesh(geometry, material);
                 obstacle.position.set(200, 25, 100);
                 scene.add(obstacle);
+                
+                obstacles.push(obstacle);
                 
                 // Mouse events
 				document.addEventListener('mousedown', mouseClicked, false);
@@ -117,16 +121,13 @@
                 if (movingCube.isSelected()) {
                     var intersectFloor = ray.intersectObjects([floor], false);
                                         
-                    if (intersectFloor[0]) {
+                    if (intersectFloor[0]) { // Check if the floor was clicked
                         intersectionPoint = intersectFloor[0].point;
                         movingCube.setSelected(false);
                     }
-                } else {                    
+                } else {
                     var intersectsCube = ray.intersectObjects([movingCube], false);
-                    
-                    
-                    //var intersectsCube = ray.intersectObject(movingCube);
-                    if (intersectsCube[0]) { // Check if a cube was hit
+                    if (intersectsCube[0]) { // Check if the cube was clicked
                         movingCube.setSelected(true);
                     }
                 }
@@ -139,6 +140,7 @@
             function tick() {
                 requestAnimationFrame(tick);
                 movingCube.moveTowardPoint(intersectionPoint, 1, 1);
+                movingCube.detectCollision(obstacles);
                 renderer.render(scene, camera)
                 
                 //update();

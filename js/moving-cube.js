@@ -60,9 +60,11 @@ MovingCube.prototype.moveTowardPoint = function(point, dx, dz) {
 
 
 /**
-*/
-MovingCube.prototype.collidesAtPoint = function(point) {
-
+ Check whether a collision with an object in the array 'objects'
+ would occur of the cube snapped to the specified location
+ */
+MovingCube.prototype.collidesAtPosition = function(objects, position) {
+    // Check!
 }
 
 
