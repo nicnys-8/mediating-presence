@@ -1,0 +1,535 @@
+
+<html>
+    
+    <head>
+        
+        <title>Kinect Calibration</title>
+        
+		<style type="text/css">
+			button {
+				margin-top:1em;
+				font-size:125%;
+			}
+			div.fullPage {
+				display:none;
+				position:absolute;
+                top:0;
+				left:0;
+                padding:0px;
+                margin:0px;
+                width:100%;
+				height:100%;
+			}
+            canvas.fullPage {
+				width:100%;
+				height:100%;
+				background-color:black;
+			}
+			canvas.videoCanvas {
+				display:block;
+				margin:1em 1em 1em 1em;
+				width:640px;
+				height:480px;
+			}
+			#videoCanvas2, #videoCanvas2:active, #videoCanvas2:focus {
+				cursor: crosshair;
+			}
+			#fullscreenCanvas {
+				width:100%;
+				height:100%;
+				background-color:black;
+			}
+            #finishedSpan {
+                display:block;
+                padding:30% 0% 0% 0%;
+            }
+		</style>
+		
+        <script type="text/javascript" src="lib/mediaext.js"></script>
+        <script type="text/javascript" src="lib/geometry.js"></script>
+        <script type="text/javascript" src="lib/sylvester.js"></script>
+        <script type="text/javascript" src="lib/zig.js"></script>
+        <script type="text/javascript" src="lib/kinectVideoDecoder.js"></script>
+        <script type="text/javascript" src="lib/imageHandling.js"></script>
+		
+        <script>
+            
+			const kWidth = 640, kHeight = 480;
+			
+            var calibrationImage, calibrationContext;
+			var snapshotImage, snapshotContext;
+            var fullscreenCanvas;
+            var video;
+            var redrawTimer = null;
+            
+			CalibrationPoint = function(color, position) {
+				this.browserX = 0;
+				this.browserY = 0;
+				this.cameraX = 0;
+				this.cameraY = 0;
+				this.color = color;
+				this.position = position;
+			}
+			
+			var cpIndex = 0;
+			var calibrationPoints = [new CalibrationPoint("red", "top left"),
+									 new CalibrationPoint("green", "top right"),
+									 new CalibrationPoint("blue", "bottom right"),
+									 new CalibrationPoint("yellow", "bottom left"),
+									 new CalibrationPoint("white", "center")];
+            
+			var depthData = new Array(160 * 120), depthRef = new Array(160 * 120);
+			var currentVideoFrame, videoData;
+			
+			function $(nodeName) {
+				return document.getElementById(nodeName);
+			}
+            function show(nodeName) {
+                $(nodeName).style.display = "block";
+            }
+            function hide(nodeName) {
+				$(nodeName).style.display = "none";
+            }
+			
+            function init() {
+                
+                show("stepOne");
+                
+				calibrationImage = MediaExt.createCanvas(kWidth, kHeight);
+                calibrationContext = calibrationImage.getContext("2d");
+				
+				snapshotImage = MediaExt.createCanvas(kWidth, kHeight);
+                snapshotContext = snapshotImage.getContext("2d");
+                
+				fullscreenCanvas = $("fullscreenCanvas");
+				
+                window.onresize = function() {
+                    fullscreenCanvas.width = window.innerWidth;
+                    fullscreenCanvas.height = window.innerHeight;
+                    
+                    $("drawCanvas").width = window.innerWidth;
+                    $("drawCanvas").height = window.innerHeight;
+                    
+                    drawCalibrationMarkers();
+                };
+				
+				window.onresize();
+				
+                // video = MediaExt.getCameraAccess(kWidth, kHeight, tick);
+				
+				plugin = document.getElementById("ZigPlugin");
+				// Start the video streams
+				plugin.requestStreams({updateDepth:true, updateImage:true});
+				// Start updating the canvases every new kinect frame
+                plugin.addEventListener("NewFrame", updateKinectData);
+				
+				currentVideoFrame = MediaExt.createCanvas(160, 120);
+				videoData = currentVideoFrame.getContext("2d").createImageData(160, 120);
+				
+				tick();
+            }
+            
+			function updateKinectData() {
+				
+                /* Take a snapshot from the Kinect RGB video */
+                kinectVideoDecoder.decodeRGB(plugin.imageMap, videoData.data);
+                currentVideoFrame.getContext("2d").putImageData(videoData, 0, 0);
+                
+                /* Take a snapshot from the Kinect depth video */
+                kinectVideoDecoder.decodeDepth(plugin.depthMap, depthData);
+				
+				/*
+                // Update the difference mask
+                if (referenceImageIsTaken()) {
+                    refineReferenceImage(refData, depthData);
+                    ImageHandling.computeDifferenceMask(refData, depthData, mask);
+                }
+                
+                // Display the reference image
+                ImageHandling.depthToRGBA(refData, temp.data);
+                refContext.putImageData(temp, 0, 0);
+				 */
+				
+				// OBS!!
+				
+				mask();
+            }
+			
+            function tick() {
+				$("videoCanvas1").getContext("2d").drawImage(currentVideoFrame, 0, 0, kWidth, kHeight);
+				$("startCalButton").disabled = false;
+                redrawTimer = setTimeout(tick, 50);
+            }
+            
+            function startCalibration() {
+                
+				clearTimeout(redrawTimer);
+				redrawTimer = null;
+                    
+				hide("stepOne");
+				show("stepTwo");
+					
+				drawCalibrationMarkers();
+				setTimeout(takeSnapshot, 500);
+            }
+            
+			function restart() {
+				hide("stepThree");
+				show("stepOne");
+				tick();
+			}
+			
+			function updateColorInstructions() {
+				$("positionSpan").innerHTML = calibrationPoints[cpIndex].position;
+				$("colorSpan").innerHTML = calibrationPoints[cpIndex].color;
+			}
+			
+            function takeSnapshot() {
+            
+				kinectVideoDecoder.decodeDepth(plugin.depthMap, depthRef);
+				
+				cpIndex = 0;
+			
+				snapshotContext.drawImage(currentVideoFrame, 0, 0, kWidth, kHeight);
+				calibrationContext.drawImage(snapshotImage, 0, 0, kWidth, kHeight);
+			
+				var videoCanvas2 = $("videoCanvas2");
+				var videoContext2 = videoCanvas2.getContext("2d");
+                
+				videoContext2.drawImage(snapshotImage, 0, 0, kWidth, kHeight);
+                videoCanvas2.isDrawing = false;
+				videoCanvas2.isDone = false;
+				
+				videoCanvas2.onmousemove = function(e) {
+					
+					if (!videoCanvas2.isDrawing)
+						return;
+					
+					var x = e.pageX - this.offsetLeft;
+					var y = e.pageY - this.offsetTop;
+					
+					videoContext2.drawImage(calibrationImage, 0, 0, kWidth, kHeight);
+					drawCircle(videoContext2, x, y, calibrationPoints[cpIndex].color);
+				};
+				
+				videoCanvas2.onmousedown = function(e) {
+					
+					if (videoCanvas2.isDone)
+						return;
+					
+					videoCanvas2.isDrawing = true;
+					
+					var x = e.pageX - this.offsetLeft;
+					var y = e.pageY - this.offsetTop;
+					
+					videoContext2.drawImage(calibrationImage, 0, 0, kWidth, kHeight);
+					drawCircle(videoContext2, x, y, calibrationPoints[cpIndex].color);
+					
+					e.preventDefault();
+				};
+				
+				videoCanvas2.onmouseup = function(e) {
+					
+					if (videoCanvas2.isDone)
+						return;
+					
+					videoCanvas2.isDrawing = false;
+					
+					var x = e.pageX - this.offsetLeft;
+					var y = e.pageY - this.offsetTop;
+					
+					videoContext2.drawImage(calibrationImage, 0, 0, kWidth, kHeight);
+					drawCircle(videoContext2, x, y, calibrationPoints[cpIndex].color);
+					drawCircle(calibrationContext, x, y, calibrationPoints[cpIndex].color);
+					
+					calibrationPoints[cpIndex].cameraX = x / 4;
+					calibrationPoints[cpIndex].cameraY = y / 4;
+					
+					cpIndex++;
+					$("undoButton").disabled = false;
+					
+					videoCanvas2.isDone = (cpIndex == 5);
+                    if (videoCanvas2.isDone) {
+                        $("doneButton").disabled = false;
+                        hide("crossSpan");
+                        show("doneSpan");
+                    } else {
+                        updateColorInstructions();
+                    }
+				};
+
+				updateColorInstructions();
+				
+				hide("stepTwo");
+				show("stepThree");
+            }
+            
+			function undo() {
+				
+				cpIndex--;
+				$("undoButton").disabled = (cpIndex == 0);
+				$("doneButton").disabled = true;
+				
+                hide("doneSpan");
+                show("crossSpan");
+               
+				calibrationContext.drawImage(snapshotImage, 0, 0, kWidth, kHeight);
+				
+				for (var i = 0; i < cpIndex; i++) {
+					var cp = calibrationPoints[i];
+					drawCircle(calibrationContext, cp.cameraX * 4, cp.cameraY * 4, cp.color);
+				}
+				
+				$("videoCanvas2").getContext("2d").drawImage(calibrationImage, 0, 0, kWidth, kHeight);
+				$("videoCanvas2").isDone = false;
+			}
+			
+            function drawCalibrationMarkers() {
+                
+                var ctx = fullscreenCanvas.getContext("2d");
+                var w = fullscreenCanvas.width;
+                var h = fullscreenCanvas.height;
+                
+				calibrationPoints[0].browserX = 50;
+				calibrationPoints[0].browserY = 50;
+                drawX(ctx, 50, 50, calibrationPoints[0].color);
+				
+				calibrationPoints[1].browserX = w - 50;
+				calibrationPoints[1].browserY = 50;
+                drawX(ctx, w - 50, 50, calibrationPoints[1].color);
+				
+                calibrationPoints[2].browserX = w - 50;
+				calibrationPoints[2].browserY = h - 50;
+                drawX(ctx, w - 50, h - 50, calibrationPoints[2].color);
+                
+				calibrationPoints[3].browserX = 50;
+				calibrationPoints[3].browserY = h - 50;
+                drawX(ctx, 50, h - 50, calibrationPoints[3].color);
+				
+				calibrationPoints[4].browserX = w / 2;
+				calibrationPoints[4].browserY = h / 2;
+                drawX(ctx, w / 2, h / 2, calibrationPoints[4].color);
+            }
+            
+            function drawX(ctx, x, y, color) {
+                
+                ctx.lineWidth = 20;
+                ctx.strokeStyle = color;
+                
+                ctx.beginPath();
+                ctx.moveTo(x - 30, y - 30);
+                ctx.lineTo(x + 30, y + 30);
+                ctx.closePath();
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(x - 30, y + 30);
+                ctx.lineTo(x + 30, y - 30);
+                ctx.closePath();
+                ctx.stroke();
+            }
+            
+			function drawCircle(ctx, x, y, color) {
+				var radius = 15;
+				ctx.beginPath();
+				ctx.arc(x, y, radius, 0, 2 * Math.PI, false);
+				ctx.lineWidth = 5;
+				ctx.strokeStyle = color;
+				ctx.closePath();
+				ctx.stroke();
+			}
+			
+            var transform = null;
+            var n, r0, v3, resultData = [];
+            var tmpPoly;
+			
+			function done() {
+				// Calculate transform! :)
+                
+                hide("stepThree");
+                show("stepFour");
+                
+                transform = new Geometry.Transform([{x:calibrationPoints[0].browserX, y:calibrationPoints[0].browserY},
+                                                    {x:calibrationPoints[1].browserX, y:calibrationPoints[1].browserY},
+                                                    {x:calibrationPoints[2].browserX, y:calibrationPoints[2].browserY},
+                                                    {x:calibrationPoints[3].browserX, y:calibrationPoints[3].browserY}]
+												   ,
+												   [{x:calibrationPoints[0].cameraX, y:calibrationPoints[0].cameraY},
+                                                    {x:calibrationPoints[1].cameraX, y:calibrationPoints[1].cameraY},
+                                                    {x:calibrationPoints[2].cameraX, y:calibrationPoints[2].cameraY},
+                                                    {x:calibrationPoints[3].cameraX, y:calibrationPoints[3].cameraY}]
+                                                   );
+                console.log(transform);
+                
+				tmpPoly = [{x:calibrationPoints[0].cameraX, y:calibrationPoints[0].cameraY},
+						   {x:calibrationPoints[1].cameraX, y:calibrationPoints[1].cameraY},
+						   {x:calibrationPoints[2].cameraX, y:calibrationPoints[2].cameraY},
+						   {x:calibrationPoints[3].cameraX, y:calibrationPoints[3].cameraY}];
+				
+				console.log(tmpPoly);
+				
+				var x1 = calibrationPoints[2].cameraX;
+				var y1 = calibrationPoints[2].cameraY;
+				var z1 = depthRef[Math.round(y1 * 160 + x1)];
+                var p1 = $V([x1, y1, z1]);
+				
+				var x2 = calibrationPoints[0].cameraX;
+				var y2 = calibrationPoints[0].cameraY;
+				var z2 = depthRef[Math.round(y2 * 160 + x2)];
+                var p2 = $V([x2, y2, z2]);
+				
+				var x3 = calibrationPoints[1].cameraX;
+				var y3 = calibrationPoints[1].cameraY;
+				var z3 = depthRef[Math.round(y3 * 160 + x3)];
+                var p3 = $V([x3, y3, z3]);
+				
+				console.log(p1);
+				console.log(p2);
+				console.log(p3);
+				
+                var v1 = p2.subtract(p1);
+                var v2 = p3.subtract(p1);
+                
+                n = v1.cross(v2).toUnitVector();
+                
+                r0 = p1;
+				
+				// mask();
+			}
+            
+            function mask() {
+                
+				if (transform == null)
+					return;
+				
+				ImageHandling.depthToRGBA(depthData, videoData.data);
+				currentVideoFrame.getContext("2d").putImageData(videoData, 0, 0);
+				Geometry.drawPolys([tmpPoly], currentVideoFrame.getContext("2d"));
+				$("drawCanvas").getContext("2d").drawImage(currentVideoFrame, 0, 0, window.innerWidth, window.innerHeight);
+				
+                var r; // = $V([0, 0, 0]);
+                
+				var max = -1000000000,
+					min = 1000000000,
+					avg = 0,
+					zcount = 0;
+				
+                var index = 0;
+                for (var y = 0; y < 120; y++) {
+                    for (var x = 0; x < 160; x++) {
+                        
+						// index = y * 160 + x;
+						var z = depthData[index++];
+						
+						// max = Math.max(max, z);
+						
+						if (z == 0)
+							continue;
+                        
+						r =  $V([x, y, z]); // r.setElements([x, y, depthData[index]]);
+                        v3 = r0.subtract(r);
+                        var v3m = v3.subtract(n.x(n.dot(v3)));
+                        var rm = r0.subtract(v3m);
+                        var distance = rm.distanceFrom(r);
+                        
+						var p = transform.transformPoint({x:x, y:y});
+						
+						if (p.x >= 0 && p.y >= 0 && p.x <= window.innerWidth && p.y <= window.innerHeight) {
+							// console.log(distance);
+							
+							max = Math.max(max, distance);
+							min = Math.min(min, distance);
+							avg += distance;
+							zcount++;
+							
+							if (distance > 10 && distance < 18) {
+								// console.log(p);
+								
+								// drawX($("drawCanvas").getContext("2d"), p.x, p.y, "yellow");
+								
+								
+								var ctx = $("drawCanvas").getContext("2d");
+								
+								ctx.beginPath();
+								ctx.arc(p.x, p.y, 10, 0, 2 * Math.PI, false);
+								ctx.fillStyle = "yellow";
+								ctx.closePath();
+								ctx.fill();
+								
+								/*
+								$("drawCanvas").getContext("2d").fillStyle = "yellow";
+								$("drawCanvas").getContext("2d").fillRect(p.x - 2, p.y - 2, 4, 4);
+								 */
+								/*
+								videoData.data[index * 4 + 0] = 255;
+								videoData.data[index * 4 + 1] = 255;
+								videoData.data[index * 4 + 2] = 0;
+								videoData.data[index * 4 + 3] = 255;
+								 */
+							}
+                        }
+                    }
+                }
+				
+				console.log(min + ", " + avg / zcount + ", " + max);
+				
+				// setTimeout(mask, 50);
+            }
+			
+			// style="font-family:arial;"
+			
+            </script>
+    </head>
+    
+    <body style="font-family:monospace;" onload="init();">
+        
+		<div id="pluginContainer">
+            <object id="ZigPlugin" type="application/x-zig" width="0" height="0">
+                <param name="onload" value="zigPluginLoaded">
+                    </object>
+        </div>
+		
+        <center>
+			
+			<div class="fullPage" id="stepOne">
+				<h1>Calibration!</h1>
+				<canvas class="videoCanvas" id="videoCanvas1" width="640px" height="480px"></canvas>
+				Move the camera so it films the screen make sure all the calibration markers are visible! Then cliiick the button below.
+				<br>
+				<button id="startCalButton" disabled=true onclick="startCalibration()">Take Snapshot</button>
+			</div>
+			
+            <div class="fullPage" id="stepTwo">
+                <canvas id="fullscreenCanvas"></canvas>
+            </div>
+            
+			<div class="fullPage" id="stepThree">
+				<h1>Calibration!</h1>
+				<canvas class="videoCanvas" id="videoCanvas2" width="640px" height="480px"></canvas>
+                <span id="crossSpan" style="display:block">
+                    Please click the <span id="positionSpan"></span> (<span id="colorSpan"></span>) cross in the image!
+                </span>
+                <span id="doneSpan" style="display:none">
+                    Great! If you are happy with the placement of the circles, finish the calibration by pressing the Done button!
+                </span>
+				<button id="retakeImageButton" onclick="restart();">Retake Image</button>
+				<button id="undoButton" disabled=true onclick="undo();">Undo</button>
+				<button id="doneButton" disabled=true onclick="done();">Done</button>
+			</div>
+            
+            <div class="fullPage" id="stepFour">
+                <span id="finishedSpan" style="display:block">Conglaturations! You're kianct is now cablirated!</span>
+                <button id="tryDrawButton" onclick="hide('stepFour'); show('stepFive');">Done</button>
+            </div>
+            
+            <div class="fullPage" id="stepFive">
+                <canvas class="fullPage" id="drawCanvas"></canvas>
+            </div>
+            
+        </center>
+        
+    </body>
+    
+    
+    
+</html>
