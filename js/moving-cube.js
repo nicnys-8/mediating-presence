@@ -11,6 +11,7 @@ material.color.setHex(0xff0000);
  */
 MovingCube = function() {
     this.selected = false;
+    this.targetPosition = this.position;
     this.obstacles;
 }
 
@@ -42,54 +43,51 @@ MovingCube.prototype.setObstacles = function(obstacles) {
     this.obstacles = obstacles;
 }
 
+
 /**
- Move (at most) the specified distance toward the specified point
+ Sets the position the cube moves toward
  */
-MovingCube.prototype.moveTowardPoint = function(point, dx, dz) {
-    // X movement
-    if (Math.abs(this.position.x - point.x) < dx)  {
-        // MOVE TO THE CORRECT POSITION
+MovingCube.prototype.setTargetPosition = function(position) {
+    this.targetPosition = position;
+}
+
+
+/**
+ Move (at most) the specified distance toward the specified point along the x-axis
+ */
+MovingCube.prototype.xStep = function(dx) {
+    if (Math.abs(this.position.x - this.targetPosition.x) < dx)  {
+        // MOVE TO THE CONTACT POSITION
     } else {
         // Translate by dx in the specified direction
-        var xMovement = ((this.position.x < point.x) ? dx : -dx);
+        var xMovement = ((this.position.x < this.targetPosition.x) ? dx : -dx);
         this.translateX(xMovement);
-        if (this.collides()) {
-            this.translateX(-xMovement);
-        }
-    }
-    
-    // Z movement
-    if (Math.abs(this.position.z - point.z) < dz)  {
-        // MOVE TO THE CORRECT POSITION
-    } else {
-        // Translate by dy in the specified direction
-        var zMovement = ((this.position.z < point.z) ? dz : -dz);
-        this.translateZ(zMovement);
-        if (this.collides()) {
-            this.translateZ(-zMovement);
+        if (this.collides()) { //If the translation resultet in a collision...
+            this.translateX(-xMovement); //Undo!
         }
     }
 }
 
 
+/**
+ Move (at most) the specified distance toward the specified point along the z-axis
+ */
+MovingCube.prototype.zStep = function(dz) {
+    if (Math.abs(this.position.z - this.targetPosition.z) < dz)  {
+        // MOVE TO THE CONTACT POSITION
+    } else {
+        // Translate by dy in the specified direction
+        var zMovement = ((this.position.z < this.targetPosition.z) ? dz : -dz);
+        this.translateZ(zMovement);
+        if (this.collides()) { //If the translation resultet in a collision...
+            this.translateZ(-zMovement); //Undo!
+        }
+    }
+}
+
 
 /**
- Check whether a collision with an object in the array 'objects'
- would occur of the cube snapped to the specified offset
-
-MovingCube.prototype.collidesAtOffset = function(dx, dy, dz) {
-    return false;
-    console.log(position);
-    var currentPosition = this.position;
-    this.position.set(position);
-    var collides = this.collides();
-    this.position.set(currentPosition);
-    return collides;
-} */
-
-
-/**
- Check if the cube is overlapping any obstacles
+ Check if the cube is overlapping any obstacles (only checks x and z)
  */
 MovingCube.prototype.collides = function() {
     var collides = false;
