@@ -2,20 +2,28 @@
 
 const CUBE_SIDE = 50;
 
-var geometry = new THREE.CubeGeometry(CUBE_SIDE, CUBE_SIDE, CUBE_SIDE);
-var material = new THREE.MeshLambertMaterial();
 material.color.setHex(0xff0000);
+
+
+MovingCube.prototype = new THREE.Mesh(geometry, material);
 
 /**
  Constructor
  */
 MovingCube = function() {
+    
+    var geometry = new THREE.CubeGeometry(CUBE_SIDE, CUBE_SIDE, CUBE_SIDE);
+    var material = new THREE.MeshLambertMaterial();
+    
     this.selected = false;
     this.targetPosition = this.position;
     this.obstacles;
+    
+    console.log("Instance:");
+    console.log(this);
+    console.log("Prototype:");
+    console.log(this.prototype);
 }
-
-MovingCube.prototype = new THREE.Mesh(geometry, material);
 
 
 /**
