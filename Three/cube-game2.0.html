@@ -40,6 +40,7 @@
             init();
             tick();
             
+            
             /**
              Set up the scene
              */
@@ -60,7 +61,7 @@
                 document.body.appendChild(container);
                 container.appendChild(renderer.domElement);
                 
-                // Events -- OY!!!! Find out exactly what this does later!
+                // Events -- OY!!!! Make this work again later!
                 //THREEx.WindowResize(renderer, camera);
                 
                 // Light
@@ -81,26 +82,6 @@
                 scene.add(floor);
                 
                 
-                
-                ////
-                
-                var sphere1 = new Sphere();
-                var sphere2 = new Sphere();
-                console.log("Before:");
-                console.log(sphere1.size);
-                console.log(sphere2.size);
-                
-                sphere1.double();
-                
-                console.log("After:");
-                console.log(sphere1.size);
-                console.log(sphere2.size);
-                
-                
-                
-                /////
-                
-                
                 // Cube
                 var movingCube1 =  new MovingCube();
                 
@@ -109,19 +90,23 @@
                 movingCube1.setObstacles(obstacles);
                 scene.add(movingCube1);
                 movingCubes.push(movingCube1);
-                                
+                obstacles.push(movingCube1);
+                
+                
                 var movingCube2 = new MovingCube();
                 movingCube2.setPosition(-100, 25, 0);
                 movingCube2.setObstacles(obstacles);
                 scene.add(movingCube2);
                 movingCubes.push(movingCube2);
+                obstacles.push(movingCube2);
+                
                 
                 var movingCube3 = new MovingCube();
                 movingCube3.setPosition(-200, 25, 0);
                 movingCube3.setObstacles(obstacles);
                 scene.add(movingCube3);
                 movingCubes.push(movingCube3);
-                
+                obstacles.push(movingCube3);
                 
                 
                 // Obstacles
@@ -138,6 +123,7 @@
                 obstacle2.position.set(200, 25, 0);
                 scene.add(obstacle2);
                 obstacles.push(obstacle2);
+                
                 
                 // Mouse events
 				document.addEventListener('mousedown', mouseClicked, false);
@@ -178,23 +164,23 @@
                     for (var i = 0; i < movingCubes.length; i++) {
                         var meshes = movingCubes[i].meshes;
                         var hitPoint;
-                        for (var j = 0; j < meshes.length; j++) {
-                            var mesh = meshes[j];
-                            hitPoint = getMouseHitPoint(mesh);
-                            if (hitPoint) {
-                                selectedCube = movingCubes[i];
-                                selectedCube.setSelected(true);
-                                return;
-                            }
+                        
+                        hit = getMouseHit(movingCubes);
+                        if (hit) {
+                            selectedCube = hit.object.parent;
+                            selectedCube.setSelected(true);
+                            return;
                         }
                     }
                     
-                    
                     if (selectedCube) {
                         selectedCube.setSelected(true);
-                        var intersectionPoint = getMouseHitPoint([selectedCube]);
-                        mouseCubeOffset.subVectors(intersectionPoint, selectedCube.position);
-                        selectedCube.setTargetPosition(intersectionPoint.sub(mouseCubeOffset));
+                        var hit = getMouseHit(floor);
+                        if (hit) {
+                            var intersectionPoint = hit.point;
+                            mouseCubeOffset.subVectors(intersectionPoint, selectedCube.position);
+                            selectedCube.setTargetPosition(intersectionPoint.sub(mouseCubeOffset));
+                        }
                     }
                 }
             }
@@ -205,9 +191,11 @@
              */
             function mouseMoved(event) {
                 if (selectedCube) {
-                    var intersectionPoint = getMouseHitPoint(floor);
-                    if (intersectionPoint) {
+                    var hit = getMouseHit([floor]);
+                    if (hit) {
+                        var intersectionPoint = hit.point;
                         selectedCube.setTargetPosition(intersectionPoint.sub(mouseCubeOffset));
+                        
                     }
                 }
             }
@@ -263,7 +251,7 @@
              Returns the intersection point on the closest object hit by
              the mouse
              */
-            function getMouseHitPoint(object) {
+            function getMouseHit(objects) {
                 var mousePosition = getMousePosition();
                 var projector = new THREE.Projector();
                 projector.unprojectVector(mousePosition, camera);
@@ -275,14 +263,12 @@
                 v.normalize();
                 
                 var ray = new THREE.Raycaster(camera.position, v);
+                var hits = ray.intersectObjects(objects, true);
                 
-                var intersected = ray.intersectObjects([object], false);
-                if (intersected[0]) { // Check if the mouse is on the floor
-                    return intersected[0].point;
+                if (hits[0]) {
+                    return hits[0];
                 }
             }
-            
-            
             
             
             </script>

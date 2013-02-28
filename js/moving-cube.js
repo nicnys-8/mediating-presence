@@ -7,26 +7,9 @@ const CUBE_SIDE = 50;
  Constructor
  */
 
-
-////////////////////////////////////
-Shape = function() {
-    this.size = 1;
-    return this;
-}
-
-Shape.prototype.double = function() {
-    this.size = this.size * 2;
-}
-
-Sphere = function() {
-}
-
-Sphere.prototype = new Shape();
-/////////////////////////////////////
-
 MovingCube = function() {
     
-    THREE.Object3D.call( this );
+    THREE.Object3D.call(this);
     
     this.selected = false;
     this.targetPosition = this.position;
@@ -127,7 +110,7 @@ MovingCube.prototype.collides = function() {
     
     for (var i = 0; i < this.obstacles.length; i++) {
         obstacle = obstacles[i]
-        if (!(
+        if (obstacle != this && !(
               this.position.x + offset < obstacle.position.x - offset ||
               this.position.x - offset > obstacle.position.x + offset ||
               
