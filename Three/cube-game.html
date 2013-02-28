@@ -80,6 +80,7 @@
                 // Cube
                 movingCube =  new MovingCube();
                 movingCube.position.set(0, 25, 0);
+                movingCube.setObstacles(obstacles);
                 scene.add(movingCube);
                 intersectionPoint = movingCube.position;
                 
@@ -93,7 +94,6 @@
                 obstacle =  new THREE.Mesh(geometry, material);
                 obstacle.position.set(200, 25, 100);
                 scene.add(obstacle);
-                
                 obstacles.push(obstacle);
                 
                 // Mouse events
@@ -140,7 +140,6 @@
             function tick() {
                 requestAnimationFrame(tick);
                 movingCube.moveTowardPoint(intersectionPoint, 1, 1);
-                movingCube.detectCollision(obstacles);
                 renderer.render(scene, camera)
                 
                 //update();
