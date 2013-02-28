@@ -2,38 +2,61 @@
 
 const CUBE_SIDE = 50;
 
-material.color.setHex(0xff0000);
-
-
-MovingCube.prototype = new THREE.Mesh(geometry, material);
 
 /**
  Constructor
  */
+
+
+////////////////////////////////////
+Shape = function() {
+    this.size = 1;
+    return this;
+}
+
+Shape.prototype.double = function() {
+    this.size = this.size * 2;
+}
+
+Sphere = function() {
+}
+
+Sphere.prototype = new Shape();
+/////////////////////////////////////
+
 MovingCube = function() {
     
-    var geometry = new THREE.CubeGeometry(CUBE_SIDE, CUBE_SIDE, CUBE_SIDE);
-    var material = new THREE.MeshLambertMaterial();
+    THREE.Object3D.call( this );
     
     this.selected = false;
     this.targetPosition = this.position;
     this.obstacles;
     
-    console.log("Instance:");
-    console.log(this);
-    console.log("Prototype:");
-    console.log(this.prototype);
-}
+    // Meshes
+    this.meshes = [];
+    this.geometry = new THREE.CubeGeometry(CUBE_SIDE, CUBE_SIDE, CUBE_SIDE);
+    this.material = new THREE.MeshLambertMaterial();
+    this.material.color.setHex(0xff0000);
+    var mesh = new THREE.Mesh(this.geometry, this.material);
+    this.meshes.push(mesh);
+    this.add(mesh);
+};
 
+//MovingCube.prototype = new THREE.Object3D();
+MovingCube.prototype = Object.create(THREE.Object3D.prototype);
+
+MovingCube.prototype.setPosition = function(x, y, z) {
+    this.position.set(x, y, z);
+}
 
 /**
  */
 MovingCube.prototype.setSelected = function(bool) {
     this.selected = bool;
     if (this.selected) {
-        material.color.setHex(0x00ff00);
+        this.material.color.setHex(0x00ff00);
     } else {
-        material.color.setHex(0xff0000);
+        this.material.color.setHex(0xff0000);
     }
 }
 

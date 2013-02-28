@@ -80,20 +80,49 @@
                 floor.doubleSided = true;
                 scene.add(floor);
                 
+                
+                
+                ////
+                
+                var sphere1 = new Sphere();
+                var sphere2 = new Sphere();
+                console.log("Before:");
+                console.log(sphere1.size);
+                console.log(sphere2.size);
+                
+                sphere1.double();
+                
+                console.log("After:");
+                console.log(sphere1.size);
+                console.log(sphere2.size);
+                
+                
+                
+                /////
+                
+                
                 // Cube
                 var movingCube1 =  new MovingCube();
-                console.log("Instance position:");
-                console.log(movingCube1.position);
-                movingCube1.position.set(0, 25, 50);
-                movingCube1.setObstacles(obstacles);
-                scene.add(movingCube1.position);
-                movingCubes.push(movingCube1);
                 
-                var movingCube2 =  new MovingCube();
-                movingCube2.position.set(0, 25, 0);
+                var movingCube1 = new MovingCube();
+                movingCube1.setPosition(-300, 25, 0);
+                movingCube1.setObstacles(obstacles);
+                scene.add(movingCube1);
+                movingCubes.push(movingCube1);
+                                
+                var movingCube2 = new MovingCube();
+                movingCube2.setPosition(-100, 25, 0);
                 movingCube2.setObstacles(obstacles);
                 scene.add(movingCube2);
                 movingCubes.push(movingCube2);
+                
+                var movingCube3 = new MovingCube();
+                movingCube3.setPosition(-200, 25, 0);
+                movingCube3.setObstacles(obstacles);
+                scene.add(movingCube3);
+                movingCubes.push(movingCube3);
+                
+                
                 
                 // Obstacles
                 var geometry = new THREE.CubeGeometry(CUBE_SIDE, CUBE_SIDE, CUBE_SIDE);
@@ -145,9 +174,22 @@
                 
                 if (selectedCube) {
                     selectedCube.setSelected(false);
-                    
                 } else {
-                    selectedCube = getHitObject(movingCubes);
+                    for (var i = 0; i < movingCubes.length; i++) {
+                        var meshes = movingCubes[i].meshes;
+                        var hitPoint;
+                        for (var j = 0; j < meshes.length; j++) {
+                            var mesh = meshes[j];
+                            hitPoint = getMouseHitPoint(mesh);
+                            if (hitPoint) {
+                                selectedCube = movingCubes[i];
+                                selectedCube.setSelected(true);
+                                return;
+                            }
+                        }
+                    }
+                    
+                    
                     if (selectedCube) {
                         selectedCube.setSelected(true);
                         var intersectionPoint = getMouseHitPoint([selectedCube]);
@@ -157,92 +199,92 @@
                 }
             }
             
-                
-                /**
-                 When the mouse is moved, XXX
-                 */
-                function mouseMoved(event) {
-                    if (selectedCube) {
-                        var intersectionPoint = getMouseHitPoint([floor]);
-                        if (intersectionPoint) {
-                            selectedCube.setTargetPosition(intersectionPoint.sub(mouseCubeOffset));
-                        }
+            
+            /**
+             When the mouse is moved, XXX
+             */
+            function mouseMoved(event) {
+                if (selectedCube) {
+                    var intersectionPoint = getMouseHitPoint(floor);
+                    if (intersectionPoint) {
+                        selectedCube.setTargetPosition(intersectionPoint.sub(mouseCubeOffset));
                     }
                 }
-                
-                
-                /**
-                 This is called when the left mouse button is released
-                 */
-                function mouseReleased(event) {
-                    if (selectedCube) {
-                        selectedCube.setSelected(false);
-                        selectedCube = null;
-                    }
-                    document.removeEventListener('mousemove', mouseMoved, false);
-                    document.removeEventListener('mouseup', mouseReleased, false);
+            }
+            
+            
+            /**
+             This is called when the left mouse button is released
+             */
+            function mouseReleased(event) {
+                if (selectedCube) {
+                    selectedCube.setSelected(false);
+                    selectedCube = null;
                 }
+                document.removeEventListener('mousemove', mouseMoved, false);
+                document.removeEventListener('mouseup', mouseReleased, false);
+            }
+            
+            
+            /**
+             Get current mouse position as a 3D vector
+             */
+            function getMousePosition() {
+                var mouse3D = new THREE.Vector3();
+                mouse3D.x = (event.clientX / window.innerWidth) * 2 - 1;
+                mouse3D.y = -(event.clientY / window.innerHeight) * 2 + 1;
+                mouse3D.z = 0.5;
+                return mouse3D;
+            }
+            
+            /**
+             
+             */
+            function getHitObject(objects) {
+                var mousePosition = getMousePosition();
+                var projector = new THREE.Projector();
+                projector.unprojectVector(mousePosition, camera);
                 
+                // Set up the normal vector pointing from the
+                // camera to the target position
+                var v = new THREE.Vector3();
+                v.subVectors(mousePosition, camera.position);
+                v.normalize();
                 
-                /**
-                 Get current mouse position as a 3D vector
-                 */
-                function getMousePosition() {
-                    var mouse3D = new THREE.Vector3();
-                    mouse3D.x = (event.clientX / window.innerWidth) * 2 - 1;
-                    mouse3D.y = -(event.clientY / window.innerHeight) * 2 + 1;
-                    mouse3D.z = 0.5;
-                    return mouse3D;
+                var ray = new THREE.Raycaster(camera.position, v);
+                var intersected = ray.intersectObjects(objects, false);
+                if (intersected[0]) { // Check if the mouse is on the floor
+                    console.log(intersected[0].object);
+                    return intersected[0].object;
                 }
+            }
+            
+            /**
+             Returns the intersection point on the closest object hit by
+             the mouse
+             */
+            function getMouseHitPoint(object) {
+                var mousePosition = getMousePosition();
+                var projector = new THREE.Projector();
+                projector.unprojectVector(mousePosition, camera);
                 
-                /**
-                 
-                 */
-                function getHitObject(objects) {
-                    var mousePosition = getMousePosition();
-                    var projector = new THREE.Projector();
-                    projector.unprojectVector(mousePosition, camera);
-                    
-                    // Set up the normal vector pointing from the
-                    // camera to the target position
-                    var v = new THREE.Vector3();
-                    v.subVectors(mousePosition, camera.position);
-                    v.normalize();
-                    
-                    var ray = new THREE.Raycaster(camera.position, v);
-                    
-                    var intersected = ray.intersectObjects(objects, false);
-                    if (intersected[0]) { // Check if the mouse is on the floor
-                        return intersected[0].object;
-                    }
+                // Set up the normal vector pointing from the
+                // camera to the target position
+                var v = new THREE.Vector3();
+                v.subVectors(mousePosition, camera.position);
+                v.normalize();
+                
+                var ray = new THREE.Raycaster(camera.position, v);
+                
+                var intersected = ray.intersectObjects([object], false);
+                if (intersected[0]) { // Check if the mouse is on the floor
+                    return intersected[0].point;
                 }
-                
-                /**
-                 Returns the intersection point on the closest object hit by
-                 the mouse
-                 */
-                function getMouseHitPoint(objects) {
-                    var mousePosition = getMousePosition();
-                    var projector = new THREE.Projector();
-                    projector.unprojectVector(mousePosition, camera);
-                    
-                    // Set up the normal vector pointing from the
-                    // camera to the target position
-                    var v = new THREE.Vector3();
-                    v.subVectors(mousePosition, camera.position);
-                    v.normalize();
-                    
-                    var ray = new THREE.Raycaster(camera.position, v);
-                    
-                    var intersected = ray.intersectObjects(objects, false);
-                    if (intersected[0]) { // Check if the mouse is on the floor
-                        return intersected[0].point;
-                    }
-                }
-                
-                
-                
-                
+            }
+            
+            
+            
+            
             </script>
         
     </body>
