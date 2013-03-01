@@ -1,7 +1,7 @@
 // function superclass() {this.stuff="stuff";}
 
 const CUBE_SIDE = 50;
-
+var geometry = new THREE.CubeGeometry(CUBE_SIDE, CUBE_SIDE, CUBE_SIDE);
 
 /**
  Constructor
@@ -17,10 +17,9 @@ MovingCube = function() {
     
     // Meshes
     this.meshes = [];
-    this.geometry = new THREE.CubeGeometry(CUBE_SIDE, CUBE_SIDE, CUBE_SIDE);
     this.material = new THREE.MeshLambertMaterial();
     this.material.color.setHex(0xff0000);
-    var mesh = new THREE.Mesh(this.geometry, this.material);
+    var mesh = new THREE.Mesh(geometry, this.material);
     this.meshes.push(mesh);
     this.add(mesh);
 };
@@ -45,6 +44,7 @@ MovingCube.prototype.setSelected = function(bool) {
 
 
 /**
+ Returns a boolean telling us whether the cube has been selected
  */
 MovingCube.prototype.isSelected = function() {
     return this.selected;
@@ -52,6 +52,7 @@ MovingCube.prototype.isSelected = function() {
 
 
 /**
+ Set the array of objects the cube will check collisions against
  */
 MovingCube.prototype.setObstacles = function(obstacles) {
     this.obstacles = obstacles;
@@ -102,15 +103,12 @@ MovingCube.prototype.zStep = function(dz) {
 
 /**
  Check if the cube is overlapping any obstacles (only checks x and z)
+ THIS METHOD WILL BE UPDATED TO TAKE MORE COMPLEX GEOMETRIES INTO ACCOUNT!!!
  */
 MovingCube.prototype.collides = function() {
     var collides = false;
     var offset = CUBE_SIDE / 2;
     var obstacle;
-    
-
-    //for (var j = 0; j < this.meshes.length; j++) {
-    //var mesh = this.meshes[j];
     
     for (var i = 0; i < this.obstacles.length; i++) {
         obstacle = obstacles[i]
@@ -126,6 +124,7 @@ MovingCube.prototype.collides = function() {
     }
     return collides;
 }
+
 
 
 

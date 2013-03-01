@@ -72,7 +72,7 @@
                 
                 // Floor
                 var floorMaterial = new THREE.MeshLambertMaterial();
-                var floorGeometry = new THREE.PlaneGeometry(1000, 1000, 10, 10);
+                var floorGeometry = new THREE.PlaneGeometry(800, 800, 10, 10);
                 floor = new THREE.Mesh(floorGeometry, floorMaterial);
                 
                 floor.rotation.x -= Math.PI / 2; // Rotate the floor correctly
@@ -195,20 +195,18 @@
             
             
             /**
-             When the mouse is moved, XXX
+             Called whenever the mouse is moved.
              */
             function mouseMoved(event) {
+                // If a cube is selected, update its target position
                 if (selectedCube) {
                     
                     var mouseX = event.clientX;
                     var mouseY = event.clientY;
-                    
                     var hit = MouseInterface.getMouseHit([floor],mouseX, mouseY);
                     if (hit) {
-                        var intersectionPoint = hit.point;
-                        
                         var target = new THREE.Vector3();
-                        target.subVectors(intersectionPoint, mouseCubeOffset);
+                        target.subVectors(hit.point, mouseCubeOffset);
                         selectedCube.setTargetPosition(target);
                     }
                 }
@@ -219,10 +217,13 @@
              This is called when the left mouse button is released
              */
             function mouseReleased(event) {
+                // If a cube is selected, deselect it.
                 if (selectedCube) {
                     selectedCube.setSelected(false);
                     selectedCube = null;
                 }
+                // Stop listening for mousemove move and mouseup events
+                // until the mouse has been clicked again
                 document.removeEventListener('mousemove', mouseMoved, false);
                 document.removeEventListener('mouseup', mouseReleased, false);
             }
