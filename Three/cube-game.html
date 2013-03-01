@@ -11,6 +11,7 @@
         <div id="message"></div>
         
         <script src="../js/lib/Three.js"></script>
+        <script src="../js/mouse-interface.js"></script>
         <script src="../js/moving-cube.js"></script>
         
         <script>
@@ -156,8 +157,11 @@
                 document.addEventListener('mousemove', mouseMoved, false);
                 document.addEventListener('mouseup', mouseReleased, false);
                 
+                // If a cube is already selected, deselect it.
                 if (selectedCube) {
                     selectedCube.setSelected(false);
+                    
+                    // If no cube is selected, check if one was hit and select it.
                 } else {
                     for (var i = 0; i < movingCubes.length; i++) {
                         var meshes = movingCubes[i].meshes;
@@ -169,12 +173,13 @@
                         }
                     }
                     
-                    if (selectedCube) { // If a cube was clicked
+                    // Set the cubes target position to the mouse's hitpoint
+                    // (possibly with an offset)
+                    if (selectedCube) {
                         selectedCube.setSelected(true);
                         hit = getMouseHit([floor]);
                         
                         if (hit) {
-                            console.log(mouseCubeOffset);
                             mouseCubeOffset.subVectors(hit.point, selectedCube.position);
                             
                             var target = new THREE.Vector3;

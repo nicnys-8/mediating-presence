@@ -11,6 +11,7 @@
         <div id="message"></div>
         
         <script src="../js/lib/Three.js"></script>
+        <script src="../js/mouse-interface.js"></script>
         <script src="../js/moving-cube.js"></script>
         
         <script>
@@ -152,32 +153,35 @@
              */
 			function mouseClicked(event) {
 				event.preventDefault();
+                var mouseX = event.clientX;
+                var mouseY = event.clientY;
+                
                 // Add listeners for future mouse events
                 document.addEventListener('mousemove', mouseMoved, false);
                 document.addEventListener('mouseup', mouseReleased, false);
                 
                 // If a cube is already selected, deselect it.
-                if (selectedCube) { 
+                if (selectedCube) {
                     selectedCube.setSelected(false);
                     
-                // If no cube is selected, check if one was hit and select it.
-                } else { 
+                    // If no cube is selected, check if one was hit and select it.
+                } else {
                     for (var i = 0; i < movingCubes.length; i++) {
                         var meshes = movingCubes[i].meshes;
                         
-                        var hit = getMouseHit(movingCubes);
+                        var hit = MouseInterface.getMouseHit(movingCubes, mouseX, mouseY);
                         if (hit) {
                             selectedCube = hit.object.parent;
                             selectedCube.setSelected(true);
                         }
                     }
                     
-                    // Set the cubes target position to the mouse's hitpoint
+                    // Set the cube's target position to the mouse's hitpoint
                     // (possibly with an offset)
                     if (selectedCube) {
                         selectedCube.setSelected(true);
-                        hit = getMouseHit([floor]);
-
+                        hit = MouseInterface.getMouseHit([floor], mouseX, mouseY);
+                        
                         if (hit) {
                             mouseCubeOffset.subVectors(hit.point, selectedCube.position);
                             
@@ -195,17 +199,15 @@
              */
             function mouseMoved(event) {
                 if (selectedCube) {
-                    var hit = getMouseHit([floor]);
-                    var hit2 = getMouseHit(movingCubes);
                     
-                    /////UGLY////
-                    /*
-                    selectedCube.setSelected(false);
-                    if (!hit2) selectedCube = null;*/
+                    var mouseX = event.clientX;
+                    var mouseY = event.clientY;
+                    
+                    var hit = MouseInterface.getMouseHit([floor],mouseX, mouseY);
                     if (hit) {
                         var intersectionPoint = hit.point;
                         
-                        var target = new THREE.Vector3;
+                        var target = new THREE.Vector3();
                         target.subVectors(intersectionPoint, mouseCubeOffset);
                         selectedCube.setTargetPosition(target);
                     }
@@ -223,41 +225,6 @@
                 }
                 document.removeEventListener('mousemove', mouseMoved, false);
                 document.removeEventListener('mouseup', mouseReleased, false);
-            }
-            
-            
-            /**
-             Get current mouse position as a 3D vector
-             */
-            function getMousePosition() {
-                var mouse3D = new THREE.Vector3();
-                mouse3D.x = (event.clientX / window.innerWidth) * 2 - 1;
-                mouse3D.y = -(event.clientY / window.innerHeight) * 2 + 1;
-                mouse3D.z = 0.5;
-                return mouse3D;
-            }
-            
-            
-            /**
-             Returns the intersection point if an object is hit
-             */
-            function getMouseHit(objects) {
-                var mousePosition = getMousePosition();
-                var projector = new THREE.Projector();
-                projector.unprojectVector(mousePosition, camera);
-                
-                // Set up the normal vector pointing from the
-                // camera to the target position
-                var v = new THREE.Vector3();
-                v.subVectors(mousePosition, camera.position);
-                v.normalize();
-                
-                var ray = new THREE.Raycaster(camera.position, v);
-                var hits = ray.intersectObjects(objects, true);
-                
-                if (hits[0]) {
-                    return hits[0];
-                }
             }
             
             </script>
