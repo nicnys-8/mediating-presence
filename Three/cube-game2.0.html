@@ -74,7 +74,6 @@
                 var floorGeometry = new THREE.PlaneGeometry(1000, 1000, 10, 10);
                 floor = new THREE.Mesh(floorGeometry, floorMaterial);
                 
-                
                 floor.rotation.x -= Math.PI / 2; // Rotate the floor correctly
                 floor.position.y = -0.5; // Move a tiny bit to prevent flickering
                 
@@ -139,8 +138,8 @@
                 renderer.render(scene, camera)
                 
                 if (selectedCube) {
-                    selectedCube.xStep(1);
-                    selectedCube.zStep(1);
+                    selectedCube.xStep(2);
+                    selectedCube.zStep(2);
                 }
             }
             
@@ -148,7 +147,6 @@
             /*-------------------------------
              --------| Mouse Events |--------
              -------------------------------*
-             
              /**
              When the mouse is clicked, XXX
              */
@@ -158,28 +156,34 @@
                 document.addEventListener('mousemove', mouseMoved, false);
                 document.addEventListener('mouseup', mouseReleased, false);
                 
-                if (selectedCube) {
+                // If a cube is already selected, deselect it.
+                if (selectedCube) { 
                     selectedCube.setSelected(false);
-                } else {
+                    
+                // If no cube is selected, check if one was hit and select it.
+                } else { 
                     for (var i = 0; i < movingCubes.length; i++) {
                         var meshes = movingCubes[i].meshes;
-                        var hitPoint;
                         
-                        hit = getMouseHit(movingCubes);
+                        var hit = getMouseHit(movingCubes);
                         if (hit) {
                             selectedCube = hit.object.parent;
                             selectedCube.setSelected(true);
-                            return;
                         }
                     }
                     
+                    // Set the cubes target position to the mouse's hitpoint
+                    // (possibly with an offset)
                     if (selectedCube) {
                         selectedCube.setSelected(true);
-                        var hit = getMouseHit(floor);
+                        hit = getMouseHit([floor]);
+
                         if (hit) {
-                            var intersectionPoint = hit.point;
-                            mouseCubeOffset.subVectors(intersectionPoint, selectedCube.position);
-                            selectedCube.setTargetPosition(intersectionPoint.sub(mouseCubeOffset));
+                            mouseCubeOffset.subVectors(hit.point, selectedCube.position);
+                            
+                            var target = new THREE.Vector3;
+                            target.subVectors(hit.point, mouseCubeOffset);
+                            selectedCube.setTargetPosition(target);
                         }
                     }
                 }
@@ -192,10 +196,18 @@
             function mouseMoved(event) {
                 if (selectedCube) {
                     var hit = getMouseHit([floor]);
+                    var hit2 = getMouseHit(movingCubes);
+                    
+                    /////UGLY////
+                    /*
+                    selectedCube.setSelected(false);
+                    if (!hit2) selectedCube = null;*/
                     if (hit) {
                         var intersectionPoint = hit.point;
-                        selectedCube.setTargetPosition(intersectionPoint.sub(mouseCubeOffset));
                         
+                        var target = new THREE.Vector3;
+                        target.subVectors(intersectionPoint, mouseCubeOffset);
+                        selectedCube.setTargetPosition(target);
                     }
                 }
             }
@@ -225,31 +237,9 @@
                 return mouse3D;
             }
             
-            /**
-             
-             */
-            function getHitObject(objects) {
-                var mousePosition = getMousePosition();
-                var projector = new THREE.Projector();
-                projector.unprojectVector(mousePosition, camera);
-                
-                // Set up the normal vector pointing from the
-                // camera to the target position
-                var v = new THREE.Vector3();
-                v.subVectors(mousePosition, camera.position);
-                v.normalize();
-                
-                var ray = new THREE.Raycaster(camera.position, v);
-                var intersected = ray.intersectObjects(objects, false);
-                if (intersected[0]) { // Check if the mouse is on the floor
-                    console.log(intersected[0].object);
-                    return intersected[0].object;
-                }
-            }
             
             /**
-             Returns the intersection point on the closest object hit by
-             the mouse
+             Returns the intersection point if an object is hit
              */
             function getMouseHit(objects) {
                 var mousePosition = getMousePosition();
@@ -270,8 +260,6 @@
                 }
             }
             
-            
             </script>
-        
     </body>
 </html>

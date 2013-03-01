@@ -108,15 +108,19 @@ MovingCube.prototype.collides = function() {
     var offset = CUBE_SIDE / 2;
     var obstacle;
     
+
+    //for (var j = 0; j < this.meshes.length; j++) {
+    //var mesh = this.meshes[j];
+    
     for (var i = 0; i < this.obstacles.length; i++) {
         obstacle = obstacles[i]
         if (obstacle != this && !(
-              this.position.x + offset < obstacle.position.x - offset ||
-              this.position.x - offset > obstacle.position.x + offset ||
-              
-              this.position.z + offset < obstacle.position.z - offset ||
-              this.position.z - offset > obstacle.position.z + offset
-              )) {
+                                  this.position.x + offset < obstacle.position.x - offset ||
+                                  this.position.x - offset > obstacle.position.x + offset ||
+                                  
+                                  this.position.z + offset < obstacle.position.z - offset ||
+                                  this.position.z - offset > obstacle.position.z + offset
+                                  )) {
             collides = true;
         }
     }
