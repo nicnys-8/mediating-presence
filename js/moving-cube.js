@@ -13,15 +13,26 @@ MovingCube = function() {
     
     this.selected = false;
     this.targetPosition = this.position;
-    this.obstacles;
     
     // Meshes
     this.meshes = [];
     this.material = new THREE.MeshLambertMaterial();
     this.material.color.setHex(0xff0000);
-    var mesh = new THREE.Mesh(geometry, this.material);
-    this.meshes.push(mesh);
-    this.add(mesh);
+    
+    var mesh1 = new THREE.Mesh(geometry, this.material);
+    
+    var mesh2 = new THREE.Mesh(geometry, this.material);
+    mesh2.position.set(CUBE_SIDE + 5, 0, 0);
+    
+    var mesh3 = new THREE.Mesh(geometry, this.material);
+    mesh3.position.set(CUBE_SIDE + 5, 0, CUBE_SIDE + 5);
+    
+    this.meshes.push(mesh1);
+    this.meshes.push(mesh2);
+    this.meshes.push(mesh3);
+    this.add(mesh1);
+    this.add(mesh2);
+    this.add(mesh3);
 };
 
 //MovingCube.prototype = new THREE.Object3D();
@@ -52,11 +63,15 @@ MovingCube.prototype.isSelected = function() {
 
 
 /**
+ Not used right now, since I made the sneaky move to make obstacles
+ a globally accessible variable...
+ 
+/**
  Set the array of objects the cube will check collisions against
- */
+
 MovingCube.prototype.setObstacles = function(obstacles) {
     this.obstacles = obstacles;
-}
+}*/
 
 
 /**
@@ -109,20 +124,33 @@ MovingCube.prototype.collides = function() {
     var collides = false;
     var offset = CUBE_SIDE / 2;
     var obstacle;
-    
-    for (var i = 0; i < this.obstacles.length; i++) {
-        obstacle = obstacles[i]
-        if (obstacle != this && !(
-                                  this.position.x + offset < obstacle.position.x - offset ||
-                                  this.position.x - offset > obstacle.position.x + offset ||
-                                  
-                                  this.position.z + offset < obstacle.position.z - offset ||
-                                  this.position.z - offset > obstacle.position.z + offset
-                                  )) {
-            collides = true;
+    var mesh;
+    for (var j = 0; j < this.meshes.length; j++) {
+        mesh = this.meshes[j];
+        
+        var v = new THREE.Vector3();
+        v = mesh.position.clone();
+        
+        console.log(mesh.position);
+        console.log(mesh.localToWorld(v));
+        
+        for (var i = 0; i < obstacles.length; i++) {
+            obstacle = obstacles[i];
+            
+            if (obstacle === this) console.log("Stop hitting yourself!");
+            
+            if ((obstacle !== this) && (
+                                         mesh.parent.position.x + mesh.position.x + offset < obstacle.position.x + obstacle.parent.position.x - offset ||
+                                         mesh.parent.position.x + mesh.position.x - offset > obstacle.position.x + obstacle.parent.position.x + offset ||
+                                         
+                                         mesh.parent.position.z + mesh.position.z + offset < obstacle.position.z + obstacle.parent.position.z - offset ||
+                                         mesh.parent.position.z + mesh.position.z - offset > obstacle.position.z + obstacle.parent.position.z + offset
+                                         ))
+            { return true;
+            }
         }
     }
-    return collides;
+    return false;
 }
 
 

@@ -83,47 +83,38 @@
                 
                 
                 // Cube
-                var movingCube1 =  new MovingCube();
-                
                 var movingCube1 = new MovingCube();
                 movingCube1.setPosition(-300, 25, 0);
-                movingCube1.setObstacles(obstacles);
                 scene.add(movingCube1);
                 movingCubes.push(movingCube1);
-                obstacles.push(movingCube1);
+                obstacles = obstacles.concat(movingCube1.meshes);
+                
+
                 
                 
-                var movingCube2 = new MovingCube();
-                movingCube2.setPosition(-100, 25, 0);
-                movingCube2.setObstacles(obstacles);
-                scene.add(movingCube2);
-                movingCubes.push(movingCube2);
-                obstacles.push(movingCube2);
+                 var movingCube3 = new MovingCube();
+                 movingCube3.setPosition(-150, 25, 0);
+                 scene.add(movingCube3);
+                 movingCubes.push(movingCube3);
+                 obstacles = obstacles.concat(movingCube3.meshes);
                 
                 
-                var movingCube3 = new MovingCube();
-                movingCube3.setPosition(-200, 25, 0);
-                movingCube3.setObstacles(obstacles);
-                scene.add(movingCube3);
-                movingCubes.push(movingCube3);
-                obstacles.push(movingCube3);
-                
-                
-                // Obstacles
-                var geometry = new THREE.CubeGeometry(CUBE_SIDE, CUBE_SIDE, CUBE_SIDE);
-                var material = new THREE.MeshLambertMaterial();
-                material.color.setHex(0x0000ff);
-                
-                obstacle1 =  new THREE.Mesh(geometry, material);
-                obstacle1.position.set(200, 25, 102);
-                scene.add(obstacle1);
-                obstacles.push(obstacle1);
-                
-                obstacle2 =  new THREE.Mesh(geometry, material);
-                obstacle2.position.set(200, 25, 0);
-                scene.add(obstacle2);
-                obstacles.push(obstacle2);
-                
+                /*
+                 // Obstacles
+                 var geometry = new THREE.CubeGeometry(CUBE_SIDE, CUBE_SIDE, CUBE_SIDE);
+                 var material = new THREE.MeshLambertMaterial();
+                 material.color.setHex(0x0000ff);
+                 
+                 obstacle1 =  new THREE.Mesh(geometry, material);
+                 obstacle1.position.set(500, 25, 102);
+                 scene.add(obstacle1);
+                 obstacles.push(obstacle1);
+                 
+                 obstacle2 =  new THREE.Mesh(geometry, material);
+                 obstacle2.position.set(200, 25, 0);
+                 scene.add(obstacle2);
+                 obstacles.push(obstacle2);
+                 */
                 
                 // Mouse events
 				document.addEventListener('mousedown', mouseClicked, false);
@@ -173,22 +164,19 @@
                         if (hit) {
                             selectedCube = hit.object.parent;
                             selectedCube.setSelected(true);
-                        }
-                    }
-                    
-                    // Set the cube's target position to the mouse's hitpoint
-                    // (possibly with an offset)
-                    if (selectedCube) {
-                        selectedCube.setSelected(true);
-                        hit = MouseInterface.getMouseHit([floor], mouseX, mouseY);
-                        
-                        if (hit) {
-                            mouseCubeOffset.subVectors(hit.point, selectedCube.position);
                             
-                            var target = new THREE.Vector3;
-                            target.subVectors(hit.point, mouseCubeOffset);
-                            selectedCube.setTargetPosition(target);
-                        }
+                            // Set the cube's target position to the mouse's
+                            //hitpoint (possibly with an offset)
+                            hit = MouseInterface.getMouseHit([floor], mouseX, mouseY);
+                            
+                            if (hit) {
+                                mouseCubeOffset.subVectors(hit.point, selectedCube.position);
+                                
+                                var target = new THREE.Vector3;
+                                target.subVectors(hit.point, mouseCubeOffset);
+                                selectedCube.setTargetPosition(target);
+                            }
+                        } return;
                     }
                 }
             }
