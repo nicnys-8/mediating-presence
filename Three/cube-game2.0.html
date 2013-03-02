@@ -89,14 +89,17 @@
                 movingCubes.push(movingCube1);
                 obstacles = obstacles.concat(movingCube1.meshes);
                 
-
+                var movingCube2 = new MovingCube();
+                movingCube2.setPosition(200, 25, 0);
+                scene.add(movingCube2);
+                movingCubes.push(movingCube2);
+                obstacles = obstacles.concat(movingCube2.meshes);
                 
-                
-                 var movingCube3 = new MovingCube();
-                 movingCube3.setPosition(-150, 25, 0);
-                 scene.add(movingCube3);
-                 movingCubes.push(movingCube3);
-                 obstacles = obstacles.concat(movingCube3.meshes);
+                var movingCube3 = new MovingCube();
+                movingCube3.setPosition(0, 25, 0);
+                scene.add(movingCube3);
+                movingCubes.push(movingCube3);
+                obstacles = obstacles.concat(movingCube3.meshes);
                 
                 
                 /*

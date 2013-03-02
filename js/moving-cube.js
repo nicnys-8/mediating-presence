@@ -3,6 +3,10 @@
 const CUBE_SIDE = 50;
 var geometry = new THREE.CubeGeometry(CUBE_SIDE, CUBE_SIDE, CUBE_SIDE);
 
+// Temp variables
+var v1 = new THREE.Vector3();
+var v2 = new THREE.Vector3();
+
 /**
  Constructor
  */
@@ -22,10 +26,11 @@ MovingCube = function() {
     var mesh1 = new THREE.Mesh(geometry, this.material);
     
     var mesh2 = new THREE.Mesh(geometry, this.material);
-    mesh2.position.set(CUBE_SIDE + 5, 0, 0);
+    mesh2.translateX(CUBE_SIDE);
     
     var mesh3 = new THREE.Mesh(geometry, this.material);
-    mesh3.position.set(CUBE_SIDE + 5, 0, CUBE_SIDE + 5);
+    mesh3.translateX(CUBE_SIDE);
+    mesh3.translateZ(CUBE_SIDE);
     
     this.meshes.push(mesh1);
     this.meshes.push(mesh2);
@@ -66,12 +71,12 @@ MovingCube.prototype.isSelected = function() {
  Not used right now, since I made the sneaky move to make obstacles
  a globally accessible variable...
  
-/**
+ /**
  Set the array of objects the cube will check collisions against
-
-MovingCube.prototype.setObstacles = function(obstacles) {
-    this.obstacles = obstacles;
-}*/
+ 
+ MovingCube.prototype.setObstacles = function(obstacles) {
+ this.obstacles = obstacles;
+ }*/
 
 
 /**
@@ -92,8 +97,9 @@ MovingCube.prototype.xStep = function(dx) {
         // Translate by dx in the specified direction
         var xMovement = ((this.position.x < this.targetPosition.x) ? dx : -dx);
         this.translateX(xMovement);
-        if (this.collides()) { //If the translation resultet in a collision...
+        if (this.collides()) { //If the translation resulted in a collision...
             this.translateX(-xMovement); //Undo!
+            console.log("x-collision");
         }
     }
 }
@@ -111,46 +117,56 @@ MovingCube.prototype.zStep = function(dz) {
         this.translateZ(zMovement);
         if (this.collides()) { //If the translation resultet in a collision...
             this.translateZ(-zMovement); //Undo!
+            console.log("z-collision");
         }
     }
 }
 
 
 /**
- Check if the cube is overlapping any obstacles (only checks x and z)
- THIS METHOD WILL BE UPDATED TO TAKE MORE COMPLEX GEOMETRIES INTO ACCOUNT!!!
+ OBS! Det här är en svammelmetod, ska förstås ändras sen...
  */
 MovingCube.prototype.collides = function() {
     var collides = false;
     var offset = CUBE_SIDE / 2;
     var obstacle;
     var mesh;
+    
     for (var j = 0; j < this.meshes.length; j++) {
         mesh = this.meshes[j];
         
-        var v = new THREE.Vector3();
-        v = mesh.position.clone();
-        
-        console.log(mesh.position);
-        console.log(mesh.localToWorld(v));
-        
         for (var i = 0; i < obstacles.length; i++) {
+            
             obstacle = obstacles[i];
+            /*
+             v1.getPositionFromMatrix(mesh.matrixWorld);
+             v2.getPositionFromMatrix(obstacle.matrixWorld);
+             
+             if ((obstacle.parent !== mesh.parent) && !(
+             v1.x + offset < v2.x - offset ||
+             v1.x - offset > v2.x + offset ||
+             v1.z + offset < v2.z - offset ||
+             v1.z - offset > v2.z + offset
+             )) {
+             */
             
-            if (obstacle === this) console.log("Stop hitting yourself!");
             
-            if ((obstacle !== this) && (
-                                         mesh.parent.position.x + mesh.position.x + offset < obstacle.position.x + obstacle.parent.position.x - offset ||
-                                         mesh.parent.position.x + mesh.position.x - offset > obstacle.position.x + obstacle.parent.position.x + offset ||
-                                         
-                                         mesh.parent.position.z + mesh.position.z + offset < obstacle.position.z + obstacle.parent.position.z - offset ||
-                                         mesh.parent.position.z + mesh.position.z - offset > obstacle.position.z + obstacle.parent.position.z + offset
-                                         ))
-            { return true;
+            if ((obstacle.parent !== mesh.parent) && !(
+                                                       mesh.parent.position.x + mesh.position.x + offset < obstacle.position.x + obstacle.parent.position.x - offset ||
+                                                       mesh.parent.position.x + mesh.position.x - offset > obstacle.position.x + obstacle.parent.position.x + offset ||
+                                                       
+                                                       mesh.parent.position.z + mesh.position.z + offset < obstacle.position.z + obstacle.parent.position.z - offset ||
+                                                       mesh.parent.position.z + mesh.position.z - offset > obstacle.position.z + obstacle.parent.position.z + offset
+                                                       ))
+            {
+                
+                
+                
+                collides = true;
             }
         }
     }
-    return false;
+    return collides;
 }
 
 
