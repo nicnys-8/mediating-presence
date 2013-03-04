@@ -3,7 +3,7 @@
 <html>
 
 <head>
-	<title>Rigid body - Physijs</title>
+	<title>Collisions - Physijs</title>
 	
 	<link rel="stylesheet" type="text/css" href="css/styles.css" />
 	
@@ -18,13 +18,10 @@
 	Physijs.scripts.worker = '../physijs_worker.js';
 	Physijs.scripts.ammo = 'examples/js/ammo.js';
 	
-	var initScene, render, applyForce, setMousePosition, mouse_position,
-		ground_material, box_material,
-		projector, renderer, render_stats, physics_stats, scene, ground, light, camera, box, boxes = [];
+	var initScene, render, _boxes = [], spawnBox,
+		renderer, render_stats, physics_stats, scene, ground_material, ground, light, camera;
 	
 	initScene = function() {
-		projector = new THREE.Projector;
-		
 		renderer = new THREE.WebGLRenderer({ antialias: true });
 		renderer.setSize( window.innerWidth, window.innerHeight );
 		renderer.shadowMapEnabled = true;
@@ -33,22 +30,21 @@
 		
 		render_stats = new Stats();
 		render_stats.domElement.style.position = 'absolute';
-		render_stats.domElement.style.top = '1px';
+		render_stats.domElement.style.top = '0px';
 		render_stats.domElement.style.zIndex = 100;
 		document.getElementById( 'viewport' ).appendChild( render_stats.domElement );
-
+		
 		physics_stats = new Stats();
 		physics_stats.domElement.style.position = 'absolute';
 		physics_stats.domElement.style.top = '50px';
 		physics_stats.domElement.style.zIndex = 100;
 		document.getElementById( 'viewport' ).appendChild( physics_stats.domElement );
-		
+
 		scene = new Physijs.Scene;
 		scene.setGravity(new THREE.Vector3( 0, -30, 0 ));
 		scene.addEventListener(
 			'update',
 			function() {
-				applyForce();
 				scene.simulate( undefined, 1 );
 				physics_stats.update();
 			}
@@ -80,24 +76,15 @@
 		light.shadowDarkness = .7;
 		scene.add( light );
 		
-		// Materials
+		// Ground
 		ground_material = Physijs.createMaterial(
 			new THREE.MeshLambertMaterial({ map: THREE.ImageUtils.loadTexture( 'images/rocks.jpg' ) }),
 			.8, // high friction
-			.4 // low restitution
+			.3 // low restitution
 		);
 		ground_material.map.wrapS = ground_material.map.wrapT = THREE.RepeatWrapping;
 		ground_material.map.repeat.set( 3, 3 );
 		
-		box_material = Physijs.createMaterial(
-			new THREE.MeshLambertMaterial({ map: THREE.ImageUtils.loadTexture( 'images/plywood.jpg' ) }),
-			.4, // low friction
-			.6 // high restitution
-		);
-		box_material.map.wrapS = ground_material.map.wrapT = THREE.RepeatWrapping;
-		box_material.map.repeat.set( .25, .25 );
-		
-		// Ground
 		ground = new Physijs.BoxMesh(
 			new THREE.CubeGeometry(100, 1, 100),
 			ground_material,
@@ -106,68 +93,88 @@
 		ground.receiveShadow = true;
 		scene.add( ground );
 		
-		for ( var i = 0; i < 10; i++ ) {
-			box = new Physijs.BoxMesh(
-				new THREE.CubeGeometry( 4, 4, 4 ),
-				box_material
-			);
-			box.position.set(
-				Math.random() * 50 - 25,
-				10 + Math.random() * 5,
-				Math.random() * 50 - 25
-			);
-			box.rotation.set(
-				Math.random() * Math.PI * 2,
-				Math.random() * Math.PI * 2,
-				Math.random() * Math.PI * 2
-			);
-			box.scale.set(
-				Math.random() * 1 + .5,
-				Math.random() * 1 + .5,
-				Math.random() * 1 + .5
-			);
-			box.castShadow = true;
-			scene.add( box );
-			boxes.push( box );
-		}
+		spawnBox();
 		
-		renderer.domElement.addEventListener( 'mousemove', setMousePosition );
-
 		requestAnimationFrame( render );
 		scene.simulate();
 	};
+	
+	spawnBox = (function() {
+		var box_geometry = new THREE.CubeGeometry( 4, 4, 4 ),
+			handleCollision = function( collided_with, linearVelocity, angularVelocity ) {
+				switch ( ++this.collisions ) {
+					
+					case 1:
+						this.material.color.setHex(0xcc8855);
+						break;
+					
+					case 2:
+						this.material.color.setHex(0xbb9955);
+						break;
+					
+					case 3:
+						this.material.color.setHex(0xaaaa55);
+						break;
+					
+					case 4:
+						this.material.color.setHex(0x99bb55);
+						break;
+					
+					case 5:
+						this.material.color.setHex(0x88cc55);
+						break;
+					
+					case 6:
+						this.material.color.setHex(0x77dd55);
+						break;
+				}
+			},
+			createBox = function() {
+				var box, material;
+				
+				material = Physijs.createMaterial(
+					new THREE.MeshLambertMaterial({ map: THREE.ImageUtils.loadTexture( 'images/plywood.jpg' ) }),
+					.6, // medium friction
+					.3 // low restitution
+				);
+				material.map.wrapS = material.map.wrapT = THREE.RepeatWrapping;
+				material.map.repeat.set( .5, .5 );
+				
+				//material = new THREE.MeshLambertMaterial({ map: THREE.ImageUtils.loadTexture( 'images/rocks.jpg' ) });
+				
+				box = new Physijs.BoxMesh(
+					box_geometry,
+					material
+				);
+				box.collisions = 0;
+				
+				box.position.set(
+					Math.random() * 15 - 7.5,
+					25,
+					Math.random() * 15 - 7.5
+				);
+				
+				box.rotation.set(
+					Math.random() * Math.PI,
+					Math.random() * Math.PI,
+					Math.random() * Math.PI
+				);
+				
+				box.castShadow = true;
+				box.addEventListener( 'collision', handleCollision );
+				box.addEventListener( 'ready', spawnBox );
+				scene.add( box );
+			};
+		
+		return function() {
+			setTimeout( createBox, 1000 );
+		};
+	})();
 	
 	render = function() {
 		requestAnimationFrame( render );
 		renderer.render( scene, camera );
 		render_stats.update();
-	};
-	
-	setMousePosition = function( evt ) {
-		// Find where mouse cursor intersects the ground plane
-		var vector = new THREE.Vector3(
-			( evt.clientX / renderer.domElement.clientWidth ) * 2 - 1,
-			-( ( evt.clientY / renderer.domElement.clientHeight ) * 2 - 1 ),
-			.5
-		);
-		projector.unprojectVector( vector, camera );
-		vector.subSelf( camera.position ).normalize();
-		
-		var coefficient = (box.position.y - camera.position.y) / vector.y
-		mouse_position = camera.position.clone().addSelf( vector.multiplyScalar( coefficient ) );
-	};
-	
-	applyForce = function() {
-		if (!mouse_position) return;
-		var strength = 35, distance, effect, offset, box;
-		
-		for ( var i = 0; i < boxes.length; i++ ) {
-			box = boxes[i];
-			distance = mouse_position.distanceTo( box.position ),
-			effect = mouse_position.clone().subSelf( box.position ).normalize().multiplyScalar( strength / distance ).negate(),
-			offset = mouse_position.clone().subSelf( box.position );
-			box.applyImpulse( effect, offset );
-		}
 	};
 	
 	window.onload = initScene;
@@ -177,8 +184,8 @@
 
 <body>
 	<div id="heading">
-		<h1>Rigid Body + User Interaction</h1>
-		<p>Move your cursor near the boxes to push them.</p>
+		<h1>Collisions</h1>
+		<p>Demonstrating the collision callback</p>
 	</div>
 	<div id="viewport"></div>
 </body>
