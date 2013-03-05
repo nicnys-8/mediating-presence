@@ -1,0 +1,854 @@
+
+<html>
+    
+    <head>
+        
+        <title>Kinect Calibration</title>
+        
+		<style type="text/css">
+            body {
+                font-family:monospace;
+            }
+			button {
+				margin-top:1em;
+				font-size:125%;
+			}
+			div.fullPage {
+				display:none;
+				position:absolute;
+                top:0;
+				left:0;
+                padding:0px;
+                margin:0px;
+                width:100%;
+				height:100%;
+			}
+            canvas.fullPage {
+				width:100%;
+				height:100%;
+				background-color:black;
+			}
+			canvas.videoCanvas {
+				display:block;
+				margin:1em 1em 1em 1em;
+				width:640px;
+				height:480px;
+			}
+			#videoCanvas2, #videoCanvas2:active, #videoCanvas2:focus {
+				cursor: crosshair;
+			}
+			#fullscreenCanvas {
+				width:100%;
+				height:100%;
+				background-color:black;
+			}
+            #finishedSpan {
+                display:block;
+                padding:30% 0% 0% 0%;
+            }
+            </style>
+		
+        <script type="text/javascript" src="../js/mediaext.js"></script>
+        <script type="text/javascript" src="../js/geometry.js"></script>
+        <script type="text/javascript" src="../js/lib/sylvester.js"></script>
+        <script type="text/javascript" src="../js/lib/zig.js"></script>
+        <script type="text/javascript" src="../js/kinect-decoder.js"></script>
+        <script type="text/javascript" src="../js/image-handling.js"></script>
+		
+        <!---->
+        <script type="text/javascript" src="../js/lib/three.js"></script>
+        <script type="text/javascript" src="../js/lib/physijs/physi.js"></script>
+        <!---->
+        
+        <script>
+            
+			const kWidth = 640, kHeight = 480;
+			const KINECT_RGB_WIDTH = 160, KINECT_RGB_HEIGHT = 120;
+            const KINECT_DEPTH_WIDTH = 160, KINECT_DEPTH_HEIGHT = 120;
+            
+            var calibrationImage, calibrationContext;
+			var snapshotImage, snapshotContext;
+            var fullscreenCanvas;
+            
+            var calibrationStep = 1;
+            const NUM_DEPTH_REFS = 50;
+            var depthRefCount = 0;
+            
+			CalibrationPoint = function(color, position) {
+				this.browserX = 0;
+				this.browserY = 0;
+				this.cameraX = 0;
+				this.cameraY = 0;
+				this.color = color;
+				this.position = position;
+			}
+			
+			var cpIndex = 0;
+			var calibrationPoints = [new CalibrationPoint("red", "top left"),
+									 new CalibrationPoint("green", "top right"),
+									 new CalibrationPoint("blue", "bottom right"),
+									 new CalibrationPoint("yellow", "bottom left"),
+									 new CalibrationPoint("white", "center")];
+            
+			var depthData = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT),
+            depthRef = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT),
+            planeError = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT);
+			var currentVideoFrame, videoData;
+			
+			function $(nodeName) {
+				return document.getElementById(nodeName);
+			}
+            function show(nodeName) {
+                $(nodeName).style.display = "block";
+            }
+            function hide(nodeName) {
+				$(nodeName).style.display = "none";
+            }
+			
+            function init() {
+                
+                show("stepOne");
+                
+				calibrationImage = MediaExt.createCanvas(kWidth, kHeight);
+                calibrationContext = calibrationImage.getContext("2d");
+				
+				snapshotImage = MediaExt.createCanvas(kWidth, kHeight);
+                snapshotContext = snapshotImage.getContext("2d");
+                
+				fullscreenCanvas = $("fullscreenCanvas");
+				
+                window.onresize = function() {
+                    fullscreenCanvas.width = window.innerWidth;
+                    fullscreenCanvas.height = window.innerHeight;
+                    
+                    /*
+                     $("drawCanvas").width = window.innerWidth;
+                     $("drawCanvas").height = window.innerHeight;
+                     */
+                    drawCalibrationMarkers();
+                };
+				
+				window.onresize();
+				
+                currentVideoFrame = MediaExt.createCanvas(KINECT_RGB_WIDTH, KINECT_RGB_HEIGHT);
+				videoData = currentVideoFrame.getContext("2d").createImageData(KINECT_RGB_WIDTH, KINECT_RGB_HEIGHT);
+                
+				plugin = document.getElementById("ZigPlugin");
+				// Start the video streams
+				plugin.requestStreams({updateDepth:true, updateImage:true});
+				// Start updating the canvases every new kinect frame
+                plugin.addEventListener("NewFrame", updateKinectData);
+            }
+            
+			function updateKinectData() {
+				
+                /* Take a snapshot from the Kinect RGB video */
+                KinectDecoder.decodeRGB(plugin.imageMap, videoData.data);
+                currentVideoFrame.getContext("2d").putImageData(videoData, 0, 0);
+                
+                /* Take a snapshot from the Kinect depth video */
+                KinectDecoder.decodeDepth(plugin.depthMap, depthData);
+				
+				switch (calibrationStep) {
+                    case 1:
+                    drawVideo();
+                    break;
+                    case 2:
+                    refineDepthReference();
+                    break;
+                    case 3:
+                    break;
+                    case 4:
+                    mask();
+                }
+			}
+			
+            function refineDepthReference() {
+                
+                depthRefCount++;
+                
+                if (depthRefCount == 1) {
+                    
+                    // First step, just copy the current depth data
+                    for (var i = 0; i < depthData.length; i++) {
+                        depthRef[i] = depthData[i];
+                    }
+                    
+                } else if (depthRefCount <= NUM_DEPTH_REFS) {
+                    
+                    // Refine the reference image with the new depth data.
+                    // Zero values indicate no data, so we want to fill those in.
+                    // If a reference value and a new value both exist, the new reference
+                    // value is set to a weighted average of the two.
+                    for (var i = 0; i < depthData.length; i++) {
+                        if (depthRef[i] == 0) {
+                            depthRef[i] = depthData[i];
+                        } else if (depthData[i] != 0) {
+                            var ratio = 1.0 / depthRefCount;
+                            depthRef[i] = depthRef[i] * (1.0 - ratio) + depthData[i] * ratio;
+                        }
+                    }
+                    
+                } else {
+                    
+                    // Finished, go to the next step of the calibration
+                    calibrationStep++;
+                    takeSnapshot();
+                }
+            }
+            
+            function drawVideo() {
+				$("videoCanvas1").getContext("2d").drawImage(currentVideoFrame, 0, 0, kWidth, kHeight);
+				$("startCalButton").disabled = false;
+            }
+            
+            function startCalibration() {
+                
+				hide("stepOne");
+				show("stepTwo");
+                
+				drawCalibrationMarkers();
+                calibrationStep++;
+            }
+            
+			function restart() {
+                
+                calibrationStep = 1;
+                depthRefCount = 0;
+                
+				hide("stepThree");
+				show("stepOne");
+			}
+			
+			function updateColorInstructions() {
+				$("positionSpan").innerHTML = calibrationPoints[cpIndex].position;
+				$("colorSpan").innerHTML = calibrationPoints[cpIndex].color;
+			}
+			
+            function takeSnapshot() {
+				
+				cpIndex = 0;
+                
+				snapshotContext.drawImage(currentVideoFrame, 0, 0, kWidth, kHeight);
+				calibrationContext.drawImage(snapshotImage, 0, 0, kWidth, kHeight);
+                
+				var videoCanvas2 = $("videoCanvas2");
+				var videoContext2 = videoCanvas2.getContext("2d");
+                
+				videoContext2.drawImage(snapshotImage, 0, 0, kWidth, kHeight);
+                videoCanvas2.isDrawing = false;
+				videoCanvas2.isDone = false;
+				
+				videoCanvas2.onmousemove = function(e) {
+					
+					if (!videoCanvas2.isDrawing)
+                    return;
+					
+					var x = e.pageX - this.offsetLeft;
+					var y = e.pageY - this.offsetTop;
+					
+					videoContext2.drawImage(calibrationImage, 0, 0, kWidth, kHeight);
+					drawCircle(videoContext2, x, y, calibrationPoints[cpIndex].color);
+				};
+				
+				videoCanvas2.onmousedown = function(e) {
+					
+					if (videoCanvas2.isDone)
+                    return;
+					
+					videoCanvas2.isDrawing = true;
+					
+					var x = e.pageX - this.offsetLeft;
+					var y = e.pageY - this.offsetTop;
+					
+					videoContext2.drawImage(calibrationImage, 0, 0, kWidth, kHeight);
+					drawCircle(videoContext2, x, y, calibrationPoints[cpIndex].color);
+					
+					e.preventDefault();
+				};
+				
+				videoCanvas2.onmouseup = function(e) {
+					
+					if (videoCanvas2.isDone)
+                    return;
+					
+					videoCanvas2.isDrawing = false;
+					
+					var x = e.pageX - this.offsetLeft;
+					var y = e.pageY - this.offsetTop;
+					
+					videoContext2.drawImage(calibrationImage, 0, 0, kWidth, kHeight);
+					drawCircle(videoContext2, x, y, calibrationPoints[cpIndex].color);
+					drawCircle(calibrationContext, x, y, calibrationPoints[cpIndex].color);
+					
+					calibrationPoints[cpIndex].cameraX = x / 4;
+					calibrationPoints[cpIndex].cameraY = y / 4;
+					
+					cpIndex++;
+					$("undoButton").disabled = false;
+					
+					videoCanvas2.isDone = (cpIndex == 5);
+                    if (videoCanvas2.isDone) {
+                        $("doneButton").disabled = false;
+                        hide("crossSpan");
+                        show("doneSpan");
+                        calibrationStep++;
+                        
+                    } else {
+                        updateColorInstructions();
+                    }
+				};
+                
+				updateColorInstructions();
+				
+				hide("stepTwo");
+				show("stepThree");
+            }
+            
+			function undo() {
+				
+				cpIndex--;
+				$("undoButton").disabled = (cpIndex == 0);
+				$("doneButton").disabled = true;
+				
+                hide("doneSpan");
+                show("crossSpan");
+                
+				calibrationContext.drawImage(snapshotImage, 0, 0, kWidth, kHeight);
+				
+				for (var i = 0; i < cpIndex; i++) {
+					var cp = calibrationPoints[i];
+					drawCircle(calibrationContext, cp.cameraX * 4, cp.cameraY * 4, cp.color);
+				}
+				
+				$("videoCanvas2").getContext("2d").drawImage(calibrationImage, 0, 0, kWidth, kHeight);
+				$("videoCanvas2").isDone = false;
+			}
+			
+            function drawCalibrationMarkers() {
+                
+                var ctx = fullscreenCanvas.getContext("2d");
+                var w = fullscreenCanvas.width;
+                var h = fullscreenCanvas.height;
+                
+				calibrationPoints[0].browserX = 50;
+				calibrationPoints[0].browserY = 50;
+                drawX(ctx, 50, 50, calibrationPoints[0].color);
+				
+				calibrationPoints[1].browserX = w - 50;
+				calibrationPoints[1].browserY = 50;
+                drawX(ctx, w - 50, 50, calibrationPoints[1].color);
+				
+                calibrationPoints[2].browserX = w - 50;
+				calibrationPoints[2].browserY = h - 50;
+                drawX(ctx, w - 50, h - 50, calibrationPoints[2].color);
+                
+				calibrationPoints[3].browserX = 50;
+				calibrationPoints[3].browserY = h - 50;
+                drawX(ctx, 50, h - 50, calibrationPoints[3].color);
+				
+				calibrationPoints[4].browserX = w / 2;
+				calibrationPoints[4].browserY = h / 2;
+                drawX(ctx, w / 2, h / 2, calibrationPoints[4].color);
+            }
+            
+            function drawX(ctx, x, y, color) {
+                
+                ctx.lineWidth = 20;
+                ctx.strokeStyle = color;
+                
+                ctx.beginPath();
+                ctx.moveTo(x - 30, y - 30);
+                ctx.lineTo(x + 30, y + 30);
+                ctx.closePath();
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(x - 30, y + 30);
+                ctx.lineTo(x + 30, y - 30);
+                ctx.closePath();
+                ctx.stroke();
+            }
+            
+			function drawCircle(ctx, x, y, color) {
+				var radius = 15;
+				ctx.beginPath();
+				ctx.arc(x, y, radius, 0, 2 * Math.PI, false);
+				ctx.lineWidth = 5;
+				ctx.strokeStyle = color;
+				ctx.closePath();
+				ctx.stroke();
+			}
+			
+            var transform = null;
+            var n, r0;
+			var tmpPoly = [];
+            
+			function done() {
+                
+                hide("stepThree");
+                show("stepFour");
+                
+                // Geometric transform to map points in camera space to the browser window (will probably be replaced by projective transformation)
+                transform = new Geometry.Transform([{x:calibrationPoints[0].browserX, y:calibrationPoints[0].browserY},
+                                                    {x:calibrationPoints[1].browserX, y:calibrationPoints[1].browserY},
+                                                    {x:calibrationPoints[2].browserX, y:calibrationPoints[2].browserY},
+                                                    {x:calibrationPoints[3].browserX, y:calibrationPoints[3].browserY}]
+												   ,
+												   [{x:calibrationPoints[0].cameraX, y:calibrationPoints[0].cameraY},
+                                                    {x:calibrationPoints[1].cameraX, y:calibrationPoints[1].cameraY},
+                                                    {x:calibrationPoints[2].cameraX, y:calibrationPoints[2].cameraY},
+                                                    {x:calibrationPoints[3].cameraX, y:calibrationPoints[3].cameraY}]
+                                                   );
+                
+                tmpPoly = [{x:calibrationPoints[0].cameraX, y:calibrationPoints[0].cameraY},
+                           {x:calibrationPoints[1].cameraX, y:calibrationPoints[1].cameraY},
+                           {x:calibrationPoints[2].cameraX, y:calibrationPoints[2].cameraY},
+                           {x:calibrationPoints[3].cameraX, y:calibrationPoints[3].cameraY}]
+				
+                // Use three calibration points to compute a mathematical plane that corresponds to the 3D surface
+                // Three points creates two vectors that span a plane in R3. The plane is defined by a point on the plane
+                // and the normal vector of the plane. z-values is grabbed from the Kinect depth data
+				var x1 = calibrationPoints[0].cameraX;
+				var y1 = calibrationPoints[0].cameraY;
+				var z1 = depthRef[Math.round(y1 * KINECT_DEPTH_WIDTH + x1)];
+                var p1 = $V([x1, y1, z1]);
+				
+				var x2 = calibrationPoints[1].cameraX;
+				var y2 = calibrationPoints[1].cameraY;
+				var z2 = depthRef[Math.round(y2 * KINECT_DEPTH_WIDTH + x2)];
+                var p2 = $V([x2, y2, z2]);
+				
+				var x3 = calibrationPoints[2].cameraX;
+				var y3 = calibrationPoints[2].cameraY;
+				var z3 = depthRef[Math.round(y3 * KINECT_DEPTH_WIDTH + x3)];
+                var p3 = $V([x3, y3, z3]);
+				
+                // TODO:
+                // Adjust the points if no depth data is available there!
+                
+
+				
+                var v1 = p2.subtract(p1);
+                var v2 = p3.subtract(p1);
+                
+                // The normal vector is given by the cross product of the two vectors
+                n = v1.cross(v2).toUnitVector();
+                
+                // One of the points is used as reference
+                r0 = p1;
+                
+                // Set x, y, z to improve readability later,
+                // maybe not a super idea.. :}
+				n.x = n.e(1);
+                n.y = n.e(2);
+                n.z = n.e(3);
+                
+                r0.x = r0.e(1);
+                r0.y = r0.e(2);
+                r0.z = r0.e(3);
+                
+				var max = -1000000000,
+                min = 1000000000,
+                avg = 0,
+                zcount = 0; // Some statistics...
+                
+                // Calculate initial distances to the mathematical plane
+                // since the model probably won't be 100% accurate
+                for (var y = 0, index = 0; y < KINECT_DEPTH_HEIGHT; y++) {
+                    for (var x = 0; x < KINECT_DEPTH_WIDTH; x++, index++) {
+                        
+						var z = depthRef[index];
+						
+						if (z == 0) { // z == 0 means no depth data is available for this point
+                            planeError[index] = 0; // Instead set to special value that indicates unknown distance?
+                            continue;
+                        }
+                        
+
+                        var distance = ((x - r0.x) * n.x +
+                                        (y - r0.y) * n.y +
+                                        (z - r0.z) * n.z);
+                        
+						var p = transform.transformPoint({x:x, y:y});
+                        
+						if (p.x >= 0 && p.y >= 0 && p.x <= window.innerWidth && p.y <= window.innerHeight) {
+							max = Math.max(max, distance);
+							min = Math.min(min, distance);
+							avg += distance;
+							zcount++;
+                        }
+                        
+                        planeError[index] = distance;
+                    }
+                }
+                
+                initScene();
+                
+            }
+            
+            
+            var point2D;
+            
+            
+            var nicke = false;
+            var touchData;
+            
+            function mask() {
+                
+				if (transform == null)
+                return;
+				
+                // ** TEMP **
+                // Draw the depth image in the background (temporary, just for reference)
+				ImageHandling.depthToRGBA(depthData, videoData.data);
+				currentVideoFrame.getContext("2d").putImageData(videoData, 0, 0);
+				Geometry.drawPolys([tmpPoly], currentVideoFrame.getContext("2d"));
+				//$("drawCanvas").getContext("2d").drawImage(currentVideoFrame, 0, 0, window.innerWidth, window.innerHeight);
+				// **********
+                
+				var max = -1000000000,
+                min = 1000000000,
+                avg = 0,
+                zcount = 0;
+				
+                
+                var nrOfPixels = KINECT_DEPTH_HEIGHT * KINECT_DEPTH_WIDTH;
+                touchData = new Array(nrOfPixels);
+                for (var i = 0; i < nrOfPixels; i++) {
+                    touchData[i] = 0;
+                }
+                
+                for (var y = 0, index = 0; y < KINECT_DEPTH_HEIGHT; y++) {
+                    for (var x = 0; x < KINECT_DEPTH_WIDTH; x++, index++) {
+                        
+						var z = depthData[index];
+						
+                        // Ignore points where depth data is missing
+						if (z == 0)
+                        continue;
+                        
+                        var distance = ((x - r0.x) * n.x +
+                                        (y - r0.y) * n.y +
+                                        (z - r0.z) * n.z) - planeError[index];
+                        
+                        
+						var p = transform.transformPoint({x:x, y:y});
+						
+						if (p.x >= 0 && p.y >= 0 && p.x <= window.innerWidth && p.y <= window.innerHeight) {
+							
+							max = Math.max(max, distance);
+							min = Math.min(min, distance);
+							avg += distance;
+							zcount++;
+							
+                            // A touch occurs at a certain depth threshold (to be determined/calculated) :)
+							// if (distance > 5 && distance < 10) {
+                            if (distance > 0.1 && distance < 0.7) {
+                                
+                                touchData[index] = 1;
+                                nicke = true;
+							}
+                        }
+                    }
+                }
+				
+                
+                var tempPoint = KinectDecoder.getTouchPoint(touchData, KINECT_DEPTH_WIDTH, KINECT_DEPTH_HEIGHT);
+                point2D = transform.transformPoint(tempPoint);
+            }
+            
+            
+            /*-----------------
+             ------------------
+             Nicke added this...
+             -------------------
+             -----------------*/
+            
+            'use strict';
+            
+            Physijs.scripts.worker = "../js/lib/physijs/physijs_worker.js";
+            Physijs.scripts.ammo = "../physijs/ammo.js";
+            
+            var initScene, render, applyForce, setMousePosition, mouse_position,
+            ground_material, box_material,
+            projector, renderer, scene, ground, light, camera, box, boxes = [];
+            
+            var hitBox;
+            var nickeContext, nickeCanvas;
+            
+            initScene = function() {
+                
+                nickeCanvas = document.getElementById("nickeCanvas");
+                nickeContext = nickeCanvas.getContext("2d");
+                
+                projector = new THREE.Projector;
+                
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.shadowMapEnabled = true;
+                renderer.shadowMapSoft = true;
+                document.getElementById('viewport').appendChild(renderer.domElement);
+                
+                scene = new Physijs.Scene;
+                scene.setGravity(new THREE.Vector3(0, -30, 0));
+                scene.addEventListener(
+                                       'update',
+                                       function() {
+                                       applyForce();
+                                       scene.simulate(undefined, 1);
+                                       }
+                                       );
+                
+                camera = new THREE.PerspectiveCamera(
+                                                     35,
+                                                     window.innerWidth / window.innerHeight,
+                                                     1,
+                                                     1000
+                                                     );
+                camera.position.set(0, 150, 0);
+                camera.lookAt(scene.position);
+                scene.add(camera);
+                
+                
+                // Light
+                light = new THREE.DirectionalLight(0xFFFFFF);
+                light.position.set(20, 40, -15);
+                light.target.position.copy(scene.position);
+                light.castShadow = true;
+                light.shadowCameraLeft = -60;
+                light.shadowCameraTop = -60;
+                light.shadowCameraRight = 60;
+                light.shadowCameraBottom = 60;
+                light.shadowCameraNear = 20;
+                light.shadowCameraFar = 200;
+                light.shadowBias = -.0001
+                light.shadowMapWidth = light.shadowMapHeight = 2048;
+                light.shadowDarkness = .7;
+                scene.add(light);
+                
+                // Materials
+                ground_material = Physijs.createMaterial(
+                                                         new THREE.MeshLambertMaterial({ map: THREE.ImageUtils.loadTexture('../images/starSky.png') }),
+                                                         .2, // friction
+                                                         .4 // restitution
+                                                         );
+                ground_material.map.wrapS = ground_material.map.wrapT = THREE.RepeatWrapping;
+                ground_material.map.repeat.set(3, 3);
+                
+                box_material = Physijs.createMaterial(
+                                                      new THREE.MeshLambertMaterial({ map: THREE.ImageUtils.loadTexture('../images/green.png') }),
+                                                      .4, // low friction
+                                                      .6 // high restitution
+                                                      );
+
+                // Ground
+                ground = new Physijs.BoxMesh(
+                                             new THREE.CubeGeometry(100, 1, 100),
+                                             ground_material,
+                                             0 // mass
+                                             );
+                ground.receiveShadow = true;
+                scene.add(ground);
+                
+                for (var i = 0; i < 10; i++) {
+                    box = new Physijs.BoxMesh(
+                                              new THREE.CubeGeometry(4, 4, 4),
+                                              box_material
+                                              );
+                    box.position.set(
+                                     Math.random() * 50 - 25,
+                                     10 + Math.random() * 5,
+                                     Math.random() * 50 - 25
+                                     );
+                    
+                    box.rotation.set(
+                                     Math.random() * Math.PI * 2,
+                                     Math.random() * Math.PI * 2,
+                                     Math.random() * Math.PI * 2
+                                     );
+                    
+                    box.scale.set(
+                                  Math.random() * 1 + .5,
+                                  Math.random() * 1 + .5,
+                                  Math.random() * 1 + .5
+                                  );
+                    box.castShadow = true;
+                    scene.add(box);
+                    boxes.push(box);
+                }
+                
+                hitBox = new Physijs.BoxMesh(
+                                             new THREE.CubeGeometry(4, 4, 4),
+                                             ground_material
+                                             );
+                scene.add(hitBox);
+                                
+                requestAnimationFrame(render);
+                scene.simulate();
+            };
+            
+            
+
+            
+            render = function() {
+                
+                requestAnimationFrame(render);
+                setMousePosition();
+                drawDepth();
+                renderer.render(scene, camera);
+            };
+            
+            setMousePosition = function() {
+                if (!point2D) return;
+                
+                var hit = getMouseHit([ground], point2D.x, point2D.y);
+
+                if (hit) {
+                    mouse_position = hit.point;
+                }
+            };
+            
+            drawDepth = function() {
+                var tempArray = new Array(touchData.length);
+                for (var i = 0; i < tempArray.length; i++) {
+                    if (touchData[i]) {
+                        tempArray[i] = 255;
+                    } else { tempArray[i] = 0;
+                    }
+                }
+                
+                var tempData = nickeContext.createImageData(nickeCanvas.width, nickeCanvas.height);
+                ImageHandling.expandToRGBA(tempArray, tempData.data);
+				nickeContext.putImageData(tempData, 0, 0);
+            };
+            
+            applyForce = function() {
+                
+                var speed = 1;
+                if (!mouse_position) return;
+                
+                /*
+                if (hitBox.position.x < mouse_position.x) {
+                    hitBox.translateX(speed);
+                } else {
+                    hitBox.translateX(-speed);
+                }
+                
+                
+                if (hitBox.position.z < mouse_position.z) {
+                    hitBox.translateZ(speed);
+                } else {
+                    hitBox.translateZ(-speed);
+                }*/
+                var strength = 35, distance, effect, offset, box;
+                
+                distance = mouse_position.distanceTo(hitBox.position);
+                effect = mouse_position.clone().sub(hitBox.position).normalize().multiplyScalar(3 * distance);
+                
+                offset = mouse_position.clone().sub(box.position);
+                box.applyImpulse(effect, offset);
+                
+                hitBox.position.set(mouse_position.x, 2, mouse_position.z);
+                                
+                
+                
+                for (var i = 0; i < boxes.length; i++) {
+                    box = boxes[i];
+
+                    distance = mouse_position.distanceTo(box.position),
+                    effect = mouse_position.clone().sub(box.position).normalize().multiplyScalar(strength / distance).negate(),
+                    offset = mouse_position.clone().sub(box.position);
+                    box.applyImpulse(effect, offset);
+                }/**/
+            };
+            
+            
+            /**
+             Returns the intersection point if an object is hit
+             */
+            getMouseHit = function(objects, x, y) {
+                var mouse3D = new THREE.Vector3();
+                mouse3D.x = (x / window.innerWidth) * 2 - 1;
+                mouse3D.y = -(y / window.innerHeight) * 2 + 1;
+                mouse3D.z = 0.5;
+                
+                var mousePosition = mouse3D.clone();
+                var projector = new THREE.Projector();
+                projector.unprojectVector(mousePosition, camera);
+                
+                // Set up the normal vector pointing from the
+                // camera to the target position
+                var v = new THREE.Vector3();
+                v.subVectors(mousePosition, camera.position);
+                v.normalize();
+                
+                var ray = new THREE.Raycaster(camera.position, v);
+                var hits = ray.intersectObjects(objects, true);
+                
+                if (hits[0]) {
+                    return hits[0];
+                }
+            }
+            
+            /*-----------------
+             ------------------
+             Nicke added that...
+             -------------------
+             -----------------*/
+			
+            </script>
+    </head>
+    
+    <body onload="init();">
+        
+		<div id="pluginContainer">
+            <object id="ZigPlugin" type="application/x-zig" width="0" height="0">
+                <param name="onload" value="zigPluginLoaded">
+                    </object>
+        </div>
+		
+        <center>
+			
+			<div class="fullPage" id="stepOne">
+				<h1>Calibration!</h1>
+				<canvas class="videoCanvas" id="videoCanvas1" width="640px" height="480px"></canvas>
+				Move the camera so it films the screen make sure all the calibration markers are visible! Then cliiick the button below.
+				<br>
+				<button id="startCalButton" disabled=true onclick="startCalibration()">Take Snapshot</button>
+			</div>
+			
+            <div class="fullPage" id="stepTwo">
+                <canvas id="fullscreenCanvas"></canvas>
+            </div>
+            
+			<div class="fullPage" id="stepThree">
+				<h1>Calibration!</h1>
+				<canvas class="videoCanvas" id="videoCanvas2" width="640px" height="480px"></canvas>
+                <span id="crossSpan" style="display:block">
+                    Please click the <span id="positionSpan"></span> (<span id="colorSpan"></span>) cross in the image!
+                </span>
+                <span id="doneSpan" style="display:none">
+                    Great! If you are happy with the placement of the circles, finish the calibration by pressing the Done button!
+                </span>
+				<button id="retakeImageButton" onclick="restart();">Retake Image</button>
+				<button id="undoButton" disabled=true onclick="undo();">Undo</button>
+				<button id="doneButton" disabled=true onclick="done();">Done</button>
+			</div>
+            
+            <div class="fullPage" id="stepFour">
+                <!---->
+                <div id="viewport" style="width: 100%; height: 100%; margin: 0px;"></div>
+               <canvas id="nickeCanvas" width="160px" height="120px"></canvas>
+                <!---->
+                
+            </div>
+            
+            
+        </center>
+        
+    </body>
+    
+    
+    
+</html>

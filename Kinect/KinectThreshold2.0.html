@@ -65,7 +65,7 @@
                 
                 /* Take a snapshot from the Kinect RGB video and draw
                 a thresholded version in the leftmost canvas */
-                kinectVideoDecoder.decodeRGB(plugin.imageMap, temp.data);
+                KinectDecoder.decodeRGB(plugin.imageMap, temp.data);
 
                 //temp.data = rgbData;
                 
@@ -75,7 +75,7 @@
                 /* Take a snapshot from the Kinect depth video and draw
                 it in the middle canvas */
                 var depthData = new Array(nrOfPixels);
-                kinectVideoDecoder.decodeDepth(plugin.depthMap, depthData);
+                KinectDecoder.decodeDepth(plugin.depthMap, depthData);
                 ImageHandling.depthToRGBA(depthData, temp.data);
                 depthContext.putImageData(temp, 0, 0);
                 
