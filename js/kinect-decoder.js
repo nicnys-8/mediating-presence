@@ -18,10 +18,10 @@ var kinectVideoDecoder = function() {
     }
     
     var temp;
-        
+    
     /*
-    Takes raw Kinect RGB data and stores a decoded version in the output array
-    */
+     Takes raw Kinect RGB data and stores a decoded version in the output array
+     */
     var decodeRGB = function(input, output)     {
         var inLength = input.length;
         var enc1, enc2, enc3, enc4;
@@ -35,14 +35,14 @@ var kinectVideoDecoder = function() {
             output[i + 1] = ((enc2 & 15) << 4) | (enc3 >> 2);
             output[i + 2] = ((enc3 & 3) << 6) | enc4;
             output[i + 3] = 255; // Full opacity
-        }        
+        }
     };
-
+    
     
     /*
      Takes raw Kinect depth data and stores a decoded version in the output array
      */
-    var decodeDepth = function(input, output) {        
+    var decodeDepth = function(input, output) {
         // If temp is undefined, create it
         if (!temp) {
             temp = new Array(input.length * 3/4);
@@ -71,12 +71,53 @@ var kinectVideoDecoder = function() {
             if (maxTot < output[i]) maxTot = output[i];
         }
         /*
-        console.log("Max 1: " + max1);
-        console.log("Max 2: " + max2);
-        console.log("MaxTot: " + maxTot);
+         console.log("Max 1: " + max1);
+         console.log("Max 2: " + max2);
+         console.log("MaxTot: " + maxTot);
          */
     };
     
-    return {decodeRGB: decodeRGB, decodeDepth: decodeDepth};
+    /**
+     Given an array with touch data, a 2D-point is returned,
+     specifying where a touch occured.
+     */
+    var getTouchPoint = function(touchData, width, height) {
+        
+        // Threshold value: at least this many touch points are
+        // needed for a touch to occur
+        var minTouches = 2;
+        var nrOfTouchPoints = 0;
+        var xTotal = 0;
+        var yTotal = 0;
+        
+        for (var currentRow = 0; currentRow < height; currentRow++) {
+            for (var currentCol = 0; currentCol < width; currentCol++) {
+                
+                if (touchData[currentRow * width + currentCol]) {
+                    nrOfTouchPoints++;
+                    xTotal += currentCol;
+                    yTotal += currentRow;
+                }
+            }
+        }
+        
+        // If fewer touch points than the specified minimum
+        // were found, return undefined
+        if (nrOfTouchPoints < minTouches) {
+            return;
+        }
+        // Otherwise, return a 2D-point with the average x
+        // and y values of the touch points
+        else {
+            var xValue = Math.round(xTotal / nrOfTouchPoints);
+            var yValue = Math.round(yTotal / nrOfTouchPoints);
+            
+            var point2D = {x: xValue, y: yValue};
+            return point2D;
+        }
+    };
+    
+    return {decodeRGB: decodeRGB, decodeDepth: decodeDepth, getTouchPoint: getTouchPoint};
+    
     
 }();

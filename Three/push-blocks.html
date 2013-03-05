@@ -6,6 +6,7 @@
 	<title>Rigid body - Physijs</title>
 		
 	<script type="text/javascript" src="../js/lib/three.js"></script>
+    <script type="text/javascript" src="../js/kinect-decoder.js"></script>
 	<script type="text/javascript" src="../js/lib/physijs/physi.js"></script>
 	
 	<script type="text/javascript">
@@ -37,7 +38,7 @@
 				scene.simulate(undefined, 1);
 			}
 		);
-		
+        
 		camera = new THREE.PerspectiveCamera(
 			35,
 			window.innerWidth / window.innerHeight,
@@ -48,6 +49,7 @@
 		camera.lookAt(scene.position);
 		scene.add(camera);
 		
+        
 		// Light
 		light = new THREE.DirectionalLight(0xFFFFFF);
 		light.position.set(20, 40, -15);
