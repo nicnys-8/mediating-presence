@@ -319,7 +319,7 @@
                         $("doneButton").onclick = function() { self.onDoneButtonPressed(); };
                         $("retakeImageButton").onclick = restartCalibration;
                         
-                        snapshotContext.drawImage(currentVideoFrame, 0, 0, VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
+                        // Draw the snapshot to the calibration context (hidden canvas)
                         calibrationContext.drawImage(snapshotImage, 0, 0, VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
                         
                         var videoCanvas2 = $("videoCanvas2");
