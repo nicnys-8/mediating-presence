@@ -6,7 +6,7 @@ var max1 = -999;
 var max2 = -999;
 var maxTot = -999;
 
-var kinectVideoDecoder = function() {
+var KinectDecoder = function() {
     
     var codexStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
     var codexInt = [];
