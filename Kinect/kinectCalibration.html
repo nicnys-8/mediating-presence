@@ -45,8 +45,9 @@
             #loadingSpan {
                 display:block;
                 padding:30% 0% 0% 0%;
+                font-size:200%;
             }
-            </style>
+        </style>
 		
         <script type="text/javascript" src="../js/mediaext.js"></script>
         <script type="text/javascript" src="../js/geometry.js"></script>
@@ -62,14 +63,14 @@
 			const KINECT_RGB_WIDTH = 160, KINECT_RGB_HEIGHT = 120;
             const KINECT_DEPTH_WIDTH = 160, KINECT_DEPTH_HEIGHT = 120;
             
+            const NUM_DEPTH_REFS = 50; // The number of frames to combine into the depth reference image
+            
             var calibrationImage, calibrationContext;
 			var snapshotImage, snapshotContext;
             var fullscreenCanvas;
             
-            var calibrationSteps;
+            var calibrationSteps = [];
             var calibrationIndex = 0;
-            const NUM_DEPTH_REFS = 50;
-            var depthRefCount = 0;
             
 			CalibrationPoint = function(color, position) {
 				this.browserX = 0;
@@ -78,8 +79,7 @@
 				this.cameraY = 0;
 				this.color = color;
 				this.position = position;
-			}
-            CalibrationStep = function() {}
+			};
             
 			var calibrationPoints = [new CalibrationPoint("red", "top left"),
 									 new CalibrationPoint("green", "top right"),
@@ -107,6 +107,10 @@
 				$(nodeName).style.display = "none";
             }
 			
+            /**
+             Called from body.onload
+             Initializes plugin and creates a few canvases :)
+             */
             function init() {
                 
                 show("loading");
@@ -145,6 +149,12 @@
                 plugin.addEventListener("NewFrame", onNewKinectData);
             }
             
+            
+            /**
+             Callback from the plugin when new depth and RGB data is available from the Kinect.
+             Runs the calibration update loop using an array of calibration step objects (created
+             in function "createCalibrationSteps()"
+             */
 			function onNewKinectData() {
 				
                 /* Take a snapshot from the Kinect RGB video */
@@ -175,14 +185,22 @@
                 }
 			}
             
-            function restartCalibration() {
-				hide(calibrationSteps[calibrationIndex].divID);
-				show(calibrationSteps[1].divID);
-                calibrationIndex = 1;
+            function gotoCalibrationStep(index) {
+                hide(calibrationSteps[calibrationIndex].divID);
+				show(calibrationSteps[index].divID);
+                calibrationIndex = index;
                 initialized = false;
+            }
+            
+            function restartCalibration() {
+				gotoCalibrationStep(1);
 			}
             
             function createCalibrationSteps() {
+                
+                // Each calibration step is an object with a divID (name of the div containing
+                // its display page) and functions onBegin() and onUpdate()
+                // The functions are called from the Kinect update loop
                 
                 var CALIBRATION_STEP_0 = {
                     divID : "loading",
@@ -234,16 +252,11 @@
                      */
                     onBegin : function() {
                         this.depthRefCount = 0;
-                        
-                        var self = this;
-                        $("undoButton").onclick = function() { self.onUndoButtonPressed(); };
-                        $("doneButton").onclick = function() { self.onDoneButtonPressed(); };
-                        
                     }, // end of CALIBRATION_STEP_2.onBegin()
                     
                     /**
                      STEP 2 UPDATE FUNCTION
-                     Draw the current video frame to screen
+                     Generate a depth reference image
                      */
                     onUpdate : function() {
                         
@@ -293,12 +306,18 @@
                      STEP 4 BEGIN FUNCTION
                      Called after step 3 finishes
                      
-                     Sets up a canvas where the users can mark the calibration points
+                     Sets up a canvas where the user can mark the calibration points
                      */
                     onBegin : function() {
                         
                         this.isDone = false;
                         this.pointIndex = 0;
+                        
+                        // Set up button actions
+                        var self = this;
+                        $("undoButton").onclick = function() { self.onUndoButtonPressed(); };
+                        $("doneButton").onclick = function() { self.onDoneButtonPressed(); };
+                        $("retakeImageButton").onclick = restartCalibration;
                         
                         snapshotContext.drawImage(currentVideoFrame, 0, 0, VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
                         calibrationContext.drawImage(snapshotImage, 0, 0, VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
@@ -310,18 +329,7 @@
                         videoCanvas2.isDrawing = false;
                         videoCanvas2.isFull = false;
                         
-                        videoCanvas2.onmousemove = function(e) {
-                            
-                            if (!videoCanvas2.isDrawing)
-                                return;
-                            
-                            var x = e.pageX - this.offsetLeft;
-                            var y = e.pageY - this.offsetTop;
-                            
-                            videoContext2.drawImage(calibrationImage, 0, 0, VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
-                            drawCircle(videoContext2, x, y, calibrationPoints[this.pointIndex].color);
-                        };
-                        
+                        // Add mouse events to the canvas to allow placing circles on the calibration markers
                         videoCanvas2.onmousedown = function(e) {
                             
                             if (videoCanvas2.isFull)
@@ -333,9 +341,21 @@
                             var y = e.pageY - this.offsetTop;
                             
                             videoContext2.drawImage(calibrationImage, 0, 0, VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
-                            drawCircle(videoContext2, x, y, calibrationPoints[this.pointIndex].color);
+                            drawCircle(videoContext2, x, y, calibrationPoints[self.pointIndex].color);
                             
-                            e.preventDefault();
+                            e.preventDefault(); // prevent dragging to begin (keeps correct cursor)
+                        };
+                        
+                        videoCanvas2.onmousemove = function(e) {
+                            
+                            if (!videoCanvas2.isDrawing)
+                                return;
+                            
+                            var x = e.pageX - this.offsetLeft;
+                            var y = e.pageY - this.offsetTop;
+                            
+                            videoContext2.drawImage(calibrationImage, 0, 0, VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
+                            drawCircle(videoContext2, x, y, calibrationPoints[self.pointIndex].color);
                         };
                         
                         videoCanvas2.onmouseup = function(e) {
@@ -349,27 +369,30 @@
                             var y = e.pageY - this.offsetTop;
                             
                             videoContext2.drawImage(calibrationImage, 0, 0, VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
-                            drawCircle(videoContext2, x, y, calibrationPoints[this.pointIndex].color);
-                            drawCircle(calibrationContext, x, y, calibrationPoints[this.pointIndex].color);
+                            drawCircle(videoContext2, x, y, calibrationPoints[self.pointIndex].color);
+                            drawCircle(calibrationContext, x, y, calibrationPoints[self.pointIndex].color);
                             
-                            calibrationPoints[this.pointIndex].cameraX = x / 4;
-                            calibrationPoints[this.pointIndex].cameraY = y / 4;
+                            calibrationPoints[self.pointIndex].cameraX = x / 4;
+                            calibrationPoints[self.pointIndex].cameraY = y / 4;
                             
                             this.pointIndex++;
                             $("undoButton").disabled = false;
                             
-                            videoCanvas2.isFull = (this.pointIndex == 5);
+                            videoCanvas2.isFull = (self.pointIndex == 5);
                             if (videoCanvas2.isFull) {
                                 $("doneButton").disabled = false;
                                 hide("crossSpan");
                                 show("doneSpan");
                                 
+                                // TODO:
+                                // Check if plane can be calculated, alert and restart step otherwise!
+                                
                             } else {
-                                updateColorInstructions();
+                                self.updateColorInstructions();
                             }
                         };
                         
-                        updateColorInstructions();
+                        this.updateColorInstructions();
                         
                     }, // end of CALIBRATION_STEP_3.onBegin()
                     
@@ -404,7 +427,13 @@
                         $("videoCanvas2").isDone = false;
                     },
                     
+                    updateColorInstructions : function() {
+                        $("positionSpan").innerHTML = calibrationPoints[this.pointIndex].position;
+                        $("colorSpan").innerHTML = calibrationPoints[this.pointIndex].color;
+                    },
+                    
                     isDone : false,
+                    pointIndex : 0,
                     
                 }; // end of CALIBRATION_STEP_3 object
                 
@@ -417,9 +446,11 @@
                      STEP 4 BEGIN FUNCTION
                      Called after step 3 finishes
                      
-                     Calculates a camera to browser space mapping and a mathematical model (a plane equation) of the touch surface
+                     Calculates a camera to browser space mapping and a mathematical model (a plane equation) of the touch surface.
+                     The necessary calibration points are set in the previous calibration step
                      */
                     onBegin : function() {
+                        
                         // Geometric transform to map points in camera space to the browser window (will probably be replaced by projective transformation)
                         transform = new Geometry.Transform([{x:calibrationPoints[0].browserX, y:calibrationPoints[0].browserY},
                                                             {x:calibrationPoints[1].browserX, y:calibrationPoints[1].browserY},
@@ -441,6 +472,10 @@
                         // Use three calibration points to compute a mathematical plane that corresponds to the 3D surface
                         // Three points creates two vectors that span a plane in R3. The plane is defined by a point on the plane
                         // and the normal vector of the plane. z-values is grabbed from the Kinect depth data
+                        
+                        // The equation for the plane is (r - r0) . n = 0
+                        // r0 and n is calculated below and r is an arbitrary point on the plane
+                        
                         var x1 = calibrationPoints[0].cameraX;
                         var y1 = calibrationPoints[0].cameraY;
                         var z1 = depthRef[Math.round(y1 * KINECT_DEPTH_WIDTH + x1)];
@@ -475,13 +510,8 @@
                         
                         // Set x, y, z to improve readability later,
                         // maybe not a super idea.. :}
-                        n.x = n.e(1);
-                        n.y = n.e(2);
-                        n.z = n.e(3);
-                        
-                        r0.x = r0.e(1);
-                        r0.y = r0.e(2);
-                        r0.z = r0.e(3);
+                        n.x = n.e(1); n.y = n.e(2); n.z = n.e(3);
+                        r0.x = r0.e(1); r0.y = r0.e(2); r0.z = r0.e(3);
                         
                         var max = -1000000000,
                             min = 1000000000,
@@ -600,22 +630,23 @@
                 var ctx = fullscreenCanvas.getContext("2d");
                 var w = fullscreenCanvas.width;
                 var h = fullscreenCanvas.height;
+                var offset = 50;
                 
-				calibrationPoints[0].browserX = 50;
-				calibrationPoints[0].browserY = 50;
-                drawX(ctx, 50, 50, calibrationPoints[0].color);
+				calibrationPoints[0].browserX = offset;
+				calibrationPoints[0].browserY = offset;
+                drawX(ctx, offset, offset, calibrationPoints[0].color);
 				
-				calibrationPoints[1].browserX = w - 50;
-				calibrationPoints[1].browserY = 50;
-                drawX(ctx, w - 50, 50, calibrationPoints[1].color);
+				calibrationPoints[1].browserX = w - offset;
+				calibrationPoints[1].browserY = offset;
+                drawX(ctx, w - offset, offset, calibrationPoints[1].color);
 				
-                calibrationPoints[2].browserX = w - 50;
-				calibrationPoints[2].browserY = h - 50;
-                drawX(ctx, w - 50, h - 50, calibrationPoints[2].color);
+                calibrationPoints[2].browserX = w - offset;
+				calibrationPoints[2].browserY = h - offset;
+                drawX(ctx, w - offset, h - offset, calibrationPoints[2].color);
                 
-				calibrationPoints[3].browserX = 50;
-				calibrationPoints[3].browserY = h - 50;
-                drawX(ctx, 50, h - 50, calibrationPoints[3].color);
+				calibrationPoints[3].browserX = offset;
+				calibrationPoints[3].browserY = h - offset;
+                drawX(ctx, offset, h - offset, calibrationPoints[3].color);
 				
 				calibrationPoints[4].browserX = w / 2;
 				calibrationPoints[4].browserY = h / 2;
@@ -700,7 +731,6 @@
         </center>
         
     </body>
-    
     
     
 </html>
