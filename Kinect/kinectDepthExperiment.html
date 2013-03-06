@@ -40,6 +40,7 @@
         <script type="text/javascript" src="../js/geometry.js"></script>
         <script type="text/javascript" src="../js/lib/sylvester.js"></script>
         <script type="text/javascript" src="../js/lib/zig.js"></script>
+		<script type="text/javascript" src="../js/lib/matrix-processor.js"></script>
         <script type="text/javascript" src="../js/kinect-decoder.js"></script>
         <script type="text/javascript" src="../js/image-handling.js"></script>
 		
@@ -87,6 +88,22 @@
 				plugin.requestStreams({updateDepth:true}); // , updateImage:true});
 				// Start updating the canvases every new kinect frame
                 plugin.addEventListener("NewFrame", onNewKinectData);
+				
+				/*
+				 Test...
+				 
+				hide("loading");
+				show("depthFinder");
+				
+				for (var i = 0; i < 5; i++) {
+					dataPoints.push(new Pair(i, i * 4.3)); // { x:realZ, y:modelZ });
+				}
+				var p1 = process_data(dataPoints, 1)[0];
+				var p2 = process_data(dataPoints, 2)[0];
+				
+				$("firstDegreeSpan").innerHTML = "y = " + p1[1] + "x + " + p1[0];
+				$("secondDegreeSpan").innerHTML = "y = " + p2[2] + "x<sup>2</sup> + " + p2[1] + "x + " + p2[0];
+				 */
             }
             
             /**
@@ -114,6 +131,7 @@
 			}
             
 			function addDataPoint() {
+				
 				var x = Math.round(videoCanvas.width / 8); // Find center divided by 4
 				var y = Math.round(videoCanvas.height / 8);
 				var modelZ = depthData[y * KINECT_DEPTH_WIDTH + x];
@@ -129,11 +147,18 @@
 					return;
 				}
 				
-				dataPoints.push({ x:realZ, y:modelZ });
+				dataPoints.push(new Pair(realZ, modelZ)); // { x:realZ, y:modelZ });
 				minX = Math.min(minX, realZ);
 				maxX = Math.max(maxX, realZ);
 				minY = Math.min(minY, modelZ);
 				maxY = Math.max(maxY, modelZ);
+				
+				
+				var p1 = process_data(dataPoints, 1).terms;
+				var p2 = process_data(dataPoints, 2).terms;
+				
+				$("firstDegreeSpan").innerHTML = "y = " + p1[1] + "x + " + p1[0];
+				$("secondDegreeSpan").innerHTML = "y = " + p2[2] + "x<sup>2</sup> + " + p2[1] + "x + " + p2[0];
 			}
 			
 			function logList() {
@@ -148,7 +173,7 @@
 				var radius = 15;
 				ctx.beginPath();
 				ctx.arc(x, y, radius, 0, 2 * Math.PI, false);
-				ctx.lineWidth = 5;
+				ctx.lineWidth = 3;
 				ctx.strokeStyle = color;
 				ctx.closePath();
 				ctx.stroke();
@@ -175,10 +200,9 @@
 				<h1>Calibration!</h1>
 				<canvas class="videoCanvas" id="videoCanvas1" width="640px" height="480px"></canvas>
                 <span id="crossSpan" style="display:block">
-                    Please click the <span id="positionSpan"></span> (<span id="colorSpan"></span>) cross in the image!
-                </span>
-                <span id="doneSpan" style="display:none">
-                    Great! If you are happy with the placement of the circles, finish the calibration by pressing the Done button!
+                    First degree polynomial: <span id="firstDegreeSpan"></span>
+					<br>
+					Second degree polynomial: <span id="secondDegreeSpan"></span>
                 </span>
 				<input type="text" id="distanceText">
 				<button id="addButton" onclick="addDataPoint();">Add point</button>
