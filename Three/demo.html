@@ -510,6 +510,7 @@
 				var max = -1000000000,
                 min = 1000000000,
                 avg = 0,
+                avgZ = 0,
                 zcount = 0;
 				
                 
@@ -528,10 +529,12 @@
 						if (z == 0)
                         continue;
                         
+                        /*
                         var distance = ((x - r0.x) * n.x +
                                         (y - r0.y) * n.y +
                                         (z - r0.z) * n.z) - planeError[index];
-                        
+                         */
+                        var distance = depthRef[index] - z;
                         
 						var p = transform.transformPoint({x:x, y:y});
 						
@@ -542,9 +545,11 @@
 							avg += distance;
 							zcount++;
 							
+                            avgZ += z;
+                            
                             // A touch occurs at a certain depth threshold (to be determined/calculated) :)
 							// if (distance > 5 && distance < 10) {
-                            if (distance > 1 && distance < 3) {
+                            if (distance > 30 && distance < 40) {
                                 
                                 touchData[index] = 1;
                                 nicke = true;
@@ -552,7 +557,7 @@
                         }
                     }
                 }
-				
+				console.log(min + ", " + avg / zcount + ", " + max + ", " + avgZ / zcount);
                 
                 var tempPoint = KinectDecoder.getTouchPoint(touchData, KINECT_DEPTH_WIDTH, KINECT_DEPTH_HEIGHT);
                 if (tempPoint) {
@@ -691,6 +696,7 @@
                                              sphere_geometry = new THREE.SphereGeometry( 2, 32, 32 ),
                                              hitBox_material
                                              );
+                hitBox.position.set(0, 2, 0);
                 hitBox.castShadow = true;
                 scene.add(hitBox);
                 
