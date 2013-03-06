@@ -100,7 +100,7 @@ var ImageHandling = function() {
             temp = new Array(input.length);
         }
         for (var i = 0; i < input.length; i++) {
-            temp[i] = (input[i] / 2047) * 255;
+            temp[i] = (input[i] / 4096) * 255;
         }
         ImageHandling.expandToRGBA(temp, output);
     };

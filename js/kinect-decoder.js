@@ -2,10 +2,8 @@
  Functions for decoding the raw video data retrieved from the Kinect
  */
 
-var max1 = -999;
-var max2 = -999;
-var maxTot = -999;
 
+var temp;
 var KinectDecoder = function() {
     
     var codexStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
@@ -17,7 +15,6 @@ var KinectDecoder = function() {
         codexInt[i] = idx;
     }
     
-    var temp;
     
     /*
      Takes raw Kinect RGB data and stores a decoded version in the output array
@@ -43,39 +40,37 @@ var KinectDecoder = function() {
      Takes raw Kinect depth data and stores a decoded version in the output array
      */
     var decodeDepth = function(input, output) {
+        
+        var nrOfPoints = input.length * 3/8;
+        
         // If temp is undefined, create it
         if (!temp) {
-            temp = new Array(input.length * 3/4);
+            temp = new Array(2 * nrOfPoints);
         }
         
-        var index = 0;
-        var undex = 0;
-        //What's happening here??
-        for (var i = 0; i < input.length / 4; i++) {
-            index = i * 4;
-            undex = i * 3;
-            var enc1 = codexInt[input.charCodeAt(index + 0)];
-            var enc2 = codexInt[input.charCodeAt(index + 1)];
-            var enc3 = codexInt[input.charCodeAt(index + 2)];
-            var enc4 = codexInt[input.charCodeAt(index + 3)];
+        var j = 0;
+        for (var i = 0; i < input.length; i) {
             
-            temp[undex + 0] = (enc1 << 2) | (enc2 >> 4);
-            temp[undex + 1] = ((enc2 & 15) << 4) | (enc3 >> 2);
-            temp[undex + 2] = ((enc3 & 3) << 6) | enc4;
+            var enc1 = codexInt[input.charCodeAt(i++)];
+            var enc2 = codexInt[input.charCodeAt(i++)];
+            var enc3 = codexInt[input.charCodeAt(i++)];
+            var enc4 = codexInt[input.charCodeAt(i++)];
+            
+            temp[j++] = (enc1 << 2) | (enc2 >> 4);
+            temp[j++] = ((enc2 & 15) << 4) | (enc3 >> 2);
+            temp[j++] = ((enc3 & 3) << 6) | enc4;
         }
         
-        for (var i = 0; i < input.length * 3/8; i++) { // RIGHT???
-            output[i] = temp[2 * i] | (temp[2 * i + 1] << 7);
-            if (max1 < temp[2 * i]) max1 = temp[2 * i];
-            if (max2 < temp[2 * i + 1]) max2 = temp[2 * i + 1];
-            if (maxTot < output[i]) maxTot = output[i];
+        var leftBits, rightBits;
+        for (var i = 0; i < nrOfPoints; i++) {
+            
+            leftBits = temp[2 * i + 1] << 8;
+            rightBits = temp[2 * i];
+            // if (temp[2 * i + 1] & parseInt("00000100",2)) check = true;
+            output[i] =  leftBits | rightBits;
         }
-        /*
-         console.log("Max 1: " + max1);
-         console.log("Max 2: " + max2);
-         console.log("MaxTot: " + maxTot);
-         */
     };
+    
     
     /**
      Given an array with touch data, a 2D-point is returned,
@@ -85,7 +80,7 @@ var KinectDecoder = function() {
         
         // Threshold value: at least this many touch points are
         // needed for a touch to occur
-        var minTouches = 2;
+        var minTouches = 5;
         var nrOfTouchPoints = 0;
         var xTotal = 0;
         var yTotal = 0;
