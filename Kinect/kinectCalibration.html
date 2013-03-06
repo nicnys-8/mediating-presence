@@ -56,6 +56,58 @@
         <script type="text/javascript" src="../js/kinect-decoder.js"></script>
         <script type="text/javascript" src="../js/image-handling.js"></script>
 		
+		<script>
+
+			// Add a little functionality to the Sylvester library
+			Plane.fromDepthData = function(depthData, dataWidth, p1, p2, p3) {
+
+				var x1 = p1.e(1);
+				var y1 = p1.e(2);
+				var z1 = depthRef[Math.round(y1 * dataWidth + x1)];
+				var p1 = $V([x1, y1, z1]);
+				
+				var x2 = p2.e(1);
+				var y2 = p2.e(2);
+				var z2 = depthRef[Math.round(y2 * dataWidth + x2)];
+				var p2 = $V([x2, y2, z2]);
+				
+				var x3 = p3.e(1);
+				var y3 = p3.e(2);
+				var z3 = depthRef[Math.round(y3 * dataWidth + x3)];
+				var p3 = $V([x3, y3, z3]);
+				
+				if (z1 == 0 || z2 == 0 || z3 == 0) {
+					// Move the points until depth data is found?
+					throw "Insufficient depth data at the calibration points, you may need to take a new reference image!";
+				}
+				
+				var v1 = p2.subtract(p1);
+				var v2 = p3.subtract(p1);
+				
+				// The normal vector is given by the cross product of the two vectors
+				n = v1.cross(v2);
+				
+				// If the normal vector is zero, the input points don't span a plane
+				if (n.eql(Vector.Zero(3))) {
+					throw "Bad calibration points, did you place any of them on top of each other?";
+				}
+				
+				return $P(p1, n);
+			};
+			
+			Plane.prototype.signedDistanceTo = function(x, y, z) {
+				var A = this.anchor.elements, N = this.normal.elements;
+				return (x - A[0]) * N[0] + (y - A[1]) * N[1] + (z - A[2]) * N[2];
+			};
+			/*
+			Sylvester.Plane.prototype.signedDistanceTo(p) {
+				var A = this.anchor.elements, P = p.elements, N = this.normal.elements;
+				return (P[0] - A[0]) * N[0] + (P[1] - A[1]) * N[1] + (P[2] - A[2]) * N[2];
+			}
+			 */
+			
+		</script>
+		
         <script>
             
             // The Kinect related constants may be fetchable from the plugin?
@@ -94,7 +146,7 @@
 			var currentVideoFrame, videoData;
 
 			var transform = null;
-            var n, r0;
+            var plane;
 			var tmpPoly = [];
             
 			function $(nodeName) {
@@ -158,11 +210,11 @@
 			function onNewKinectData() {
 				
                 /* Take a snapshot from the Kinect RGB video */
-                kinectVideoDecoder.decodeRGB(plugin.imageMap, videoData.data);
+                KinectDecoder.decodeRGB(plugin.imageMap, videoData.data);
                 currentVideoFrame.getContext("2d").putImageData(videoData, 0, 0);
                 
                 /* Take a snapshot from the Kinect depth video */
-                kinectVideoDecoder.decodeDepth(plugin.depthMap, depthData);
+                KinectDecoder.decodeDepth(plugin.depthMap, depthData);
 
                 var currStep = calibrationSteps[calibrationIndex];
                 var nextStep = calibrationSteps[calibrationIndex + 1];
@@ -205,7 +257,7 @@
                 var CALIBRATION_STEP_0 = {
                     divID : "loading",
                     onBegin : function() {},
-                    onUpdate : function() { return true },
+                    onUpdate : function() { return true; },
                 };
                 
                 var CALIBRATION_STEP_1 = {
@@ -316,8 +368,10 @@
                         // Set up button actions
                         var self = this;
                         $("undoButton").onclick = function() { self.onUndoButtonPressed(); };
+						$("undoButton").disabled = true;
                         $("doneButton").onclick = function() { self.onDoneButtonPressed(); };
-                        $("retakeImageButton").onclick = restartCalibration;
+                        $("doneButton").disabled = true;
+                        $("retakeImageButton").onclick = function() { restartCalibration(); };
                         
                         // Draw the snapshot to the calibration context (hidden canvas)
                         calibrationContext.drawImage(snapshotImage, 0, 0, VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
@@ -375,7 +429,7 @@
                             calibrationPoints[self.pointIndex].cameraX = x / 4;
                             calibrationPoints[self.pointIndex].cameraY = y / 4;
                             
-                            this.pointIndex++;
+                            self.pointIndex++;
                             $("undoButton").disabled = false;
                             
                             videoCanvas2.isFull = (self.pointIndex == 5);
@@ -383,10 +437,7 @@
                                 $("doneButton").disabled = false;
                                 hide("crossSpan");
                                 show("doneSpan");
-                                
-                                // TODO:
-                                // Check if plane can be calculated, alert and restart step otherwise!
-                                
+								
                             } else {
                                 self.updateColorInstructions();
                             }
@@ -405,7 +456,14 @@
                     }, // end of CALIBRATION_STEP_3.onUpdate()
                     
                     onDoneButtonPressed : function() {
-                        this.isDone = true;
+						// Check if plane can be calculated, alert and restart step otherwise!
+						try {
+							calculatePlane();
+							this.isDone = true;
+						} catch (err) {
+							alert(err);
+							gotoCalibrationStep(3);
+						}
                     },
                     
                     onUndoButtonPressed : function() {
@@ -451,6 +509,12 @@
                      */
                     onBegin : function() {
                         
+						
+						// TODO:
+						// The plane is calculated at the end of step 3, and the transform is
+						// calculated here. Move some stuff around?
+						
+						
                         // Geometric transform to map points in camera space to the browser window (will probably be replaced by projective transformation)
                         transform = new Geometry.Transform([{x:calibrationPoints[0].browserX, y:calibrationPoints[0].browserY},
                                                             {x:calibrationPoints[1].browserX, y:calibrationPoints[1].browserY},
@@ -469,49 +533,9 @@
                                    {x:calibrationPoints[2].cameraX, y:calibrationPoints[2].cameraY},
                                    {x:calibrationPoints[3].cameraX, y:calibrationPoints[3].cameraY}];
                         
-                        // Use three calibration points to compute a mathematical plane that corresponds to the 3D surface
-                        // Three points creates two vectors that span a plane in R3. The plane is defined by a point on the plane
-                        // and the normal vector of the plane. z-values is grabbed from the Kinect depth data
-                        
-                        // The equation for the plane is (r - r0) . n = 0
-                        // r0 and n is calculated below and r is an arbitrary point on the plane
-                        
-                        var x1 = calibrationPoints[0].cameraX;
-                        var y1 = calibrationPoints[0].cameraY;
-                        var z1 = depthRef[Math.round(y1 * KINECT_DEPTH_WIDTH + x1)];
-                        var p1 = $V([x1, y1, z1]);
-                        
-                        var x2 = calibrationPoints[1].cameraX;
-                        var y2 = calibrationPoints[1].cameraY;
-                        var z2 = depthRef[Math.round(y2 * KINECT_DEPTH_WIDTH + x2)];
-                        var p2 = $V([x2, y2, z2]);
-                        
-                        var x3 = calibrationPoints[2].cameraX;
-                        var y3 = calibrationPoints[2].cameraY;
-                        var z3 = depthRef[Math.round(y3 * KINECT_DEPTH_WIDTH + x3)];
-                        var p3 = $V([x3, y3, z3]);
-                        
-                        // TODO:
-                        // Adjust the points if no depth data is available there!
-                        
-                        console.log("p1: " + p1.e(1) + ", " + p1.e(2) + ", " + p1.e(3));
-                        console.log("p2: " + p2.e(1) + ", " + p2.e(2) + ", " + p2.e(3));
-                        console.log("p3: " + p3.e(1) + ", " + p3.e(2) + ", " + p3.e(3));
-                        
-                        var v1 = p2.subtract(p1);
-                        var v2 = p3.subtract(p1);
-                        
-                        // The normal vector is given by the cross product of the two vectors
-                        n = v1.cross(v2).toUnitVector();
-                        console.log("n: " + n.e(1) + ", " + n.e(2) + ", " + n.e(3));
-                        
-                        // One of the points is used as reference
-                        r0 = p1;
-                        
+						
                         // Set x, y, z to improve readability later,
                         // maybe not a super idea.. :}
-                        n.x = n.e(1); n.y = n.e(2); n.z = n.e(3);
-                        r0.x = r0.e(1); r0.y = r0.e(2); r0.z = r0.e(3);
                         
                         var max = -1000000000,
                             min = 1000000000,
@@ -532,9 +556,7 @@
                                 
                                 // Scalar projection onto the unit normal vector gives the (signed) distance to the plane
                                 // d = (r - r0) . n
-                                var distance = ((x - r0.x) * n.x +
-                                                (y - r0.y) * n.y +
-                                                (z - r0.z) * n.z);
+                                var distance = plane.signedDistanceTo(x, y, z);
                                 
                                 var p = transform.transformPoint({x:x, y:y});
                                 
@@ -579,10 +601,7 @@
                                 if (z == 0)
                                     continue;
                                 
-                                var distance = ((x - r0.x) * n.x +
-                                                (y - r0.y) * n.y +
-                                                (z - r0.z) * n.z) - planeError[index];
-                                
+                                var distance = plane.signedDistanceTo(x, y, z) - planeError[index];
                                 // var distance = depthRef[index] - depthData[index];
                                 
                                 // Transform the point to browser coordinates
@@ -620,9 +639,16 @@
                 
             } // end of createCalibrationSteps()
 			
-			function updateColorInstructions() {
-				$("positionSpan").innerHTML = calibrationPoints[pointIndex].position;
-				$("colorSpan").innerHTML = calibrationPoints[pointIndex].color;
+			function calculatePlane() {
+				
+				var p1 = $V([calibrationPoints[0].cameraX, calibrationPoints[0].cameraY]);
+				var p2 = $V([calibrationPoints[1].cameraX, calibrationPoints[1].cameraY]);
+				var p3 = $V([calibrationPoints[2].cameraX, calibrationPoints[2].cameraY]);
+				
+				// This might throw an exception
+				var thePlane = Plane.fromDepthData(depthRef, KINECT_DEPTH_WIDTH, p1, p2, p3);
+				
+				plane = thePlane;
 			}
 			
             function drawCalibrationMarkers() {

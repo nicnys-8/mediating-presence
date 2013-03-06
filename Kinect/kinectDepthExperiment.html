@@ -1,0 +1,194 @@
+
+<html>
+    
+    <head>
+        
+        <title>Kinect Calibration</title>
+        
+		<style type="text/css">
+            body {
+                font-family:monospace;
+            }
+			button {
+				margin-top:1em;
+				font-size:125%;
+			}
+			div.fullPage {
+				display:none;
+				position:absolute;
+                top:0;
+				left:0;
+                padding:0px;
+                margin:0px;
+                width:100%;
+				height:100%;
+			}
+			canvas.videoCanvas {
+				display:block;
+				margin:1em 1em 1em 1em;
+				width:640px;
+				height:480px;
+			}
+            #loadingSpan {
+                display:block;
+                padding:30% 0% 0% 0%;
+                font-size:200%;
+            }
+        </style>
+		
+        <script type="text/javascript" src="../js/mediaext.js"></script>
+        <script type="text/javascript" src="../js/geometry.js"></script>
+        <script type="text/javascript" src="../js/lib/sylvester.js"></script>
+        <script type="text/javascript" src="../js/lib/zig.js"></script>
+        <script type="text/javascript" src="../js/kinect-decoder.js"></script>
+        <script type="text/javascript" src="../js/image-handling.js"></script>
+		
+		<script>
+            
+            // The Kinect related constants may be fetchable from the plugin?
+			const VIDEO_DISPLAY_WIDTH = 640, VIDEO_DISPLAY_HEIGHT = 480;
+			const KINECT_RGB_WIDTH = 160, KINECT_RGB_HEIGHT = 120;
+            const KINECT_DEPTH_WIDTH = 160, KINECT_DEPTH_HEIGHT = 120;
+            
+            var videoCanvas, videoContext;
+            
+			var depthData = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT);
+			var currentVideoFrame, videoData;
+            
+			var initialized = false;
+			
+			var minX = Infinity; maxX = -Infinity;
+			var minY = Infinity; maxY = -Infinity;
+			
+			var dataPoints = [];
+			
+			function $(nodeName) {
+				return document.getElementById(nodeName);
+			}
+            function show(nodeName) {
+                $(nodeName).style.display = "block";
+            }
+            function hide(nodeName) {
+				$(nodeName).style.display = "none";
+            }
+			
+            function init() {
+                
+                show("loading");
+				
+                currentVideoFrame = MediaExt.createCanvas(KINECT_RGB_WIDTH, KINECT_RGB_HEIGHT);
+				videoData = currentVideoFrame.getContext("2d").createImageData(KINECT_RGB_WIDTH, KINECT_RGB_HEIGHT);
+                
+				videoCanvas = $("videoCanvas1");
+				videoContext = videoCanvas.getContext("2d");
+				
+				plugin = document.getElementById("ZigPlugin");
+				// Start the video streams
+				plugin.requestStreams({updateDepth:true}); // , updateImage:true});
+				// Start updating the canvases every new kinect frame
+                plugin.addEventListener("NewFrame", onNewKinectData);
+            }
+            
+            /**
+             Callback from the plugin when new depth and RGB data is available from the Kinect.
+             */
+			function onNewKinectData() {
+				
+				if (!initialized) {
+					hide("loading");
+					show("depthFinder");
+					initialized = true;
+				}
+				
+                /* Take a snapshot from the Kinect RGB video */
+                // KinectDecoder.decodeRGB(plugin.imageMap, videoData.data);
+                // currentVideoFrame.getContext("2d").putImageData(videoData, 0, 0);
+                
+                /* Take a snapshot from the Kinect depth video */
+                KinectDecoder.decodeDepth(plugin.depthMap, depthData);
+				ImageHandling.depthToRGBA(depthData, videoData.data);
+				currentVideoFrame.getContext("2d").putImageData(videoData, 0, 0);
+				
+				videoContext.drawImage(currentVideoFrame, 0, 0, VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
+				drawCircle(videoContext, videoCanvas.width / 2, videoCanvas.height / 2, "blue");
+			}
+            
+			function addDataPoint() {
+				var x = Math.round(videoCanvas.width / 8); // Find center divided by 4
+				var y = Math.round(videoCanvas.height / 8);
+				var modelZ = depthData[y * KINECT_DEPTH_WIDTH + x];
+				
+				if (modelZ == 0) {
+					alert("No depth data available at point, try again");
+					return;
+				}
+				
+				var realZ = parseFloat(document.getElementById("distanceText").value);
+				if (isNaN(realZ)) {
+					alert("Invalid distance value in textfield");
+					return;
+				}
+				
+				dataPoints.push({ x:realZ, y:modelZ });
+				minX = Math.min(minX, realZ);
+				maxX = Math.max(maxX, realZ);
+				minY = Math.min(minY, modelZ);
+				maxY = Math.max(maxY, modelZ);
+			}
+			
+			function logList() {
+				console.log(dataPoints);
+			}
+            
+			function removeLast() {
+				dataPoints.splice(dataPoints.length - 1, 1);
+			}
+			
+			function drawCircle(ctx, x, y, color) {
+				var radius = 15;
+				ctx.beginPath();
+				ctx.arc(x, y, radius, 0, 2 * Math.PI, false);
+				ctx.lineWidth = 5;
+				ctx.strokeStyle = color;
+				ctx.closePath();
+				ctx.stroke();
+			}
+            
+            </script>
+    </head>
+    
+    <body onload="init();">
+        
+		<div id="pluginContainer">
+            <object id="ZigPlugin" type="application/x-zig" width="0" height="0">
+                <param name="onload" value="zigPluginLoaded">
+                    </object>
+        </div>
+		
+        <center>
+			
+            <div class="fullPage" id="loading">
+                <span id="loadingSpan">Waiting for Kinect plugin...</span>
+            </div>
+			
+			<div class="fullPage" id="depthFinder">
+				<h1>Calibration!</h1>
+				<canvas class="videoCanvas" id="videoCanvas1" width="640px" height="480px"></canvas>
+                <span id="crossSpan" style="display:block">
+                    Please click the <span id="positionSpan"></span> (<span id="colorSpan"></span>) cross in the image!
+                </span>
+                <span id="doneSpan" style="display:none">
+                    Great! If you are happy with the placement of the circles, finish the calibration by pressing the Done button!
+                </span>
+				<input type="text" id="distanceText">
+				<button id="addButton" onclick="addDataPoint();">Add point</button>
+				<button id="undoButton" onclick="removeLast();">Undo last</button>
+				<button id="logButton" onclick="logList();">Log list</button>
+			</div>
+
+        </center>
+        
+    </body>
+    
+    
+</html>
