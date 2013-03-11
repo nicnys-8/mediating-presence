@@ -154,8 +154,8 @@
 				maxY = Math.max(maxY, modelZ);
 				
 				
-				var p1 = process_data(dataPoints, 1).terms;
-				var p2 = process_data(dataPoints, 2).terms;
+				var p1 = process_data(dataPoints, 1)[0];
+				var p2 = process_data(dataPoints, 2)[0];
 				
 				$("firstDegreeSpan").innerHTML = "y = " + p1[1] + "x + " + p1[0];
 				$("secondDegreeSpan").innerHTML = "y = " + p2[2] + "x<sup>2</sup> + " + p2[1] + "x + " + p2[0];
