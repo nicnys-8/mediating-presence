@@ -1,0 +1,35 @@
+body {
+    font-family:monospace;
+    text-align:center;
+}
+#dropbox {
+    border:10px dashed #ccc;
+    width:620px;
+    height:460px;
+    margin:20px auto;
+}
+#dropbox.hover {
+    border:10px dashed #333;
+}
+#status {
+    margin-top:200px;
+}
+#progressBar {
+    margin:1em 2em auto 2em;
+    padding:3px;
+    border:1px solid #000;
+    font-size:2em;
+    clear:both;
+    opacity:0;
+    -moz-transition:opacity 1s linear;
+    -o-transition:opacity 1s linear;
+    -webkit-transition:opacity 1s linear;
+}
+#progressBar.loading {
+    opacity:1.0;
+}
+#percentBar {
+    background-color:#99ccff;
+    height:auto;
+    width:0;
+}

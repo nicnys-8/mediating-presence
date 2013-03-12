@@ -1,378 +1,344 @@
 
-<!-- saved from url=(0052)http://learningwebgl.com/lessons/lesson02/index.html -->
+<!-- Partly based on example from http://learningwebgl.com/lessons/lesson02/index.html -->
 
-<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-	
-	<title>Point Cloud Rendering Test</title>
-	
-    <script type="text/javascript" src="js/mediaext.js"></script>
-	<script type="text/javascript" src="js/lib/webgl-utils.js"></script>
-	<script type="text/javascript" src="js/lib/glMatrix-0.9.5.min.js"></script>
-    
-	<style type="text/css">
-		body {
-			font-family:monospace;
-			text-align:center;
-		}
-        #dropbox {
-			border:10px dashed #ccc;
-            width:620px;
-            height:460px;
-            margin:20px auto;
-		}
-        #dropbox.hover {
-            border:10px dashed #333;
-		}
-		#status {
-			margin-top:200px;
-		}
-		#progressBar {
-			margin:1em 2em auto 2em;
-			padding:3px;
-			border:1px solid #000;
-			font-size:2em;
-			clear:both;
-			opacity:0;
-			-moz-transition:opacity 1s linear;
-			-o-transition:opacity 1s linear;
-			-webkit-transition:opacity 1s linear;
-		}
-		#progressBar.loading {
-			opacity:1.0;
-		}
-		#percentBar {
-			background-color:#99ccff;
-			height:auto;
-			width:0;
-		}
-    </style>
-	
-	<script id="shader-fs" type="x-shader/x-fragment">
-		precision mediump float;
-		varying vec4 vColor;
-		void main(void) {
-			gl_FragColor = vColor;
-		}
-	</script>
-	
-	<script id="shader-vs" type="x-shader/x-vertex">
-		attribute vec3 aVertexPosition;
-		attribute vec4 aVertexColor;
-		
-		uniform mat4 uMVMatrix;
-		uniform mat4 uPMatrix;
-		
-		varying vec4 vColor;
-		
-		void main(void) {
-			vec4 pos = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
-			gl_PointSize = 5.0 / pos.z;
-            gl_Position = pos;
-			vColor = aVertexColor;
-		}
-    </script>
-	
-	<script type="text/javascript">
-		
-		PlyParse = {};
-		
-		// Simple .ply parser for ascii input with assumed line format x y z nx ny nz r g b
-		// (this is just a test, I will make this more dynamic and error tolerant)
-		PlyParse.parse = function(inputStr) {
-			
-			var split = inputStr.split("\n");
-			var index = 0;
-			var line = "";
-		
-			while (index < split.length && line !== "end_header") {
-				line = split[index++];
-			}
-
-			var pos = new Array((split.length - index) * 3);
-			var rgb = new Array((split.length - index) * 4);
-			
-			for (var i = index + 1; i < split.length; i++) {
-				
-				line = split[i];
-				
-				var values = line.split(" ");
-				
-				pos[i * 3 + 0] = parseFloat(values[0]);
-				pos[i * 3 + 1] = parseFloat(values[1]);
-				pos[i * 3 + 2] = parseFloat(values[2]);
-				
-				// parse normals
-				
-				rgb[i * 4 + 0] = parseFloat(values[6]) / 255.0;
-				rgb[i * 4 + 1] = parseFloat(values[7]) / 255.0;
-				rgb[i * 4 + 2] = parseFloat(values[8]) / 255.0;
-				rgb[i * 4 + 3] = 1.0;
-			}
-			
-			return [pos, rgb];
-		};
-	</script>
-	
-	<script type="text/javascript">
-		
-        const kWidth = 640, kHeight = 480;
-        var glCanvas;
-		var gl, prog;
-		
-		function initShaders() {
-            
-			var vsStr = document.getElementById("shader-vs").text;
-            var fsStr = document.getElementById("shader-fs").text;
-            prog = WebGLUtils.createProgram(gl, vsStr, fsStr);
-            
-            gl.useProgram(prog);
-			
-			prog.vertexPositionAttribute = gl.getAttribLocation(prog, "aVertexPosition");
-			gl.enableVertexAttribArray(prog.vertexPositionAttribute);
-			
-			prog.vertexColorAttribute = gl.getAttribLocation(prog, "aVertexColor");
-			gl.enableVertexAttribArray(prog.vertexColorAttribute);
-			
-			prog.pMatrixUniform = gl.getUniformLocation(prog, "uPMatrix");
-			prog.mvMatrixUniform = gl.getUniformLocation(prog, "uMVMatrix");
-		}
-		
-		
-		var mvMatrix = mat4.create();
-		var pMatrix = mat4.create();
-		
-        function degToRad(degrees) {
-            return degrees * Math.PI / 180;
-        }
+<html>
+    <head>
         
-		function setMatrixUniforms() {
-			gl.uniformMatrix4fv(prog.pMatrixUniform, false, pMatrix);
-			gl.uniformMatrix4fv(prog.mvMatrixUniform, false, mvMatrix);
-		}
-
-		var pointCloudPositionBuffer;
-		var pointCloudColorBuffer;
-		
-		function createBuffers(vertices, colors) {
+        <title>Point Cloud Rendering Test</title>
+        
+        <script type="text/javascript" src="js/mediaext.js"></script>
+        <script type="text/javascript" src="js/lib/webgl-utils.js"></script>
+        <script type="text/javascript" src="js/lib/glMatrix-0.9.5.min.js"></script>
+        
+        <link rel="stylesheet" type="text/css" href="css/pb.css"/>
+        <link rel="stylesheet" type="text/css" href="css/pointcloud.css"/>
+        
+        <script id="shader-fs" type="x-shader/x-fragment">
+            precision mediump float;
+            varying vec4 vColor;
+            void main(void) {
+                gl_FragColor = vColor;
+            }
+            </script>
+        
+        <script id="shader-vs" type="x-shader/x-vertex">
+            attribute vec3 aVertexPosition;
+            attribute vec4 aVertexColor;
             
-			pointCloudPositionBuffer = gl.createBuffer();
-			gl.bindBuffer(gl.ARRAY_BUFFER, pointCloudPositionBuffer);
-			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-			pointCloudPositionBuffer.itemSize = 3;
-			pointCloudPositionBuffer.numItems = vertices.length / 3;
-			
-			pointCloudColorBuffer = gl.createBuffer();
-			gl.bindBuffer(gl.ARRAY_BUFFER, pointCloudColorBuffer);
-			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
-			pointCloudColorBuffer.itemSize = 4;
-			pointCloudColorBuffer.numItems = colors.length / 4;
-		}
-		
-		function drawScene() {
-			
-            requestAnimFrame(drawScene);
+            uniform mat4 uMVMatrix;
+            uniform mat4 uPMatrix;
             
-            gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
-			gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-			
-			mat4.perspective(45, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0, pMatrix);
-			
-			mat4.identity(mvMatrix);
-            mat4.translate(mvMatrix, [0.0, 0.0, -3.0]);
-			// mat4.translate(mvMatrix, [3.0, 0.0, 0.0]);
-            mat4.multiply(mvMatrix, pcRotationMatrix);
+            varying vec4 vColor;
             
-			gl.bindBuffer(gl.ARRAY_BUFFER, pointCloudPositionBuffer);
-			gl.vertexAttribPointer(prog.vertexPositionAttribute, pointCloudPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
-			
-			gl.bindBuffer(gl.ARRAY_BUFFER, pointCloudColorBuffer);
-			gl.vertexAttribPointer(prog.vertexColorAttribute, pointCloudColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+            void main(void) {
+                vec4 pos = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+                gl_PointSize = 5.0 / pos.z;
+                gl_Position = pos;
+                vColor = aVertexColor;
+            }
+            </script>
+        
+        <script type="text/javascript">
             
-			setMatrixUniforms();
-			gl.drawArrays(gl.POINTS, 0, pointCloudPositionBuffer.numItems);
-		}
-		
-		function init() {
+            PlyParse = {};
             
-            glCanvas = MediaExt.createCanvas(kWidth, kHeight);
-            glCanvas.style.display = "none";
-            glCanvas.style.margin = "20px auto";
+            // Simple .ply parser for ascii input with assumed line format x y z nx ny nz r g b
+            // (this is just a test, I will make this more dynamic and error tolerant)
+            PlyParse.parse = function(inputStr) {
+                
+                var split = inputStr.split("\n");
+                var index = 0;
+                var line = "";
+                
+                while (index < split.length && line !== "end_header") {
+                    line = split[index++];
+                }
+                
+                var pos = new Array((split.length - index) * 3);
+                var rgb = new Array((split.length - index) * 4);
+                
+                for (var i = index + 1; i < split.length; i++) {
+                    
+                    line = split[i];
+                    
+                    var values = line.split(" ");
+                    
+                    pos[i * 3 + 0] = parseFloat(values[0]);
+                    pos[i * 3 + 1] = parseFloat(values[1]);
+                    pos[i * 3 + 2] = parseFloat(values[2]);
+                    
+                    // parse normals
+                    
+                    rgb[i * 4 + 0] = parseFloat(values[6]) / 255.0;
+                    rgb[i * 4 + 1] = parseFloat(values[7]) / 255.0;
+                    rgb[i * 4 + 2] = parseFloat(values[8]) / 255.0;
+                    rgb[i * 4 + 3] = 1.0;
+                }
+                
+                return [pos, rgb];
+            };
+            </script>
+        
+        <script type="text/javascript">
             
-            gl = WebGLUtils.setupWebGL(glCanvas);
-            gl.viewportWidth = glCanvas.width;
-            gl.viewportHeight = glCanvas.height;
-            document.getElementById("container").appendChild(glCanvas);
+            const kWidth = 640, kHeight = 480;
+            var glCanvas;
+            var gl, prog;
             
-            initShaders();
-			
-			gl.clearColor(0.0, 0.0, 0.0, 1.0);
-			gl.enable(gl.DEPTH_TEST);
-			
-            glCanvas.onmousedown = handleMouseDown;
-            document.onmouseup = handleMouseUp;
-            document.onmousemove = handleMouseMove;
+            function initShaders() {
+                
+                var vsStr = document.getElementById("shader-vs").text;
+                var fsStr = document.getElementById("shader-fs").text;
+                prog = WebGLUtils.createProgram(gl, vsStr, fsStr);
+                
+                gl.useProgram(prog);
+                
+                prog.vertexPositionAttribute = gl.getAttribLocation(prog, "aVertexPosition");
+                gl.enableVertexAttribArray(prog.vertexPositionAttribute);
+                
+                prog.vertexColorAttribute = gl.getAttribLocation(prog, "aVertexColor");
+                gl.enableVertexAttribArray(prog.vertexColorAttribute);
+                
+                prog.pMatrixUniform = gl.getUniformLocation(prog, "uPMatrix");
+                prog.mvMatrixUniform = gl.getUniformLocation(prog, "uMVMatrix");
+            }
             
-            // **********************
-            // Drag and drop with File API
-            var dropbox = document.getElementById("dropbox"),
+            
+            var mvMatrix = mat4.create();
+            var pMatrix = mat4.create();
+            
+            function degToRad(degrees) {
+                return degrees * Math.PI / 180;
+            }
+            
+            function setMatrixUniforms() {
+                gl.uniformMatrix4fv(prog.pMatrixUniform, false, pMatrix);
+                gl.uniformMatrix4fv(prog.mvMatrixUniform, false, mvMatrix);
+            }
+            
+            var pointCloudPositionBuffer;
+            var pointCloudColorBuffer;
+            
+            function createBuffers(vertices, colors) {
+                
+                pointCloudPositionBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, pointCloudPositionBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+                pointCloudPositionBuffer.itemSize = 3;
+                pointCloudPositionBuffer.numItems = vertices.length / 3;
+                
+                pointCloudColorBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, pointCloudColorBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+                pointCloudColorBuffer.itemSize = 4;
+                pointCloudColorBuffer.numItems = colors.length / 4;
+            }
+            
+            function drawScene() {
+                
+                requestAnimFrame(drawScene);
+                
+                gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+                
+                mat4.perspective(45, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0, pMatrix);
+                
+                mat4.identity(mvMatrix);
+                mat4.translate(mvMatrix, [0.0, 0.0, -3.0]);
+                mat4.multiply(mvMatrix, pcRotationMatrix);
+                
+                gl.bindBuffer(gl.ARRAY_BUFFER, pointCloudPositionBuffer);
+                gl.vertexAttribPointer(prog.vertexPositionAttribute, pointCloudPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                
+                gl.bindBuffer(gl.ARRAY_BUFFER, pointCloudColorBuffer);
+                gl.vertexAttribPointer(prog.vertexColorAttribute, pointCloudColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+                
+                setMatrixUniforms();
+                gl.drawArrays(gl.POINTS, 0, pointCloudPositionBuffer.numItems);
+            }
+            
+            var mouseDown = false;
+            var lastMouseX = null;
+            var lastMouseY = null;
+            
+            var pcRotationMatrix = mat4.create();
+            mat4.identity(pcRotationMatrix);
+            
+            function handleMouseDown(event) {
+                mouseDown = true;
+                lastMouseX = event.clientX;
+                lastMouseY = event.clientY;
+            }
+            
+            function handleMouseUp(event) {
+                mouseDown = false;
+            }
+            
+            function handleMouseMove(event) {
+                
+                if (!mouseDown) {
+                    return;
+                }
+                var newX = event.clientX;
+                var newY = event.clientY;
+                
+                var deltaX = newX - lastMouseX;
+                var newRotationMatrix = mat4.create();
+                mat4.identity(newRotationMatrix);
+                mat4.rotate(newRotationMatrix, degToRad(deltaX / 10), [0, 1, 0]);
+                
+                var deltaY = newY - lastMouseY;
+                mat4.rotate(newRotationMatrix, degToRad(deltaY / 10), [1, 0, 0]);
+                
+                mat4.multiply(newRotationMatrix, pcRotationMatrix, pcRotationMatrix);
+                
+                lastMouseX = newX;
+                lastMouseY = newY;
+            }
+            
+            
+            function init() {
+                
+                glCanvas = MediaExt.createCanvas(kWidth, kHeight);
+                glCanvas.style.display = "none";
+                glCanvas.style.margin = "20px auto";
+                
+                gl = WebGLUtils.setupWebGL(glCanvas);
+                gl.viewportWidth = glCanvas.width;
+                gl.viewportHeight = glCanvas.height;
+                document.getElementById("container").appendChild(glCanvas);
+                
+                initShaders();
+                
+                gl.clearColor(0.0, 0.0, 0.0, 1.0);
+                gl.enable(gl.DEPTH_TEST);
+                
+                glCanvas.onmousedown = handleMouseDown;
+                document.onmouseup = handleMouseUp;
+                document.onmousemove = handleMouseMove;
+                
+                // **********************
+                // Drag and drop with File API
+                var dropbox = document.getElementById("dropbox"),
+                dropboxContainer = document.getElementById("container"),
 				state = document.getElementById("status");
-            
-            if (typeof window.FileReader === "undefined") {
-                state.className = "fail";
-                state.innerHTML = "File API unavailable, change browser!!!! :)";
-            } else {
-                state.className = "success";
+                
+                if (typeof window.FileReader === "undefined") {
+                    state.className = "fail";
+                    state.innerHTML = "File API unavailable, change browser!!!! :)";
+                } else {
+                    state.className = "success";
+                }
+                
+                dropboxContainer.ondragenter = function () {
+                    dropbox.className = "hover";
+                    return false;
+                };
+                dropboxContainer.ondragleave = function () {
+                    dropbox.className = "";
+                    return false;
+                };
+                dropboxContainer.ondragover = function () {
+                    dropbox.className = "hover";
+                    return false;
+                };
+                dropboxContainer.ondragend = function () {
+                    return false;
+                };
+                dropboxContainer.ondrop = function (e) {
+                    
+                    dropbox.className = "";
+                    
+                    e.preventDefault();
+                    readFiles(e.dataTransfer.files);
+                    
+                    return false;
+                };
+                // **********************
+                
+                document.getElementById("fileSelect").addEventListener("change", function () { readFiles(this.files); }, false);
             }
             
-            dropbox.ondragenter = function () {
-                this.className = "hover";
-                return false;
-            };
-            dropbox.ondragleave = function () {
-                this.className = "";
-                return false;
-            };
-			dropbox.ondragover = function () {
-                this.className = "hover";
-                return false;
-            };
-			dropbox.ondragend = function () {
-                return false;
-            };
-            dropbox.ondrop = function (e) {
-				
-                this.className = "";
+            function readFiles(files) {
                 
-				e.preventDefault();
-                readFiles(e.dataTransfer.files);
+                var file = files[0];
                 
-                return false;
-            };
-            // **********************
-            
-            document.getElementById("fileSelect").addEventListener("change", function () { readFiles(this.files); }, false);
-		}
-		
-        function readFiles(files) {
-            
-            var file = files[0];
-            
-            var splitName = file.name.split(".");
-            if (splitName.length < 2 || splitName[1] !== "ply") {
-                alert("I ONLY ACCEPT .ply FILES! ." + splitName[1] + " FILES ANGER ME! >:(");
-                return;
+                var splitName = file.name.split(".");
+                if (splitName.length < 2 || splitName[1] !== "ply") {
+                    alert("I ONLY ACCEPT .ply FILES! ." + splitName[1] + " FILES ANGER ME! >:(");
+                    return;
+                }
+                // or maybe:
+                /*
+                 if (file.name.substring(file.name.length - 4) !== ".ply") {
+                 }
+                 */
+                
+                var progress = document.getElementById("percentBar");
+                var dropbox = document.getElementById("dropbox");
+                
+                var reader = new FileReader();
+                reader.onerror = errorHandler;
+                reader.onprogress = updateProgress;
+                reader.onabort = function(e) {
+                    alert("File read cancelled");
+                };
+                reader.onloadstart = function(e) {
+                    document.getElementById("progressBar").className = "loading";
+                };
+                reader.onload = function (event) {
+                    // Ensure that the progress bar displays 100% at the end.
+                    progress.style.width = "100%";
+                    progress.textContent = "100%";
+                    setTimeout("document.getElementById('progressBar').className='';", 2000);
+                    
+                    dropbox.style.display = "none";
+                    glCanvas.style.display = "block";
+                    
+                    var points = PlyParse.parse(event.target.result);
+                    createBuffers(points[0], points[1]);
+                    drawScene();
+                };
+                
+                console.log(file);
+                
+                // reader.readAsDataURL(file);
+                reader.readAsText(file);
             }
-            // or maybe:
-            /*
-            if (file.name.substring(file.name.length - 4) !== ".ply") {
+            
+            function updateProgress(evt) {
+                
+                var progress = document.getElementById("percentBar");
+                
+                // evt is an ProgressEvent.
+                if (evt.lengthComputable) {
+                    var percentLoaded = Math.round((evt.loaded / evt.total) * 100);
+                    // Increase the progress bar length.
+                    if (percentLoaded < 100) {
+                        progress.style.width = percentLoaded + "%";
+                        progress.textContent = percentLoaded + "%";
+                    }
+                }
             }
-            */
-        
-            var progress = document.getElementById("percentBar");
-            var dropbox = document.getElementById("dropbox");
-        
-            var reader = new FileReader();
-            reader.onerror = errorHandler;
-            reader.onprogress = updateProgress;
-            reader.onabort = function(e) {
-                alert("File read cancelled");
-            };
-            reader.onloadstart = function(e) {
-                document.getElementById("progressBar").className = "loading";
-            };
-            reader.onload = function (event) {
-                // Ensure that the progress bar displays 100% at the end.
-                progress.style.width = '100%';
-                progress.textContent = '100%';
-                setTimeout("document.getElementById('progressBar').className='';", 2000);
-                
-                dropbox.style.display = "none";
-                glCanvas.style.display = "block";
-                
-                var points = PlyParse.parse(event.target.result);
-                createBuffers(points[0], points[1]);
-                drawScene();
-            };
             
-            console.log(file);
-            
-            // reader.readAsDataURL(file);
-            reader.readAsText(file);
-        }
-        
-		function updateProgress(evt) {
-			
-			var progress = document.getElementById("percentBar");
-			
-			// evt is an ProgressEvent.
-			if (evt.lengthComputable) {
-				var percentLoaded = Math.round((evt.loaded / evt.total) * 100);
-				// Increase the progress bar length.
-				if (percentLoaded < 100) {
-					progress.style.width = percentLoaded + "%";
-					progress.textContent = percentLoaded + "%";
-				}
-			}
-		}
-		
-		function errorHandler(evt) {
-			switch(evt.target.error.code) {
-				case evt.target.error.NOT_FOUND_ERR:
+            function errorHandler(evt) {
+                switch(evt.target.error.code) {
+                    case evt.target.error.NOT_FOUND_ERR:
                     alert("File Not Found!");
                     break;
-				case evt.target.error.NOT_READABLE_ERR:
+                    case evt.target.error.NOT_READABLE_ERR:
                     alert("File is not readable");
                     break;
-				case evt.target.error.ABORT_ERR:
+                    case evt.target.error.ABORT_ERR:
                     break; // noop
-                default:
+                    default:
                     alert("An error occurred reading this file.");
-			};
-		}
-		
-        var mouseDown = false;
-        var lastMouseX = null;
-        var lastMouseY = null;
-        
-        var pcRotationMatrix = mat4.create();
-        mat4.identity(pcRotationMatrix);
-        
-        function handleMouseDown(event) {
-            mouseDown = true;
-            lastMouseX = event.clientX;
-            lastMouseY = event.clientY;
-        }
-        
-        function handleMouseUp(event) {
-            mouseDown = false;
-        }
-        
-        function handleMouseMove(event) {
-            
-            if (!mouseDown) {
-                return;
+                };
             }
-            var newX = event.clientX;
-            var newY = event.clientY;
             
-            var deltaX = newX - lastMouseX;
-            var newRotationMatrix = mat4.create();
-            mat4.identity(newRotationMatrix);
-            mat4.rotate(newRotationMatrix, degToRad(deltaX / 10), [0, 1, 0]);
-            
-            var deltaY = newY - lastMouseY;
-            mat4.rotate(newRotationMatrix, degToRad(deltaY / 10), [1, 0, 0]);
-            
-            mat4.multiply(newRotationMatrix, pcRotationMatrix, pcRotationMatrix);
-            
-            lastMouseX = newX
-            lastMouseY = newY;
-        }
+            </script>
         
-		</script>
-	
-	
-</head>
+    </head>
 	
 	<body onload="init();">
         
@@ -386,6 +352,6 @@
             </div>
         </div>
         Drop a file above, or use this fine button here: <input type="file" id="fileSelect">
-    </body>
+            </body>
     
 </html>
