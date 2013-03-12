@@ -56,7 +56,58 @@
         <script type="text/javascript" src="../js/kinect-decoder.js"></script>
         <script type="text/javascript" src="../js/image-handling.js"></script>
 		
-        
+		<script>
+
+			// Add a little functionality to the Sylvester library
+			Plane.fromDepthData = function(depthData, dataWidth, p1, p2, p3) {
+
+				var x1 = p1.e(1);
+				var y1 = p1.e(2);
+				var z1 = depthRef[Math.round(y1 * dataWidth + x1)];
+				var p1 = $V([x1, y1, z1]);
+				
+				var x2 = p2.e(1);
+				var y2 = p2.e(2);
+				var z2 = depthRef[Math.round(y2 * dataWidth + x2)];
+				var p2 = $V([x2, y2, z2]);
+				
+				var x3 = p3.e(1);
+				var y3 = p3.e(2);
+				var z3 = depthRef[Math.round(y3 * dataWidth + x3)];
+				var p3 = $V([x3, y3, z3]);
+				
+				if (z1 == 0 || z2 == 0 || z3 == 0) {
+					// Move the points until depth data is found?
+					throw "Insufficient depth data at the calibration points, you may need to take a new reference image!";
+				}
+				
+				var v1 = p2.subtract(p1);
+				var v2 = p3.subtract(p1);
+				
+				// The normal vector is given by the cross product of the two vectors
+				n = v1.cross(v2);
+				
+				// If the normal vector is zero, the input points don't span a plane
+				if (n.eql(Vector.Zero(3))) {
+					throw "Bad calibration points, did you place any of them on top of each other?";
+				}
+				
+				return $P(p1, n);
+			};
+			
+			Plane.prototype.signedDistanceTo = function(x, y, z) {
+				var A = this.anchor.elements, N = this.normal.elements;
+				return (x - A[0]) * N[0] + (y - A[1]) * N[1] + (z - A[2]) * N[2];
+			};
+			/*
+			Sylvester.Plane.prototype.signedDistanceTo(p) {
+				var A = this.anchor.elements, P = p.elements, N = this.normal.elements;
+				return (P[0] - A[0]) * N[0] + (P[1] - A[1]) * N[1] + (P[2] - A[2]) * N[2];
+			}
+			 */
+			
+		</script>
+		
         <script>
             
             // The Kinect related constants may be fetchable from the plugin?
@@ -407,21 +458,10 @@
                     onDoneButtonPressed : function() {
 						// Check if plane can be calculated, alert and restart step otherwise!
 						try {
-                            // TODO: Create the transform here instead of in the beginning of step 4
-                            // Geometric transform to map points in camera space to the browser window (will probably be replaced by projective transformation)
-                            transform = new Geometry.Transform([{x:calibrationPoints[0].browserX, y:calibrationPoints[0].browserY},
-                                                                {x:calibrationPoints[1].browserX, y:calibrationPoints[1].browserY},
-                                                                {x:calibrationPoints[2].browserX, y:calibrationPoints[2].browserY},
-                                                                {x:calibrationPoints[3].browserX, y:calibrationPoints[3].browserY}]
-                                                               ,
-                                                               [{x:calibrationPoints[0].cameraX, y:calibrationPoints[0].cameraY},
-                                                                {x:calibrationPoints[1].cameraX, y:calibrationPoints[1].cameraY},
-                                                                {x:calibrationPoints[2].cameraX, y:calibrationPoints[2].cameraY},
-                                                                {x:calibrationPoints[3].cameraX, y:calibrationPoints[3].cameraY}]
-                                                               );
+							calculatePlane();
 							this.isDone = true;
 						} catch (err) {
-							alert("Unable to do the math... And I'm a computer! Did you put any of the calibration points on top of each other? Try again, please!");
+							alert(err);
 							gotoCalibrationStep(3);
 						}
                     },
@@ -442,9 +482,7 @@
                         }
                         
                         $("videoCanvas2").getContext("2d").drawImage(calibrationImage, 0, 0, VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
-                        $("videoCanvas2").isFull = false;
-                    
-                        this.updateColorInstructions();
+                        $("videoCanvas2").isDone = false;
                     },
                     
                     updateColorInstructions : function() {
@@ -465,14 +503,75 @@
                     /**
                      STEP 4 BEGIN FUNCTION
                      Called after step 3 finishes
+                     
+                     Calculates a camera to browser space mapping and a mathematical model (a plane equation) of the touch surface.
+                     The necessary calibration points are set in the previous calibration step
                      */
                     onBegin : function() {
                         
-                        // Used for drawing the touch area
+						
+						// TODO:
+						// The plane is calculated at the end of step 3, and the transform is
+						// calculated here. Move some stuff around?
+						
+						
+                        // Geometric transform to map points in camera space to the browser window (will probably be replaced by projective transformation)
+                        transform = new Geometry.Transform([{x:calibrationPoints[0].browserX, y:calibrationPoints[0].browserY},
+                                                            {x:calibrationPoints[1].browserX, y:calibrationPoints[1].browserY},
+                                                            {x:calibrationPoints[2].browserX, y:calibrationPoints[2].browserY},
+                                                            {x:calibrationPoints[3].browserX, y:calibrationPoints[3].browserY}]
+                                                           ,
+                                                           [{x:calibrationPoints[0].cameraX, y:calibrationPoints[0].cameraY},
+                                                            {x:calibrationPoints[1].cameraX, y:calibrationPoints[1].cameraY},
+                                                            {x:calibrationPoints[2].cameraX, y:calibrationPoints[2].cameraY},
+                                                            {x:calibrationPoints[3].cameraX, y:calibrationPoints[3].cameraY}]
+                                                           );
+                        console.log(transform);
+                        
                         tmpPoly = [{x:calibrationPoints[0].cameraX, y:calibrationPoints[0].cameraY},
                                    {x:calibrationPoints[1].cameraX, y:calibrationPoints[1].cameraY},
                                    {x:calibrationPoints[2].cameraX, y:calibrationPoints[2].cameraY},
                                    {x:calibrationPoints[3].cameraX, y:calibrationPoints[3].cameraY}];
+                        
+						
+                        // Set x, y, z to improve readability later,
+                        // maybe not a super idea.. :}
+                        
+                        var max = -1000000000,
+                            min = 1000000000,
+                            avg = 0,
+                            zcount = 0; // Some statistics...
+                        
+                        // Calculate initial distances to the mathematical plane
+                        // since the model probably won't be 100% accurate
+                        for (var y = 0, index = 0; y < KINECT_DEPTH_HEIGHT; y++) {
+                            for (var x = 0; x < KINECT_DEPTH_WIDTH; x++, index++) {
+                                
+                                var z = depthRef[index];
+                                
+                                if (z == 0) { // z == 0 means no depth data is available for this point
+                                    planeError[index] = 0; // Instead set to special value that indicates unknown distance?
+                                    continue;
+                                }
+                                
+                                // Scalar projection onto the unit normal vector gives the (signed) distance to the plane
+                                // d = (r - r0) . n
+                                var distance = plane.signedDistanceTo(x, y, z);
+                                
+                                var p = transform.transformPoint({x:x, y:y});
+                                
+                                if (p.x >= 0 && p.y >= 0 && p.x <= window.innerWidth && p.y <= window.innerHeight) {
+                                    max = Math.max(max, distance);
+                                    min = Math.min(min, distance);
+                                    avg += distance;
+                                    zcount++;
+                                }
+                                
+                                planeError[index] = distance;
+                            }
+                        }
+                        console.log("Plane error (min, avg, max): " + min + ", " + avg / zcount + ", " + max);
+                        // console.log("Unknowns:" );
                         
                     }, // end of CALIBRATION_STEP_4.onBegin()
                     
@@ -505,13 +604,13 @@
                                 // var distance = plane.signedDistanceTo(x, y, z) - planeError[index];
                                 var distance = depthRef[index] - depthData[index];
                                 
-                                // A touch occurs between 5 and 15 millimeters
-                                // TODO: refine thresholds
-                                if (distance > 5 && distance < 15) {
-                                    
-                                    // Transform the point to browser coordinates
-                                    var p = transform.transformPoint({x:x, y:y});
-                                    if (p.x >= 0 && p.y >= 0 && p.x <= window.innerWidth && p.y <= window.innerHeight) {
+                                // Transform the point to browser coordinates
+                                // TODO: Reverse order - only transform points when the distance is within thresholds
+                                var p = transform.transformPoint({x:x, y:y});
+                                
+                                if (p.x >= 0 && p.y >= 0 && p.x <= window.innerWidth && p.y <= window.innerHeight) {
+
+                                    if (distance > 5 && distance < 15) {
 
                                         this.ctx.beginPath();
                                         this.ctx.arc(p.x, p.y, 10, 0, 2 * Math.PI, false);
@@ -537,6 +636,18 @@
                                     CALIBRATION_STEP_4];
                 
             } // end of createCalibrationSteps()
+			
+			function calculatePlane() {
+				
+				var p1 = $V([calibrationPoints[0].cameraX, calibrationPoints[0].cameraY]);
+				var p2 = $V([calibrationPoints[1].cameraX, calibrationPoints[1].cameraY]);
+				var p3 = $V([calibrationPoints[2].cameraX, calibrationPoints[2].cameraY]);
+				
+				// This might throw an exception
+				var thePlane = Plane.fromDepthData(depthRef, KINECT_DEPTH_WIDTH, p1, p2, p3);
+				
+				plane = thePlane;
+			}
 			
             function drawCalibrationMarkers() {
                 
