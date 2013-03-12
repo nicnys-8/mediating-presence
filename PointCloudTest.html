@@ -16,18 +16,18 @@
 		}
         #dropbox {
 			border:10px dashed #ccc;
-            width:300px;
-            height:300px;
+            width:620px;
+            height:460px;
             margin:20px auto;
 		}
         #dropbox.hover {
             border:10px dashed #333;
 		}
 		#status {
-			margin-top:140px;
+			margin-top:200px;
 		}
 		#progressBar {
-			margin:1em;
+			margin:1em 2em auto 2em;
 			padding:3px;
 			border:1px solid #000;
 			font-size:2em;
@@ -66,7 +66,7 @@
 		
 		void main(void) {
 			vec4 pos = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
-			gl_PointSize = 20.0 / pos.z;
+			gl_PointSize = 5.0 / pos.z;
             gl_Position = pos;
 			vColor = aVertexColor;
 		}
@@ -141,61 +141,31 @@
 		var mvMatrix = mat4.create();
 		var pMatrix = mat4.create();
 		
+        function degToRad(degrees) {
+            return degrees * Math.PI / 180;
+        }
+        
 		function setMatrixUniforms() {
 			gl.uniformMatrix4fv(prog.pMatrixUniform, false, pMatrix);
 			gl.uniformMatrix4fv(prog.mvMatrixUniform, false, mvMatrix);
 		}
+
+		var pointCloudPositionBuffer;
+		var pointCloudColorBuffer;
 		
-		var triangleVertexPositionBuffer;
-		var triangleVertexColorBuffer;
-		var squareVertexPositionBuffer;
-		var squareVertexColorBuffer;
-		
-		function initBuffers() {
-			triangleVertexPositionBuffer = gl.createBuffer();
-			gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
-			var vertices = [
-							0.0,  1.0,  0.0,
-							-1.0, -1.0,  0.0,
-							1.0, -1.0,  0.0
-							];
+		function createBuffers(vertices, colors) {
+            
+			pointCloudPositionBuffer = gl.createBuffer();
+			gl.bindBuffer(gl.ARRAY_BUFFER, pointCloudPositionBuffer);
 			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-			triangleVertexPositionBuffer.itemSize = 3;
-			triangleVertexPositionBuffer.numItems = 3;
+			pointCloudPositionBuffer.itemSize = 3;
+			pointCloudPositionBuffer.numItems = vertices.length / 3;
 			
-			triangleVertexColorBuffer = gl.createBuffer();
-			gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexColorBuffer);
-			var colors = [
-						  1.0, 0.0, 0.0, 1.0,
-						  0.0, 1.0, 0.0, 1.0,
-						  0.0, 0.0, 1.0, 1.0
-						  ];
+			pointCloudColorBuffer = gl.createBuffer();
+			gl.bindBuffer(gl.ARRAY_BUFFER, pointCloudColorBuffer);
 			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
-			triangleVertexColorBuffer.itemSize = 4;
-			triangleVertexColorBuffer.numItems = 3;
-			
-			
-			squareVertexPositionBuffer = gl.createBuffer();
-			gl.bindBuffer(gl.ARRAY_BUFFER, squareVertexPositionBuffer);
-			vertices = [
-						1.0,  1.0,  0.0,
-						-1.0,  1.0,  0.0,
-						1.0, -1.0,  0.0,
-						-1.0, -1.0,  0.0
-						];
-			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-			squareVertexPositionBuffer.itemSize = 3;
-			squareVertexPositionBuffer.numItems = 4;
-			
-			squareVertexColorBuffer = gl.createBuffer();
-			gl.bindBuffer(gl.ARRAY_BUFFER, squareVertexColorBuffer);
-			colors = []
-			for (var i=0; i < 4; i++) {
-				colors = colors.concat([0.5, 0.5, 1.0, 1.0]);
-			}
-			gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
-			squareVertexColorBuffer.itemSize = 4;
-			squareVertexColorBuffer.numItems = 4;
+			pointCloudColorBuffer.itemSize = 4;
+			pointCloudColorBuffer.numItems = colors.length / 4;
 		}
 		
 		function drawScene() {
@@ -208,42 +178,32 @@
 			mat4.perspective(45, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0, pMatrix);
 			
 			mat4.identity(mvMatrix);
-            mat4.translate(mvMatrix, [-1.5, 0.0, -7.0]);
-            
-			gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexPositionBuffer);
-			gl.vertexAttribPointer(prog.vertexPositionAttribute, triangleVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
-			
-			gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertexColorBuffer);
-			gl.vertexAttribPointer(prog.vertexColorAttribute, triangleVertexColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
-			
-			setMatrixUniforms();
-			gl.drawArrays(gl.POINTS, 0, triangleVertexPositionBuffer.numItems);
-			
-			mat4.translate(mvMatrix, [3.0, 0.0, 0.0]);
+            mat4.translate(mvMatrix, [0.0, 0.0, -3.0]);
+			// mat4.translate(mvMatrix, [3.0, 0.0, 0.0]);
             mat4.multiply(mvMatrix, pcRotationMatrix);
             
-			gl.bindBuffer(gl.ARRAY_BUFFER, squareVertexPositionBuffer);
-			gl.vertexAttribPointer(prog.vertexPositionAttribute, squareVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+			gl.bindBuffer(gl.ARRAY_BUFFER, pointCloudPositionBuffer);
+			gl.vertexAttribPointer(prog.vertexPositionAttribute, pointCloudPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
 			
-			gl.bindBuffer(gl.ARRAY_BUFFER, squareVertexColorBuffer);
-			gl.vertexAttribPointer(prog.vertexColorAttribute, squareVertexColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+			gl.bindBuffer(gl.ARRAY_BUFFER, pointCloudColorBuffer);
+			gl.vertexAttribPointer(prog.vertexColorAttribute, pointCloudColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
             
 			setMatrixUniforms();
-			gl.drawArrays(gl.POINTS, 0, squareVertexPositionBuffer.numItems);
+			gl.drawArrays(gl.POINTS, 0, pointCloudPositionBuffer.numItems);
 		}
-		
-		
 		
 		function init() {
             
             glCanvas = MediaExt.createCanvas(kWidth, kHeight);
+            glCanvas.style.display = "none";
+            glCanvas.style.margin = "20px auto";
+            
             gl = WebGLUtils.setupWebGL(glCanvas);
             gl.viewportWidth = glCanvas.width;
             gl.viewportHeight = glCanvas.height;
             document.getElementById("container").appendChild(glCanvas);
             
             initShaders();
-			initBuffers();
 			
 			gl.clearColor(0.0, 0.0, 0.0, 1.0);
 			gl.enable(gl.DEPTH_TEST);
@@ -251,8 +211,6 @@
             glCanvas.onmousedown = handleMouseDown;
             document.onmouseup = handleMouseUp;
             document.onmousemove = handleMouseMove;
-            
-			drawScene();
             
             // **********************
             // Drag and drop with File API
@@ -274,76 +232,72 @@
                 this.className = "";
                 return false;
             };
-			dropbox.ondragover = function () { return false; };
-			dropbox.ondragend = function () { return false; };
-			
+			dropbox.ondragover = function () {
+                this.className = "hover";
+                return false;
+            };
+			dropbox.ondragend = function () {
+                return false;
+            };
             dropbox.ondrop = function (e) {
 				
                 this.className = "";
                 
 				e.preventDefault();
-                
-                var file = e.dataTransfer.files[0],
-                    reader = new FileReader();
-                
-                var splitName = file.name.split(".");
-                if (splitName.length == 2) {
-                    var extension = splitName[1];
-                    if (extension == "ply") {
-                        // Parse the .ply file
-                    }
-                }
-                // or maybe:
-                if (file.name.substring(file.name.length - 4) === ".ply") {
-                    // Parse the .ply file
-                }
-                
-				var progress = document.getElementById("percentBar");
-				
-				reader.onerror = errorHandler;
-				reader.onprogress = updateProgress;
-				reader.onabort = function(e) {
-					alert("File read cancelled");
-				};
-				reader.onloadstart = function(e) {
-					document.getElementById("progressBar").className = "loading";
-				};
-                reader.onload = function (event) {
-                    console.log("Length of string: " + event.target.result.length);
-                    // console.log(event.target);
-                    // dropbox.style.background = 'url(' + event.target.result + ') no-repeat center';
-					
-					// Ensure that the progress bar displays 100% at the end.
-					progress.style.width = '100%';
-					progress.textContent = '100%';
-					setTimeout("document.getElementById('progressBar').className='';", 2000);
-					
-					var points = PlyParse.parse(event.target.result);
-					var pos = points[0];
-					var rgb = points[1];
-					
-					gl.bindBuffer(gl.ARRAY_BUFFER, squareVertexPositionBuffer);
-					gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pos), gl.STATIC_DRAW);
-					squareVertexPositionBuffer.itemSize = 3;
-					squareVertexPositionBuffer.numItems = pos.length / 3;
-					
-					gl.bindBuffer(gl.ARRAY_BUFFER, squareVertexColorBuffer);
-					gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(rgb), gl.STATIC_DRAW);
-					squareVertexColorBuffer.itemSize = 4;
-					squareVertexColorBuffer.numItems = rgb.length / 4;
-                };
-				
-                console.log(file);
-                // reader.readAsDataURL(file);
-                reader.readAsText(file);
+                readFiles(e.dataTransfer.files);
                 
                 return false;
             };
             // **********************
+            
+            document.getElementById("fileSelect").addEventListener("change", function () { readFiles(this.files); }, false);
 		}
 		
-        function degToRad(degrees) {
-            return degrees * Math.PI / 180;
+        function readFiles(files) {
+            
+            var file = files[0];
+            
+            var splitName = file.name.split(".");
+            if (splitName.length < 2 || splitName[1] !== "ply") {
+                alert("I ONLY ACCEPT .ply FILES! ." + splitName[1] + " FILES ANGER ME! >:(");
+                return;
+            }
+            // or maybe:
+            /*
+            if (file.name.substring(file.name.length - 4) !== ".ply") {
+            }
+            */
+        
+            var progress = document.getElementById("percentBar");
+            var dropbox = document.getElementById("dropbox");
+        
+            var reader = new FileReader();
+            reader.onerror = errorHandler;
+            reader.onprogress = updateProgress;
+            reader.onabort = function(e) {
+                alert("File read cancelled");
+            };
+            reader.onloadstart = function(e) {
+                document.getElementById("progressBar").className = "loading";
+            };
+            reader.onload = function (event) {
+                // Ensure that the progress bar displays 100% at the end.
+                progress.style.width = '100%';
+                progress.textContent = '100%';
+                setTimeout("document.getElementById('progressBar').className='';", 2000);
+                
+                dropbox.style.display = "none";
+                glCanvas.style.display = "block";
+                
+                var points = PlyParse.parse(event.target.result);
+                createBuffers(points[0], points[1]);
+                drawScene();
+            };
+            
+            console.log(file);
+            
+            // reader.readAsDataURL(file);
+            reader.readAsText(file);
         }
         
 		function updateProgress(evt) {
@@ -355,8 +309,8 @@
 				var percentLoaded = Math.round((evt.loaded / evt.total) * 100);
 				// Increase the progress bar length.
 				if (percentLoaded < 100) {
-					progress.style.width = percentLoaded + '%';
-					progress.textContent = percentLoaded + '%';
+					progress.style.width = percentLoaded + "%";
+					progress.textContent = percentLoaded + "%";
 				}
 			}
 		}
@@ -364,15 +318,15 @@
 		function errorHandler(evt) {
 			switch(evt.target.error.code) {
 				case evt.target.error.NOT_FOUND_ERR:
-				alert('File Not Found!');
-				break;
+                    alert("File Not Found!");
+                    break;
 				case evt.target.error.NOT_READABLE_ERR:
-				alert('File is not readable');
-				break;
+                    alert("File is not readable");
+                    break;
 				case evt.target.error.ABORT_ERR:
-				break; // noop
-				default:
-				alert('An error occurred reading this file.');
+                    break; // noop
+                default:
+                    alert("An error occurred reading this file.");
 			};
 		}
 		
@@ -421,17 +375,17 @@
 </head>
 	
 	<body onload="init();">
-       
-            <h1>Point Cloud Drag and Drop</h1>
-            <div id="container">
-                <div id="dropbox">
-                    <p id="status">Drop a .ply file here!</p>
-					<div id="progressBar">
-						<div id="percentBar">0%</div>
-					</div>
+        
+        <h1>Point Cloud Drag and Drop</h1>
+        <div id="container">
+            <div id="dropbox">
+                <p id="status">Drop a .ply file here!</p>
+                <div id="progressBar">
+                    <div id="percentBar">0%</div>
                 </div>
             </div>
-       
-	</body>
-
+        </div>
+        Drop a file above, or use this fine button here: <input type="file" id="fileSelect">
+    </body>
+    
 </html>
