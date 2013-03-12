@@ -1,18 +1,41 @@
 var serverUrl = "/";
 var localStream, room;
 
-
 onClick = function() {
-    console.log("Trying to send data");
-    localStream.sendData({text:"Important message :)", timestamp:99999999});
+    var image = document.createElement("img");
+    image.src = "liggaa.gif";
+    
+    image.width = 34;
+    image.height = 14;
+    
+    image.onload = function () {
+        var c = document.createElement("canvas");
+        
+        var ctx = c.getContext("2d");
+        ctx.drawImage(image, 34, 14);
+        
+        var data = c.toDataURL()
+        localStream.sendData({image:data});
+    };
+    
 }
 
-var button = document.createElement("button");
-document.body.appendChild(button);
-button.innerHTML = "Send message";
-button.onclick = onClick;
+receiveData = function(event) {
+    var data = event.msg.image;
+    var img = document.createElement("img");
+    img.src = data;
+    
+    var div = document.createElement('div');
+    document.body.appendChild(div);
+    div.appendChild(img);
+}
 
 window.onload = function () {
+    
+    var button = document.createElement("button");
+    document.body.appendChild(button);
+    button.innerHTML = "Send message";
+    button.onclick = onClick;
     
     localStream = Erizo.Stream({audio: true, video: true, data: true});
     
@@ -69,8 +92,11 @@ window.onload = function () {
                                              room.addEventListener("stream-added", function (streamEvent) {
                                                                    var streams = [];
                                                                    streams.push(streamEvent.stream);
+                                                                   
+                                                                   streamEvent.stream.addEventListener("stream-data", receiveData);
                                                                    subscribeToStreams(streams);
                                                                    });
+                                             
                                              
                                              room.addEventListener("stream-removed", function (streamEvent) {
                                                                    // Remove stream from DOM
@@ -81,21 +107,11 @@ window.onload = function () {
                                                                    }
                                                                    });
                                              
-                                             room.addEventListener("stream-data", function (streamEvent) {
-                                                                   // Display the message
-                                                                   console.log("Data received:");
-                                                                   // ACCESS DATA SOMEHOW...
-                                                                   console.log(streamEvent);
-                                                                   }
-                                                                   });
-                                             
-                                             
-                                             
                                              room.connect();
                                              
                                              localStream.show("myVideo");
                                              
                                              });
                 localStream.init();
-                });   
+                });
 };
