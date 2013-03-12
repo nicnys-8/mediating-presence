@@ -10,14 +10,41 @@
 	<script type="text/javascript" src="js/lib/glMatrix-0.9.5.min.js"></script>
     
 	<style type="text/css">
+		body {
+			font-family:monospace;
+			text-align:center;
+		}
         #dropbox {
-            border:10px dashed #ccc;
+			border:10px dashed #ccc;
             width:300px;
             height:300px;
-            margin:20px auto;}
+            margin:20px auto;
+		}
         #dropbox.hover {
-            border:10px
-            dashed #333; }
+            border:10px dashed #333;
+		}
+		#status {
+			margin-top:140px;
+		}
+		#progressBar {
+			margin:1em;
+			padding:3px;
+			border:1px solid #000;
+			font-size:2em;
+			clear:both;
+			opacity:0;
+			-moz-transition:opacity 1s linear;
+			-o-transition:opacity 1s linear;
+			-webkit-transition:opacity 1s linear;
+		}
+		#progressBar.loading {
+			opacity:1.0;
+		}
+		#percentBar {
+			background-color:#99ccff;
+			height:auto;
+			width:0;
+		}
     </style>
 	
 	<script id="shader-fs" type="x-shader/x-fragment">
@@ -26,7 +53,7 @@
 		void main(void) {
 			gl_FragColor = vColor;
 		}
-		</script>
+	</script>
 	
 	<script id="shader-vs" type="x-shader/x-vertex">
 		attribute vec3 aVertexPosition;
@@ -44,6 +71,47 @@
 			vColor = aVertexColor;
 		}
     </script>
+	
+	<script type="text/javascript">
+		
+		PlyParse = {};
+		
+		// Simple .ply parser for ascii input with assumed line format x y z nx ny nz r g b
+		// (this is just a test, I will make this more dynamic and error tolerant)
+		PlyParse.parse = function(inputStr) {
+			
+			var split = inputStr.split("\n");
+			var index = 0;
+			var line = "";
+		
+			while (index < split.length && line !== "end_header") {
+				line = split[index++];
+			}
+
+			var pos = new Array((split.length - index) * 3);
+			var rgb = new Array((split.length - index) * 4);
+			
+			for (var i = index + 1; i < split.length; i++) {
+				
+				line = split[i];
+				
+				var values = line.split(" ");
+				
+				pos[i * 3 + 0] = parseFloat(values[0]);
+				pos[i * 3 + 1] = parseFloat(values[1]);
+				pos[i * 3 + 2] = parseFloat(values[2]);
+				
+				// parse normals
+				
+				rgb[i * 4 + 0] = parseFloat(values[6]) / 255.0;
+				rgb[i * 4 + 1] = parseFloat(values[7]) / 255.0;
+				rgb[i * 4 + 2] = parseFloat(values[8]) / 255.0;
+				rgb[i * 4 + 3] = 1.0;
+			}
+			
+			return [pos, rgb];
+		};
+	</script>
 	
 	<script type="text/javascript">
 		
@@ -189,7 +257,7 @@
             // **********************
             // Drag and drop with File API
             var dropbox = document.getElementById("dropbox"),
-            state = document.getElementById("status");
+				state = document.getElementById("status");
             
             if (typeof window.FileReader === "undefined") {
                 state.className = "fail";
@@ -198,17 +266,22 @@
                 state.className = "success";
             }
             
-            dropbox.ondragover = function () {
+            dropbox.ondragenter = function () {
                 this.className = "hover";
                 return false;
             };
-            dropbox.ondragend = function () {
+            dropbox.ondragleave = function () {
                 this.className = "";
                 return false;
             };
+			dropbox.ondragover = function () { return false; };
+			dropbox.ondragend = function () { return false; };
+			
             dropbox.ondrop = function (e) {
+				
                 this.className = "";
-                e.preventDefault();
+                
+				e.preventDefault();
                 
                 var file = e.dataTransfer.files[0],
                     reader = new FileReader();
@@ -225,11 +298,41 @@
                     // Parse the .ply file
                 }
                 
+				var progress = document.getElementById("percentBar");
+				
+				reader.onerror = errorHandler;
+				reader.onprogress = updateProgress;
+				reader.onabort = function(e) {
+					alert("File read cancelled");
+				};
+				reader.onloadstart = function(e) {
+					document.getElementById("progressBar").className = "loading";
+				};
                 reader.onload = function (event) {
-                    console.log(event.target.result);
+                    console.log("Length of string: " + event.target.result.length);
                     // console.log(event.target);
                     // dropbox.style.background = 'url(' + event.target.result + ') no-repeat center';
+					
+					// Ensure that the progress bar displays 100% at the end.
+					progress.style.width = '100%';
+					progress.textContent = '100%';
+					setTimeout("document.getElementById('progressBar').className='';", 2000);
+					
+					var points = PlyParse.parse(event.target.result);
+					var pos = points[0];
+					var rgb = points[1];
+					
+					gl.bindBuffer(gl.ARRAY_BUFFER, squareVertexPositionBuffer);
+					gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pos), gl.STATIC_DRAW);
+					squareVertexPositionBuffer.itemSize = 3;
+					squareVertexPositionBuffer.numItems = pos.length / 3;
+					
+					gl.bindBuffer(gl.ARRAY_BUFFER, squareVertexColorBuffer);
+					gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(rgb), gl.STATIC_DRAW);
+					squareVertexColorBuffer.itemSize = 4;
+					squareVertexColorBuffer.numItems = rgb.length / 4;
                 };
+				
                 console.log(file);
                 // reader.readAsDataURL(file);
                 reader.readAsText(file);
@@ -243,6 +346,36 @@
             return degrees * Math.PI / 180;
         }
         
+		function updateProgress(evt) {
+			
+			var progress = document.getElementById("percentBar");
+			
+			// evt is an ProgressEvent.
+			if (evt.lengthComputable) {
+				var percentLoaded = Math.round((evt.loaded / evt.total) * 100);
+				// Increase the progress bar length.
+				if (percentLoaded < 100) {
+					progress.style.width = percentLoaded + '%';
+					progress.textContent = percentLoaded + '%';
+				}
+			}
+		}
+		
+		function errorHandler(evt) {
+			switch(evt.target.error.code) {
+				case evt.target.error.NOT_FOUND_ERR:
+				alert('File Not Found!');
+				break;
+				case evt.target.error.NOT_READABLE_ERR:
+				alert('File is not readable');
+				break;
+				case evt.target.error.ABORT_ERR:
+				break; // noop
+				default:
+				alert('An error occurred reading this file.');
+			};
+		}
+		
         var mouseDown = false;
         var lastMouseX = null;
         var lastMouseY = null;
@@ -287,15 +420,18 @@
 	
 </head>
 	
-	<body style="font-family:monospace;" onload="init();">
-        <center>
+	<body onload="init();">
+       
             <h1>Point Cloud Drag and Drop</h1>
             <div id="container">
                 <div id="dropbox">
                     <p id="status">Drop a .ply file here!</p>
+					<div id="progressBar">
+						<div id="percentBar">0%</div>
+					</div>
                 </div>
             </div>
-        </center>
+       
 	</body>
 
 </html>
