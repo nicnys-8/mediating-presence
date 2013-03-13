@@ -8,17 +8,26 @@ var localStream, room;
 
 
 //Kinect constants
-const WIDTH = 160;
-const HEIGHT = 120;
+const KINECT_WIDTH = 160;
+const KINECT_HEIGHT = 120;
 
 // Variables for local Kinect video
+
+
+var VIDEO_WIDTH;
+var VIDEO_HEIGHT;
+
 var kinectCanvas;
 var kinectContext;
-var imageData;
+var tempData;
 
-// Variables for remote Kinect video
-var remoteKinectCanvas;
-var remoteKinectContext;
+
+/**
+ On click, start the Kinect
+ */
+buttonClicked = function() {
+    startKinectStream();
+}
 
 
 /**
@@ -27,22 +36,16 @@ var remoteKinectContext;
 initKinect = function() {
     // Variables for local Kinect video
     kinectCanvas = document.createElement("canvas");
-    kinectCanvas.width = WIDTH;
-    kinectCanvas.height = HEIGHT;
+    kinectCanvas.width = KINECT_WIDTH;
+    kinectCanvas.height = KINECT_HEIGHT;
     kinectContext = kinectCanvas.getContext("2d");
-    imageData = kinectContext.createImageData(WIDTH, HEIGHT);
-    
-    // Variables for remote Kinect video
-    remoteKinectCanvas = document.createElement("canvas");
-    remoteKinectCanvas.widht = WIDTH;
-    remoteKinectCanvas.height = HEIGHT;
-    remoteKinectContext = remoteKinectCanvas.getContext("2d");
-    document.body.appendChild(remoteKinectCanvas);
-    
+    tempData = kinectContext.createImageData(KINECT_WIDTH, KINECT_HEIGHT);
     plugin = document.getElementById("ZigPlugin");
 }
 
+
 /**
+ Start sending Kinect video data to all users
  */
 startKinectStream = function() {
     if (plugin) {
@@ -58,8 +61,9 @@ startKinectStream = function() {
  Send the latest Kinect image to all subscribers
  */
 sendImage = function() {
-    KinectDecoder.decodeRGB(plugin.imageMap, imageData.data);
-    kinectContext.putImageData(imageData, 0, 0);
+    KinectDecoder.decodeRGB(plugin.imageMap, tempData.data);
+    //kinectContext.putImageData(tempData, 0, 0, 0, 0, 640, 480);
+    kinectContext.putImageData(tempData, 0, 0);
     
     var dataURL = kinectCanvas.toDataURL();
     if (localStream) localStream.sendData({dataURL:dataURL});
@@ -69,44 +73,31 @@ sendImage = function() {
 /**
  Display received Kinect frames
  */
-
 receiveData = function(event) {
     var image = new Image();
+    var senderID = event.stream.getID();
+    var dataURL = event.msg.dataURL;
+    
     image.onload = function() {
-        remoteKinectContext.drawImage(this, 0, 0);
+        var senderCanvas = document.getElementById("kinect" + senderID);
+        senderContext = senderCanvas.getContext("2d");
+        senderContext.drawImage(this, 0, 0, VIDEO_WIDTH, VIDEO_HEIGHT);
     };
-    image.src = event.msg.dataURL;
-}
-
-
-/**
- Subscribe to current users' streams
- */
-subscribeToStreams = function (streams) {
-    for (var index in streams) {
-        var stream = streams[index];
-        if (localStream.getID() !== stream.getID()) {
-            room.subscribe(stream);
-            stream.addEventListener("stream-data", receiveData);
-        }
-    }
+    image.src = dataURL;
 }
 
 
 /**
  When the winow loads, stuff starts to happen... subscribing to streams, adding listeners to
- the room, stuff like that...
+ the room, stuff like that... Good comment, this.
  */
 window.onload = function () {
     
-    // Set up the Kinect
-    initKinect();
+    VIDEO_WIDTH = parseInt(document.getElementById("myVideo").style.width);
+    VIDEO_HEIGHT = parseInt(document.getElementById("myVideo").style.height);
     
-    // Set uo the button
-    var button = document.createElement("button");
-    document.body.appendChild(button);
-    button.innerHTML = "Start Kinect";
-    button.onclick = startKinectStream;
+    initKinect();
+    // initKinectButton();
     
     localStream = Erizo.Stream({audio: true, video: true, data: true});
     
@@ -121,21 +112,30 @@ window.onload = function () {
                 callback(req.responseText);
             }
         };
-        
         req.open('POST', url, true);
         req.setRequestHeader('Content-Type', 'application/json');
         req.send(JSON.stringify(body));
     };
     
-    
-    /**
-     ...
-     */
-    createToken("user", "role", function (response) {
+    createToken("user", "role", function(response) {
                 var token = response;
                 room = Erizo.Room({token: token});
                 
                 localStream.addEventListener("access-accepted", function () {
+                                             
+                                             /**
+                                              Subscribe to current users' streams
+                                              */
+                                             var subscribeToStreams = function (streams) {
+                                             for (var index in streams) {
+                                             var stream = streams[index];
+                                             if (localStream.getID() !== stream.getID()) {
+                                             room.subscribe(stream);
+                                             stream.addEventListener("stream-data", receiveData);
+                                             }
+                                             }
+                                             };
+                                             
                                              room.addEventListener("room-connected", function (roomEvent) {
                                                                    room.publish(localStream);
                                                                    subscribeToStreams(roomEvent.streams);
@@ -143,12 +143,22 @@ window.onload = function () {
                                              
                                              room.addEventListener("stream-subscribed", function(streamEvent) {
                                                                    var stream = streamEvent.stream;
-                                                                   var div = document.createElement('div');
-                                                                   div.setAttribute("style", "width: 320px; height: 240px;");
-                                                                   div.setAttribute("id", "test" + stream.getID());
                                                                    
+                                                                   // Set up a canvas for displaying webcam media from this stream
+                                                                   var div = document.createElement('div');
+                                                                   // div.setAttribute("style", "width: 640px; height: 480px;");
+                                                                   div.setAttribute("style", "width: " + VIDEO_WIDTH + "px; height: " + VIDEO_HEIGHT + "px;");
+                                                                   div.setAttribute("id", "test" + stream.getID());
                                                                    document.body.appendChild(div);
                                                                    stream.show("test" + stream.getID());
+                                                                   
+                                                                   // Set up a canvas for displaying Kinect video from this stream
+                                                                   var canvas = document.createElement("canvas");
+                                                                   canvas.setAttribute("style", "width: " + VIDEO_WIDTH + "px; height: " + VIDEO_HEIGHT + "px;");
+                                                                   canvas.setAttribute("id", "kinect" + stream.getID());
+                                                                   canvas.width = VIDEO_WIDTH;
+                                                                   canvas.height = VIDEO_HEIGHT;
+                                                                   document.body.appendChild(canvas);
                                                                    });
                                              
                                              room.addEventListener("stream-added", function (streamEvent) {
@@ -159,7 +169,6 @@ window.onload = function () {
                                              
                                              
                                              room.addEventListener("stream-removed", function (streamEvent) {
-                                                                   // Remove stream from DOM
                                                                    var stream = streamEvent.stream;
                                                                    if (stream.elementID !== undefined) {
                                                                    var element = document.getElementById(stream.elementID);
@@ -170,8 +179,8 @@ window.onload = function () {
                                              room.connect();
                                              
                                              localStream.show("myVideo");
-                                             
                                              });
                 localStream.init();
                 });
 };
+

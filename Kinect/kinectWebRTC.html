@@ -1,0 +1,27 @@
+<html>
+    <head>
+        <title>Pitebros videoconference</title>
+        <script type="text/javascript" src="erizo.js"></script>
+        <script type="text/javascript" src="script.js"></script>
+        
+        <script src="zig.js"></script>
+        <script src="kinect-decoder.js"></script>
+        <script src="image-handling.js"></script>
+        
+    </head>
+    
+    <body>
+        
+        <button id="button" onclick="buttonClicked()">Start Kinect</button>
+        
+        <div id="myVideo" style="width:640px; height:480px;">
+        </div>
+        
+        <div id="pluginContainer">
+            <object id="ZigPlugin" type="application/x-zig" width="0" height="0">
+                <param name="onload" value="zigPluginLoaded">
+                    </object>
+        </div>
+        
+    </body>
+</html>
