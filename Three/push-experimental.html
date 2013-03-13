@@ -89,11 +89,6 @@
                                                       .6 // high restitution
                                                       );
                 
-                /*
-                 box_material.map.wrapS = ground_material.map.wrapT = THREE.RepeatWrapping;
-                 box_material.map.repeat.set(.25, .25);*/
-                
-                
                 box = new Physijs.BoxMesh(
                                           new THREE.CubeGeometry(4, 4, 4),
                                           box_material
@@ -113,11 +108,8 @@
                 
                 var constraint = new Physijs.DOFConstraint(box, new THREE.Vector3(0, 0, 0));
                 
-                constraint.setLinearLowerLimit(new THREE.Vector3(0, 0, 0));
-                
-                constraint.setLinearLowerLimit(new THREE.Vector3(2, 2, 2));
-                
-                
+                constraint.setLinearLowerLimit(new THREE.Vector3(-999, 0, -999));
+                constraint.setLinearLowerLimit(new THREE.Vector3(999, 0, 999));
                 scene.addConstraint(constraint);
                 
                 renderer.domElement.addEventListener('mousemove', setMousePosition);

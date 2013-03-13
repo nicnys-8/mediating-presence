@@ -91,85 +91,90 @@ MovingCube.prototype.setTargetPosition = function(position) {
  Move (at most) the specified distance toward the specified point along the x-axis
  */
 MovingCube.prototype.xStep = function(dx) {
-    if (Math.abs(this.position.x - this.targetPosition.x) < dx)  {
-        // MOVE TO THE CONTACT POSITION
-    } else {
-        // Translate by dx in the specified direction
-        var xMovement = ((this.position.x < this.targetPosition.x) ? dx : -dx);
-        this.translateX(xMovement);
-        if (this.collides()) { //If the translation resulted in a collision...
-            this.translateX(-xMovement); //Undo!
-            console.log("x-collision");
-        }
-    }
-}
-
-
-/**
- Move (at most) the specified distance toward the specified point along the z-axis
- */
-MovingCube.prototype.zStep = function(dz) {
-    if (Math.abs(this.position.z - this.targetPosition.z) < dz)  {
-        // MOVE TO THE CONTACT POSITION
-    } else {
-        // Translate by dy in the specified direction
-        var zMovement = ((this.position.z < this.targetPosition.z) ? dz : -dz);
-        this.translateZ(zMovement);
-        if (this.collides()) { //If the translation resultet in a collision...
-            this.translateZ(-zMovement); //Undo!
-            console.log("z-collision");
-        }
-    }
-}
-
-
-/**
- OBS! Det här är en svammelmetod, ska förstås ändras sen...
- */
-MovingCube.prototype.collides = function() {
-    var collides = false;
-    var offset = CUBE_SIDE / 2;
-    var obstacle;
-    var mesh;
+    var dir = ((this.position.z < this.targetPosition.z) ? 1 : -1);
     
-    for (var j = 0; j < this.meshes.length; j++) {
-        mesh = this.meshes[j];
-        
-        for (var i = 0; i < obstacles.length; i++) {
-            
-            obstacle = obstacles[i];
-            /*
-             v1.getPositionFromMatrix(mesh.matrixWorld);
-             v2.getPositionFromMatrix(obstacle.matrixWorld);
-             
-             if ((obstacle.parent !== mesh.parent) && !(
-             v1.x + offset < v2.x - offset ||
-             v1.x - offset > v2.x + offset ||
-             v1.z + offset < v2.z - offset ||
-             v1.z - offset > v2.z + offset
-             )) {
-             */
-            
-            
-            if ((obstacle.parent !== mesh.parent) && !(
-                                                       mesh.parent.position.x + mesh.position.x + offset < obstacle.position.x + obstacle.parent.position.x - offset ||
-                                                       mesh.parent.position.x + mesh.position.x - offset > obstacle.position.x + obstacle.parent.position.x + offset ||
-                                                       
-                                                       mesh.parent.position.z + mesh.position.z + offset < obstacle.position.z + obstacle.parent.position.z - offset ||
-                                                       mesh.parent.position.z + mesh.position.z - offset > obstacle.position.z + obstacle.parent.position.z + offset
-                                                       ))
-            {
-                
-                
-                
-                collides = true;
+    if (Math.abs(this.position.x - this.targetPosition.x) < dx)  {
+        // Move to contact position
+        while (!this.collides()) {
+            this.translateX(dir);
+        }
+    } else {
+            // Translate by dx in the specified direction
+            var xMovement = dir * dx;
+            this.translateX(xMovement);
+            if (this.collides()) { //If the translation resulted in a collision...
+                this.translateX(-xMovement); //Undo!
+                console.log("x-collision");
             }
         }
     }
-    return collides;
-}
-
-
-
-
-
+    
+    
+    /**
+     Move (at most) the specified distance toward the specified point along the z-axis
+     */
+    MovingCube.prototype.zStep = function(dz) {
+        var dir = ((this.position.z < this.targetPosition.z) ? 1 : -1);
+        
+        if (Math.abs(this.position.z - this.targetPosition.z) < dz)  {
+            // Move to contact position
+            while (!this.collides()) {
+                this.translateZ(dir);
+            }
+        } else {
+            var zMovement = dir * dz;
+            this.translateZ(zMovement);
+            if (this.collides()) { //If the translation resultet in a collision...
+                this.translateZ(-zMovement); //Undo!
+                console.log("z-collision");
+            }
+        }
+    }
+    
+    
+    /**
+     OBS! Det här är en svammelmetod, ska förstås ändras sen...
+     */
+    MovingCube.prototype.collides = function() {
+        var collides = false;
+        var offset = CUBE_SIDE / 2;
+        var obstacle;
+        var mesh;
+        
+        for (var j = 0; j < this.meshes.length; j++) {
+            mesh = this.meshes[j];
+            
+            for (var i = 0; i < obstacles.length; i++) {
+                
+                obstacle = obstacles[i];
+                /*
+                 v1.getPositionFromMatrix(mesh.matrixWorld);
+                 v2.getPositionFromMatrix(obstacle.matrixWorld);
+                 
+                 if ((obstacle.parent !== mesh.parent) && !(
+                 v1.x + offset < v2.x - offset ||
+                 v1.x - offset > v2.x + offset ||
+                 v1.z + offset < v2.z - offset ||
+                 v1.z - offset > v2.z + offset
+                 )) {
+                 */
+                
+                if ((obstacle.parent !== mesh.parent) && !(
+                                                           mesh.parent.position.x + mesh.position.x + offset < obstacle.position.x + obstacle.parent.position.x - offset ||
+                                                           mesh.parent.position.x + mesh.position.x - offset > obstacle.position.x + obstacle.parent.position.x + offset ||
+                                                           
+                                                           mesh.parent.position.z + mesh.position.z + offset < obstacle.position.z + obstacle.parent.position.z - offset ||
+                                                           mesh.parent.position.z + mesh.position.z - offset > obstacle.position.z + obstacle.parent.position.z + offset
+                                                           ))
+                {
+                    collides = true;
+                }
+            }
+        }
+        return collides;
+    }
+    
+    
+    
+    
+    
