@@ -1,12 +1,11 @@
 
 const CUBE_SIDE = 50;
 const UNIT = 50;
-var geometry = new THREE.CubeGeometry(CUBE_SIDE, CUBE_SIDE, CUBE_SIDE);
 
 /**
  Constructor
  */
-KlotskiBlock = function() {
+KlotskiBlock = function(width, height) {
     THREE.Object3D.call(this);
     this.selected = false;
     
@@ -16,7 +15,15 @@ KlotskiBlock = function() {
     this.material = new THREE.MeshLambertMaterial();
     this.material.color.setHex(0xff0000);
     
+    this.width = width * UNIT;
+    this.height = height * UNIT;
+    
+    var geometry = new THREE.CubeGeometry(this.width, UNIT, this.height);
+    
     this.mesh = new THREE.Mesh(geometry, this.material);
+    // Set the origin to the upper left corner of the mesh
+    this.mesh.position.set((-width * UNIT / 2), 0, (height * UNIT / 2));
+    
     this.add(this.mesh);
 };
 
@@ -217,11 +224,11 @@ KlotskiBlock.prototype.collides = function() {
         obstacle = obstacles[i];
         
         if (this !== obstacle && !(
-                                   this.position.x + offset <= obstacle.position.x - offset ||
-                                   this.position.x - offset >= obstacle.position.x + offset ||
+                                   this.position.x + this.width <= obstacle.position.x ||
+                                   this.position.x >= obstacle.position.x + obstacle.width ||
                                    
-                                   this.position.z + offset <= obstacle.position.z - offset ||
-                                   this.position.z - offset >= obstacle.position.z + offset
+                                   this.position.z + this.height <= obstacle.position.z ||
+                                   this.position.z >= obstacle.position.z + obstacle.height
                                    )) {
             collides = true;
         }

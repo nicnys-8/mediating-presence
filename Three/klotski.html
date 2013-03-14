@@ -82,25 +82,25 @@
                 scene.add(floor);
                 
                 // Cube
-                var block1 = new KlotskiBlock();
+                var block1 = new KlotskiBlock(1, 1);
                 block1.setPosition(-300, 25, 0);
                 scene.add(block1);
                 blocks.push(block1);
                 obstacles = obstacles.concat(block1);
                 
-                var block2 = new KlotskiBlock();
+                var block2 = new KlotskiBlock(1, 1);
                 block2.setPosition(-200, 25, 0);
                 scene.add(block2);
                 blocks.push(block2);
                 obstacles = obstacles.concat(block2);
                 
-                var block3 = new KlotskiBlock();
+                var block3 = new KlotskiBlock(1, 1);
                 block3.setPosition(-250, 25, 50);
                 scene.add(block3);
                 blocks.push(block3);
                 obstacles = obstacles.concat(block3);
                 
-                var block4 = new KlotskiBlock();
+                var block4 = new KlotskiBlock(1, 2);
                 block4.setPosition(-150, 25, 0);
                 scene.add(block4);
                 blocks.push(block4);
@@ -164,8 +164,6 @@
             function mouseMoved(event) {
                 // If a cube is selected, update its target position
                 if (selected) {
-                    console.log(selected.position.x);
-
                     var mouseX = event.clientX;
                     var mouseY = event.clientY;
                     // Find where the mouse intersects the floor
