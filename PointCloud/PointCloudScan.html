@@ -57,7 +57,6 @@
 		
         <script type="text/javascript" src="../js/mediaext.js"></script>
         <script type="text/javascript" src="../js/geometry.js"></script>
-        <script type="text/javascript" src="../js/lib/sylvester.js"></script>
         <script type="text/javascript" src="../js/lib/zig.js"></script>
         <script type="text/javascript" src="../js/kinect-decoder.js"></script>
         <script type="text/javascript" src="../js/image-handling.js"></script>
@@ -65,41 +64,47 @@
         
 		<script>
 
+            Plane = function(anchor, normal) {
+                this.anchor = anchor;
+                this.normal = vec3.normalize(normal);
+            }
+            
 			// Add a little functionality to the Sylvester library
 			Plane.fromDepthData = function(depthData, dataWidth, p1, p2, p3) {
 
-				var x1 = p1.e(1);
-				var y1 = p1.e(2);
+				var x1 = p1[0];
+				var y1 = p1[1];
 				var z1 = depthRef[Math.round(y1 * dataWidth + x1)];
-				var p1 = $V([x1, y1, z1]);
+				var p1 = vec3.create([x1, y1, z1]);
 				
-				var x2 = p2.e(1);
-				var y2 = p2.e(2);
+				var x2 = p2[0];
+				var y2 = p2[1];
 				var z2 = depthRef[Math.round(y2 * dataWidth + x2)];
-				var p2 = $V([x2, y2, z2]);
+				var p2 = vec3.create([x2, y2, z2]);
 				
-				var x3 = p3.e(1);
-				var y3 = p3.e(2);
+				var x3 = p3[0];
+				var y3 = p3[1];
 				var z3 = depthRef[Math.round(y3 * dataWidth + x3)];
-				var p3 = $V([x3, y3, z3]);
+				var p3 = vec3.create([x3, y3, z3]);
 				
 				if (z1 == 0 || z2 == 0 || z3 == 0) {
 					// Move the points until depth data is found?
 					throw "Insufficient depth data at the calibration points, you may need to take a new reference image!";
 				}
 				
-				var v1 = p2.subtract(p1);
-				var v2 = p3.subtract(p1);
+				var v1 = vec3.subtract(p2, p1);
+				var v2 = vec3.subtract(p3, p1);
 				
 				// The normal vector is given by the cross product of the two vectors
-				n = v1.cross(v2);
+				n = vec3.cross(v1, v2);
 				
 				// If the normal vector is zero, the input points don't span a plane
-				if (n.eql(Vector.Zero(3))) {
+				// (I actually check if length^2 is close to zero)
+                if ((n[0] * n[0] + n[1] * n[1] + n[2] * n[2]) < 1e-6) {
 					throw "Bad calibration points, did you place any of them on top of each other?";
 				}
 				
-				return $P(p1, n);
+				return new Plane(p1, n);
 			};
 			
 		</script>
@@ -175,8 +180,8 @@
                     fullscreenCanvas.width = window.innerWidth;
                     fullscreenCanvas.height = window.innerHeight;
                     
-                    $("drawCanvas").width = window.innerWidth;
-                    $("drawCanvas").height = window.innerHeight;
+                    $("pointCloudCanvas").width = window.innerWidth;
+                    $("pointCloudCanvas").height = window.innerHeight * 0.8;
                     
                     drawCalibrationMarkers();
                 };
@@ -505,10 +510,18 @@
                      The necessary calibration points are set in the previous calibration step
                      */
                     onBegin : function() {
+						
+						var self = this;
+						$("scanButton").onclick = function() { self.onScanButtonClicked(); };
+						
                         tmpPoly = [{x:calibrationPoints[0].cameraX, y:calibrationPoints[0].cameraY},
                                    {x:calibrationPoints[1].cameraX, y:calibrationPoints[1].cameraY},
                                    {x:calibrationPoints[2].cameraX, y:calibrationPoints[2].cameraY},
                                    {x:calibrationPoints[3].cameraX, y:calibrationPoints[3].cameraY}];
+						
+						this.scanAngle = 0.0;
+						this.posList = [];
+						this.colorList = [];
 						
                     }, // end of CALIBRATION_STEP_4.onBegin()
                     
@@ -523,42 +536,83 @@
 
                         // ** TEMP **
                         // Draw the depth image in the background (temporary, just for reference)
-                        ImageHandling.depthToRGBA(depthData, videoData.data);
+                        // ImageHandling.depthToRGBA(depthData, videoData.data);
                         currentVideoFrame.getContext("2d").putImageData(videoData, 0, 0);
                         Geometry.drawPolys([tmpPoly], currentVideoFrame.getContext("2d"));
-                        this.ctx.drawImage(currentVideoFrame, 0, 0, window.innerWidth, window.innerHeight);
+                        drawCircle(currentVideoFrame.getContext("2d"), calibrationPoints[4].cameraX, calibrationPoints[4].cameraY, "blue");
 						
-						drawCircle(this.ctx, calibrationPoints[4].browserX, calibrationPoints[4].browserY, "blue");
+						this.ctx.drawImage(currentVideoFrame, 0, 0, window.innerWidth, window.innerHeight * 0.8);
+						
                         // **********
                         
-                        for (var y = 0, index = 0; y < KINECT_DEPTH_HEIGHT; y++) {
-                            for (var x = 0; x < KINECT_DEPTH_WIDTH; x++, index++) {
-                                
-                                var z = depthData[index];
-                                
-                                // Ignore points where depth data is missing
-                                if (z == 0)
-                                    continue;
-                                
-                                var distance = depthRef[index] - depthData[index];
-                                
-								if (distance > 5 && distance < 15) {
-									var p = transform.transformPoint({x:x, y:y});
-									if (p.x >= 0 && p.y >= 0 && p.x <= window.innerWidth && p.y <= window.innerHeight) {
+						if (this.doScan) {
+							
+							var rotMtx = calculateMatrix(this.scanAngle);
+							var vec = vec3.create();
+							
+							var pos = this.posList;
+							var rgb = this.colorList;
+							
+							this.scanAngle += 90.0;
+							
+							for (var y = 0, index = 0; y < KINECT_DEPTH_HEIGHT; y++) {
+								for (var x = 0; x < KINECT_DEPTH_WIDTH; x++, index++) {
+									
+									var z = depthData[index];
+									
+									// Ignore points where depth data is missing
+									if (z == 0)
+										continue;
+									
+									var distance = depthRef[index] - depthData[index];
+									
+									if (distance > 5) {
 										
-                                        this.ctx.beginPath();
-                                        this.ctx.arc(p.x, p.y, 10, 0, 2 * Math.PI, false);
-                                        this.ctx.fillStyle = "yellow";
-                                        this.ctx.closePath();
-                                        this.ctx.fill();
-                                    }
-                                }
-                            }
-                        }
+										vec[0] = x;
+										vec[1] = y;
+										vec[2] = z;
+										
+										mat4.multiplyVec3(rotMtx, vec);
+										
+										pos.push(vec[0]); // (x - 80) / 160.0;
+										pos.push(vec[1]); // (y - 60) / 120.0;
+										pos.push(vec[2]); // z / maxDepth;
+										
+										rgb.push(videoData.data[index * 4 + 0]); // / 255.0;
+										rgb.push(videoData.data[index * 4 + 1]); // / 255.0;
+										rgb.push(videoData.data[index * 4 + 2]); // / 255.0;
+										rgb.push(videoData.data[index * 4 + 3]); // / 255.0;
+									
+									}
+								}
+							}
+							this.doScan = false;
+						}
                         return false;
                     }, // end of CALIBRATION_STEP_4.onUpdate()
                     
-                    ctx : $("drawCanvas").getContext("2d"),
+					doScan : false,
+					
+					posList : [],
+					colorList : [],
+					scanAngle : 0.0,
+					
+					onScanButtonClicked : function() {
+						if (this.scanAngle < 360.0) {
+							this.doScan = true;
+						} else {
+							
+							var p = this.posList,
+								c = this.colorList;
+							for (var i = 0; i < p.length / 3; i++) {
+								console.log(p[i * 3] + " " + p[i * 3 + 1] + " " + p[i * 3 + 2] +
+											" nx ny nz " +
+											c[i * 4] + " " + c[i * 4 + 1] + " " + c[i * 4 + 2]);
+							}
+						}
+					},
+					
+                    ctx : $("pointCloudCanvas").getContext("2d"),
                 
                 }; // end of CALIBRATION_STEP_4 object
 
@@ -571,30 +625,51 @@
                 
             } // end of createCalibrationSteps()
 			
+            function degToRad(degrees) {
+                return degrees * Math.PI / 180;
+            }
+            
 			function calculatePlane() {
 				
-				var p1 = $V([calibrationPoints[0].cameraX, calibrationPoints[0].cameraY]);
-				var p2 = $V([calibrationPoints[1].cameraX, calibrationPoints[1].cameraY]);
-				var p3 = $V([calibrationPoints[2].cameraX, calibrationPoints[2].cameraY]);
+				var p1 = vec3.create([calibrationPoints[0].cameraX, calibrationPoints[0].cameraY, 0]);
+				var p2 = vec3.create([calibrationPoints[1].cameraX, calibrationPoints[1].cameraY, 0]);
+				var p3 = vec3.create([calibrationPoints[2].cameraX, calibrationPoints[2].cameraY, 0]);
 				
 				// This might throw an exception
 				var thePlane = Plane.fromDepthData(depthRef, KINECT_DEPTH_WIDTH, p1, p2, p3);
-				
+                
 				plane = thePlane;
+			}
+			
+			function calculateMatrix(degrees) {
+				
+				var cx = calibrationPoints[4].cameraX,
+					cy = calibrationPoints[4].cameraY,
+					cz = depthRef[Math.round(cy * KINECT_DEPTH_WIDTH + cx)];
+                
+				var center = vec3.create([-cx, -cy, -cz]);
+                var axis = plane.normal;
+                var rotation = mat4.create();
+                
+				mat4.identity(rotation);
+                mat4.rotate(rotation, degToRad(degrees), axis);
+				mat4.translate(rotation, center);
+				
+				return rotation;
 			}
 			
 			function calculateTransform() {
 				// This might throw an exception
 				var geoTransform = new Geometry.Transform([{x:calibrationPoints[0].browserX, y:calibrationPoints[0].browserY},
-													{x:calibrationPoints[1].browserX, y:calibrationPoints[1].browserY},
-													{x:calibrationPoints[2].browserX, y:calibrationPoints[2].browserY},
-													{x:calibrationPoints[3].browserX, y:calibrationPoints[3].browserY}]
-												   ,
-												   [{x:calibrationPoints[0].cameraX, y:calibrationPoints[0].cameraY},
-													{x:calibrationPoints[1].cameraX, y:calibrationPoints[1].cameraY},
-													{x:calibrationPoints[2].cameraX, y:calibrationPoints[2].cameraY},
-													{x:calibrationPoints[3].cameraX, y:calibrationPoints[3].cameraY}]
-												   );
+                                                           {x:calibrationPoints[1].browserX, y:calibrationPoints[1].browserY},
+                                                           {x:calibrationPoints[2].browserX, y:calibrationPoints[2].browserY},
+                                                           {x:calibrationPoints[3].browserX, y:calibrationPoints[3].browserY}]
+                                                          ,
+                                                          [{x:calibrationPoints[0].cameraX, y:calibrationPoints[0].cameraY},
+                                                           {x:calibrationPoints[1].cameraX, y:calibrationPoints[1].cameraY},
+                                                           {x:calibrationPoints[2].cameraX, y:calibrationPoints[2].cameraY},
+                                                           {x:calibrationPoints[3].cameraX, y:calibrationPoints[3].cameraY}]
+                                                          );
 				transform = geoTransform;
 			}
 			
