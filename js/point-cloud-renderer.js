@@ -1,9 +1,5 @@
 
 /**
- Library for merging images using WebGL. Currently only has support for
- merging images with one shader that uses a blend function similar to 
- Photoshop's 'darken' blend mode (shader code in vsStr and fsStr below).
- I will add some more filters if I have time! / Jimmy
  */
 PointCloudRenderer = function(canvas) {
 	
