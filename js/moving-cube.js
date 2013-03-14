@@ -12,7 +12,6 @@ var v2 = new THREE.Vector3();
  */
 
 MovingCube = function() {
-    
     THREE.Object3D.call(this);
     
     this.selected = false;
@@ -24,17 +23,17 @@ MovingCube = function() {
     this.material.color.setHex(0xff0000);
     
     var mesh1 = new THREE.Mesh(geometry, this.material);
-    
     var mesh2 = new THREE.Mesh(geometry, this.material);
-    mesh2.translateX(CUBE_SIDE);
-    
     var mesh3 = new THREE.Mesh(geometry, this.material);
+    
+    mesh2.translateX(CUBE_SIDE);
     mesh3.translateX(CUBE_SIDE);
     mesh3.translateZ(CUBE_SIDE);
     
     this.meshes.push(mesh1);
     this.meshes.push(mesh2);
     this.meshes.push(mesh3);
+    
     this.add(mesh1);
     this.add(mesh2);
     this.add(mesh3);
@@ -91,46 +90,36 @@ MovingCube.prototype.setTargetPosition = function(position) {
  Move (at most) the specified distance toward the specified point along the x-axis
  */
 MovingCube.prototype.xStep = function(dx) {
-    var dir = ((this.position.z < this.targetPosition.z) ? 1 : -1);
-    
-    if (Math.abs(this.position.x - this.targetPosition.x) < dx)  {
-        // Move to contact position
-        while (!this.collides()) {
-            this.translateX(dir);
-        }
-    } else {
+    var dir = ((this.position.x < this.targetPosition.x) ? 1 : -1);
+    var distance = Math.abs(this.position.x - this.targetPosition.x);
+
+    dx = Math.min(dx, distance);
+
             // Translate by dx in the specified direction
             var xMovement = dir * dx;
             this.translateX(xMovement);
             if (this.collides()) { //If the translation resulted in a collision...
                 this.translateX(-xMovement); //Undo!
-                console.log("x-collision");
             }
-        }
     }
     
+
+/**
+ Move (at most) the specified distance toward the specified point along the x-axis
+ */
+MovingCube.prototype.zStep = function(dz) {
+    var dir = ((this.position.z < this.targetPosition.z) ? 1 : -1);
+    var distance = Math.abs(this.position.z - this.targetPosition.z);
     
-    /**
-     Move (at most) the specified distance toward the specified point along the z-axis
-     */
-    MovingCube.prototype.zStep = function(dz) {
-        var dir = ((this.position.z < this.targetPosition.z) ? 1 : -1);
-        
-        if (Math.abs(this.position.z - this.targetPosition.z) < dz)  {
-            // Move to contact position
-            while (!this.collides()) {
-                this.translateZ(dir);
-            }
-        } else {
-            var zMovement = dir * dz;
-            this.translateZ(zMovement);
-            if (this.collides()) { //If the translation resultet in a collision...
-                this.translateZ(-zMovement); //Undo!
-                console.log("z-collision");
-            }
-        }
+    dz = Math.min(dz, distance);
+    
+    // Translate by dz in the specified direction
+    var zMovement = dir * dz;
+    this.translateZ(zMovement);
+    if (this.collides()) { //If the translation resulted in a collision...
+        this.translateZ(-zMovement); //Undo!
     }
-    
+}
     
     /**
      OBS! Det här är en svammelmetod, ska förstås ändras sen...
