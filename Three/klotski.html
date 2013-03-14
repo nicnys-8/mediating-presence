@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <title>Cube Game</title>
+        <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+                
+                </head>
+    <body style="overflow:hidden; margin:0px">
+        
+        <div id="message"></div>
+        
+        <script src="../js/lib/Three.js"></script>
+        <script src="../js/mouse-interface.js"></script>
+        <script src="../js/klotski-block.js"></script>
+        
+        <script>
+            
+            // Camera constants
+            const VIEW_ANGLE = 45;
+            
+            const SCREEN_WIDTH = window.innerWidth;
+            const SCREEN_HEIGHT = window.innerHeight;
+            
+            const ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT;
+            const NEAR = 0.1;
+            const FAR = 20000;
+            
+            var container, scene, camera, renderer, controls;
+            
+            var mouseXOnMouseDown = 0;
+            var selectedCube = null;
+            
+            var floor;
+            
+            var blocks = [];
+            var obstacles = [];
+            
+            var mouseCubeOffset = new THREE.Vector3(0, 0, 0);
+            
+            init();
+            tick();
+            
+            
+            /**
+             Set up the scene
+             */
+            function init() {
+                // Scene
+                scene = new THREE.Scene();
+                
+                // Camera
+                camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
+                scene.add(camera);
+                camera.position.set(0,400,400);
+                camera.lookAt(scene.position);
+                
+                // Renderer
+                renderer = new THREE.WebGLRenderer({antialias: true});
+                renderer.setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
+                container = document.createElement('div');
+                document.body.appendChild(container);
+                container.appendChild(renderer.domElement);
+                
+                // Events -- OY!!!! Make this work again later!
+                //THREEx.WindowResize(renderer, camera);
+                
+                // Light
+                var light = new THREE.PointLight(0xffffff);
+                light.position.set(0,250,0);
+                scene.add(light);
+                
+                // Floor
+                var floorMaterial = new THREE.MeshLambertMaterial();
+                var floorGeometry = new THREE.PlaneGeometry(800, 800, 10, 10);
+                floor = new THREE.Mesh(floorGeometry, floorMaterial);
+                
+                floor.rotation.x -= Math.PI / 2; // Rotate the floor correctly
+                floor.position.y = -0.5; // Move a tiny bit to prevent flickering
+                
+                floor.doubleSided = true;
+                scene.add(floor);
+                
+                
+                // Cube
+                var block1 = new KlotskiBlock();
+                block1.setPosition(-300, 25, 0);
+                scene.add(block1);
+                blocks.push(block1);
+                obstacles = obstacles.concat(block1.mesh);
+                
+                // Mouse events
+				document.addEventListener('mousedown', mouseClicked, false);
+            }
+            
+            
+            /**
+             Update loop
+             */
+            function tick() {
+                requestAnimationFrame(tick);
+                
+                renderer.render(scene, camera)
+                
+                if (selectedCube) {
+                    selectedCube.stepTowardTarget(2);
+                }
+            }
+            
+            
+            /*-------------------------------
+             --------| Mouse Events |--------
+             -------------------------------*
+             /**
+             When the mouse is clicked, XXX
+             */
+			function mouseClicked(event) {
+				event.preventDefault();
+                var mouseX = event.clientX;
+                var mouseY = event.clientY;
+                
+                // Add listeners for future mouse events
+                document.addEventListener('mousemove', mouseMoved, false);
+                document.addEventListener('mouseup', mouseReleased, false);
+                
+                // If a cube is already selected, deselect it.
+                if (selectedCube) {
+                    selectedCube.setSelected(false);
+                    
+                    // If no cube is selected, check if one was hit and select it.
+                } else {
+                    for (var i = 0; i < blocks.length; i++) {
+                        
+                        var hit = MouseInterface.getMouseHit(blocks, mouseX, mouseY);
+                        if (hit) {
+                            selectedCube = hit.object.parent;
+                            selectedCube.setSelected(true);
+                            
+                            // Set the cube's target position to the mouse's
+                            //hitpoint (possibly with an offset)
+                            hit = MouseInterface.getMouseHit([floor], mouseX, mouseY);
+                            
+                            if (hit) {
+                                mouseCubeOffset.subVectors(hit.point, selectedCube.position);
+                                
+                                var target = new THREE.Vector3;
+                                target.subVectors(hit.point, mouseCubeOffset);
+                                selectedCube.setTargetPosition(target);
+                            }
+                        } return;
+                    }
+                }
+            }
+            
+            
+            /**
+             Called whenever the mouse is moved.
+             */
+            function mouseMoved(event) {
+                // If a cube is selected, update its target position
+                if (selectedCube) {
+                    
+                    var mouseX = event.clientX;
+                    var mouseY = event.clientY;
+                    var hit = MouseInterface.getMouseHit([floor],mouseX, mouseY);
+                    if (hit) {
+                        var target = new THREE.Vector3();
+                        target.subVectors(hit.point, mouseCubeOffset);
+                        selectedCube.setTargetPosition(target);
+                    }
+                }
+            }
+            
+            
+            /**
+             This is called when the left mouse button is released
+             */
+            function mouseReleased(event) {
+                // If a cube is selected, deselect it.
+                if (selectedCube) {
+                    selectedCube.setSelected(false);
+                    selectedCube = null;
+                }
+                // Stop listening for mousemove move and mouseup events
+                // until the mouse has been clicked again
+                document.removeEventListener('mousemove', mouseMoved, false);
+                document.removeEventListener('mouseup', mouseReleased, false);
+            }
+            
+            </script>
+    </body>
+</html>
