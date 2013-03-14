@@ -29,6 +29,8 @@ KlotskiBlock.prototype = Object.create(THREE.Object3D.prototype);
 KlotskiBlock.prototype.setPosition = function(x, y, z) {
     // Maybe I shouldn't round here...
     this.position.set(Math.round(x), Math.round(y), Math.round(z));
+    this.targetX = this.position.x;
+    this.targetZ = this.position.z;
 }
 
 
@@ -111,17 +113,18 @@ KlotskiBlock.prototype.updateTargetPosition = function(point) {
     zDistance = point.z - this.position.z;
     
     if (Math.abs(xDistance) > Math.abs(zDistance)) {
-        if (this.zSnapped) {
+        if (this.zSnapped()) {
             sign = Math.sign(xDistance);
-            this.targetX = (Math.round(this.position.x / UNIT) + sign) * UNIT;
+            this.targetX = Math.round((this.position.x + xDistance) / UNIT) * UNIT;
+            this.targetZ = (Math.round(this.position.z / UNIT)) * UNIT;
         }
     } else {
-        if (this.xSnapped) {
+        if (this.xSnapped()) {
             sign = Math.sign(zDistance);
-            this.targetZ = (Math.round(this.position.z / UNIT) + sign) * UNIT;
+            this.targetZ = Math.round((this.position.z + zDistance) / UNIT) * UNIT;
+            this.targetX = (Math.round(this.position.x / UNIT)) * UNIT;
         }
     }
-    console.log(this.targetZ);
 }
 
 /**
@@ -145,8 +148,8 @@ Math.sign = function(x) {
  ...
  */
 KlotskiBlock.prototype.step = function() {
-    this.xStep(1);
-    this.zStep(1);
+    this.xStep(2);
+    this.zStep(2);
     /*
      var zDistance = Math.abs(this.position.z - this.targetPosition.z);
      var xDistance = Math.abs(this.position.x - this.targetPosition.x);
@@ -177,6 +180,7 @@ KlotskiBlock.prototype.xStep = function(dx) {
         this.translateX(-xMovement); //Undo!
         // TODO: Move to contact position
     }
+    this.position.x = Math.round(this.position.x);
 }
 
 
@@ -196,6 +200,7 @@ KlotskiBlock.prototype.zStep = function(dz) {
         this.translateZ(-zMovement); //Undo!
         // TODO: Move to contact position
     }
+    this.position.z = Math.round(this.position.z);
 }
 
 
@@ -212,11 +217,11 @@ KlotskiBlock.prototype.collides = function() {
         obstacle = obstacles[i];
         
         if (this !== obstacle && !(
-                                   this.position.x + offset < obstacle.position.x - offset ||
-                                   this.position.x - offset > obstacle.position.x + offset ||
+                                   this.position.x + offset <= obstacle.position.x - offset ||
+                                   this.position.x - offset >= obstacle.position.x + offset ||
                                    
-                                   this.position.z + offset < obstacle.position.z - offset ||
-                                   this.position.z - offset > obstacle.position.z + offset
+                                   this.position.z + offset <= obstacle.position.z - offset ||
+                                   this.position.z - offset >= obstacle.position.z + offset
                                    )) {
             collides = true;
         }

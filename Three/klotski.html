@@ -164,7 +164,8 @@
             function mouseMoved(event) {
                 // If a cube is selected, update its target position
                 if (selected) {
-                    
+                    console.log(selected.position.x);
+
                     var mouseX = event.clientX;
                     var mouseY = event.clientY;
                     // Find where the mouse intersects the floor
