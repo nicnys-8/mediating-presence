@@ -24,7 +24,7 @@
             const KINECT_DEPTH_WIDTH = 160, KINECT_DEPTH_HEIGHT = 120;
             
             var depthData = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT);
-            var currentVideoFrame, videoData;
+            var videoData;
             var renderer;
 			
             function init() {
@@ -32,19 +32,17 @@
                 glCanvas = MediaExt.createCanvas(VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
                 glCanvas.style.margin = "20px auto";
                 
+				videoData = glCanvas.getContext("2d").createImageData(KINECT_RGB_WIDTH, KINECT_RGB_HEIGHT);
+				
 				renderer = new PointCloudRenderer(glCanvas);
 				
                 document.getElementById("container").appendChild(glCanvas);
-                
-				currentVideoFrame = MediaExt.createCanvas(KINECT_RGB_WIDTH, KINECT_RGB_HEIGHT);
-				videoData = currentVideoFrame.getContext("2d").createImageData(KINECT_RGB_WIDTH, KINECT_RGB_HEIGHT);
+				
                 plugin = document.getElementById("ZigPlugin");
 				// Start the video streams
 				plugin.requestStreams({updateDepth:true, updateImage:true});
 				// Start updating the canvases every new kinect frame
                 plugin.addEventListener("NewFrame", onNewKinectData);
-                
-                // drawScene();
             }
             
             var maxDepth = 1500;
@@ -60,8 +58,8 @@
                 // Decode the depth data
                 KinectDecoder.decodeDepth(plugin.depthMap, depthData);
                 
-                var pos = [], rgb = [];
-                var index = 0;
+                var pos = [],
+					rgb = [];
                 
 				var maxX=-Infinity, maxY=-Infinity, maxZ=-Infinity,
 					minX=Infinity, minY=Infinity, minZ=Infinity;

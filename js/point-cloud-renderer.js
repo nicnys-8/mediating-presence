@@ -39,14 +39,14 @@ PointCloudRenderer = function(canvas) {
 	gl.useProgram(prog);
 		
 	// Store the attribute and uniform locations as properties of the program
-	prog.vertexPositionAttribute = gl.getAttribLocation(prog, "aVertexPosition");
-	gl.enableVertexAttribArray(prog.vertexPositionAttribute);
+	prog.attrPosition = gl.getAttribLocation(prog, "aVertexPosition");
+	gl.enableVertexAttribArray(prog.attrPosition);
 		
-	prog.vertexColorAttribute = gl.getAttribLocation(prog, "aVertexColor");
-	gl.enableVertexAttribArray(prog.vertexColorAttribute);
+	prog.attrColor = gl.getAttribLocation(prog, "aVertexColor");
+	gl.enableVertexAttribArray(prog.attrColor);
 	
-	prog.pMatrixUniform = gl.getUniformLocation(prog, "uPMatrix");
-	prog.mvMatrixUniform = gl.getUniformLocation(prog, "uMVMatrix");
+	prog.unifMatrixP = gl.getUniformLocation(prog, "uPMatrix");
+	prog.unifMatrixMV = gl.getUniformLocation(prog, "uMVMatrix");
 	
 	// Set black background
 	gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -80,6 +80,13 @@ PointCloudRenderer = function(canvas) {
 		colorBuffer.numItems = colors.length / 4;
 	}
 	
+	var center = vec3.create([0, 0, 0]);
+	this.setCenterOfRotation = function(vec) {
+		center[0] = vec[0];
+		center[1] = vec[1];
+		center[2] = vec[2];
+	}
+	
 	this.render = function() {
 		
 		gl.viewport(0, 0, canvas.width, canvas.height);
@@ -88,24 +95,21 @@ PointCloudRenderer = function(canvas) {
 		mat4.perspective(45, canvas.width / canvas.height, 0.1, 1000, pMatrix);
 		
 		mat4.identity(mvMatrix);
-		mat4.translate(mvMatrix, [80.0, -60.0, -500.0]);
+		mat4.translate(mvMatrix, [center[0], center[1], center[2]]);
+		// mat4.scale(mvMatrix, vec3.create([0.125, 0.125, 0.125]));
 		mat4.multiply(mvMatrix, pcRotationMatrix);
-		mat4.translate(mvMatrix, [-80.0, 60.0, 500.0]);
+		mat4.translate(mvMatrix, [-center[0], -center[1], -center[2]]);
 		
 		gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-		gl.vertexAttribPointer(prog.vertexPositionAttribute, positionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+		gl.vertexAttribPointer(prog.attrPosition, positionBuffer.itemSize, gl.FLOAT, false, 0, 0);
 		
 		gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-		gl.vertexAttribPointer(prog.vertexColorAttribute, colorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+		gl.vertexAttribPointer(prog.attrColor, colorBuffer.itemSize, gl.FLOAT, false, 0, 0);
 		
-		gl.uniformMatrix4fv(prog.pMatrixUniform, false, pMatrix);
-		gl.uniformMatrix4fv(prog.mvMatrixUniform, false, mvMatrix);
+		gl.uniformMatrix4fv(prog.unifMatrixP, false, pMatrix);
+		gl.uniformMatrix4fv(prog.unifMatrixMV, false, mvMatrix);
 		gl.drawArrays(gl.POINTS, 0, positionBuffer.numItems);
 	}
-	
-	
-	// TODO: Add function for centering the point cloud
-	
 	
 	// Add mouse event handlers to canvas
 	// Allows for rotation of the scene
@@ -132,6 +136,7 @@ PointCloudRenderer = function(canvas) {
 		if (!mouseDown) {
 			return;
 		}
+		
 		var newX = event.clientX;
 		var newY = event.clientY;
 		

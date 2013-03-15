@@ -60,6 +60,8 @@
         <script type="text/javascript" src="../js/lib/zig.js"></script>
         <script type="text/javascript" src="../js/kinect-decoder.js"></script>
         <script type="text/javascript" src="../js/image-handling.js"></script>
+		<script type="text/javascript" src="../js/lib/webgl-utils.js"></script>
+		<script type="text/javascript" src="../js/point-cloud-renderer.js"></script>
 		<script type="text/javascript" src="../js/lib/glMatrix-0.9.5.min.js"></script>
         
 		<script>
@@ -578,17 +580,17 @@
 										pos.push(vec[1]); // (y - 60) / 120.0;
 										pos.push(vec[2]); // z / maxDepth;
 										
-										rgb.push(videoData.data[index * 4 + 0]); // / 255.0;
-										rgb.push(videoData.data[index * 4 + 1]); // / 255.0;
-										rgb.push(videoData.data[index * 4 + 2]); // / 255.0;
-										rgb.push(videoData.data[index * 4 + 3]); // / 255.0;
+										rgb.push(videoData.data[index * 4 + 0] / 255.0);
+										rgb.push(videoData.data[index * 4 + 1] / 255.0);
+										rgb.push(videoData.data[index * 4 + 2] / 255.0);
+										rgb.push(1.0); // videoData.data[index * 4 + 3] / 255.0);
 									
 									}
 								}
 							}
 							this.doScan = false;
 						}
-                        return false;
+                        return this.scanAngle >= 360.0;
                     }, // end of CALIBRATION_STEP_4.onUpdate()
                     
 					doScan : false,
@@ -601,7 +603,7 @@
 						if (this.scanAngle < 360.0) {
 							this.doScan = true;
 						} else {
-							
+							/*
 							var p = this.posList,
 								c = this.colorList;
 							for (var i = 0; i < p.length / 3; i++) {
@@ -609,6 +611,7 @@
 											" nx ny nz " +
 											c[i * 4] + " " + c[i * 4 + 1] + " " + c[i * 4 + 2]);
 							}
+							 */
 						}
 					},
 					
@@ -616,14 +619,29 @@
                 
                 }; // end of CALIBRATION_STEP_4 object
 
+				var CALIBRATION_STEP_5 = {
+                    divID : "stepFive",
+                    onBegin : function() {
+						this.renderer = new PointCloudRenderer($("pcCanvas"));
+						this.renderer.setCenterOfRotation(haxx);
+						this.renderer.bufferData(CALIBRATION_STEP_4.posList,
+												 CALIBRATION_STEP_4.colorList);
+					},
+                    onUpdate : function() {
+						this.renderer.render();
+					},
+                };
                 
                 calibrationSteps = [CALIBRATION_STEP_0,
                                     CALIBRATION_STEP_1,
                                     CALIBRATION_STEP_2,
                                     CALIBRATION_STEP_3,
-                                    CALIBRATION_STEP_4];
+                                    CALIBRATION_STEP_4,
+									CALIBRATION_STEP_5];
                 
             } // end of createCalibrationSteps()
+			
+			var haxx;
 			
             function degToRad(degrees) {
                 return degrees * Math.PI / 180;
@@ -631,14 +649,53 @@
             
 			function calculatePlane() {
 				
-				var p1 = vec3.create([calibrationPoints[0].cameraX, calibrationPoints[0].cameraY, 0]);
-				var p2 = vec3.create([calibrationPoints[1].cameraX, calibrationPoints[1].cameraY, 0]);
-				var p3 = vec3.create([calibrationPoints[2].cameraX, calibrationPoints[2].cameraY, 0]);
+				var p1, p2, p3, n, nList = [], thePlane;
+				
+				p1 = vec3.create([calibrationPoints[4].cameraX, calibrationPoints[4].cameraY, 0]);
+				p2 = vec3.create([calibrationPoints[0].cameraX, calibrationPoints[0].cameraY, 0]);
+				p3 = vec3.create([calibrationPoints[1].cameraX, calibrationPoints[1].cameraY, 0]);
 				
 				// This might throw an exception
-				var thePlane = Plane.fromDepthData(depthRef, KINECT_DEPTH_WIDTH, p1, p2, p3);
+				thePlane = Plane.fromDepthData(depthRef, KINECT_DEPTH_WIDTH, p1, p2, p3);
                 
+				n = thePlane.normal;
+				nList.push(n);
+				console.log(n[0] + ", " + n[1] + ", " + n[2]);
+				
+				p1 = vec3.create([calibrationPoints[4].cameraX, calibrationPoints[4].cameraY, 0]);
+				p2 = vec3.create([calibrationPoints[1].cameraX, calibrationPoints[1].cameraY, 0]);
+				p3 = vec3.create([calibrationPoints[2].cameraX, calibrationPoints[2].cameraY, 0]);
+				thePlane = Plane.fromDepthData(depthRef, KINECT_DEPTH_WIDTH, p1, p2, p3);
+				
+				n = thePlane.normal;
+				nList.push(n);
+				console.log(n[0] + ", " + n[1] + ", " + n[2]);
+				
+				p1 = vec3.create([calibrationPoints[4].cameraX, calibrationPoints[4].cameraY, 0]);
+				p2 = vec3.create([calibrationPoints[2].cameraX, calibrationPoints[2].cameraY, 0]);
+				p3 = vec3.create([calibrationPoints[3].cameraX, calibrationPoints[3].cameraY, 0]);
+				thePlane = Plane.fromDepthData(depthRef, KINECT_DEPTH_WIDTH, p1, p2, p3);
+				
+				n = thePlane.normal;
+				nList.push(n);
+				console.log(n[0] + ", " + n[1] + ", " + n[2]);
+				
+				p1 = vec3.create([calibrationPoints[4].cameraX, calibrationPoints[4].cameraY, 0]);
+				p2 = vec3.create([calibrationPoints[3].cameraX, calibrationPoints[3].cameraY, 0]);
+				p3 = vec3.create([calibrationPoints[0].cameraX, calibrationPoints[0].cameraY, 0]);
+				thePlane = Plane.fromDepthData(depthRef, KINECT_DEPTH_WIDTH, p1, p2, p3);
+				
+				n = thePlane.normal;
+				console.log(n[0] + ", " + n[1] + ", " + n[2]);
+				
+				vec3.lerp(n, nList[0], 1.0 / 2.0);
+				vec3.lerp(n, nList[1], 1.0 / 3.0);
+				vec3.lerp(n, nList[2], 1.0 / 4.0);
+				vec3.normalize(n);
+				console.log(n[0] + ", " + n[1] + ", " + n[2]);
+				
 				plane = thePlane;
+				plane.normal = n;
 			}
 			
 			function calculateMatrix(degrees) {
@@ -651,7 +708,10 @@
                 var axis = plane.normal;
                 var rotation = mat4.create();
                 
+				haxx = vec3.create([cx, cy, cz]);
+				
 				mat4.identity(rotation);
+				mat4.translate(rotation, vec3.negate(center));
                 mat4.rotate(rotation, degToRad(degrees), axis);
 				mat4.translate(rotation, center);
 				
@@ -780,6 +840,10 @@
 				<button id="scanButton">Scan</button>
             </div>
 			
+			<div class="fullPage" id="stepFive">
+				<canvas class="videoCanvas" id="pcCanvas" width="640px" height="480px"></canvas>
+			<div>
+				
         </center>
         
     </body>
