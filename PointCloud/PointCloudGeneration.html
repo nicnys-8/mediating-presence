@@ -25,18 +25,18 @@
             
             var depthData = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT);
             var videoData;
-            var renderer;
+            var glCanvas, renderer;
 			
             function init() {
                 
                 glCanvas = MediaExt.createCanvas(VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
                 glCanvas.style.margin = "20px auto";
-                
-				videoData = glCanvas.getContext("2d").createImageData(KINECT_RGB_WIDTH, KINECT_RGB_HEIGHT);
+                document.getElementById("container").appendChild(glCanvas);
+				
+				var canvas = MediaExt.createCanvas(KINECT_RGB_WIDTH, KINECT_RGB_HEIGHT);
+				videoData = canvas.getContext("2d").createImageData(KINECT_RGB_WIDTH, KINECT_RGB_HEIGHT);
 				
 				renderer = new PointCloudRenderer(glCanvas);
-				
-                document.getElementById("container").appendChild(glCanvas);
 				
                 plugin = document.getElementById("ZigPlugin");
 				// Start the video streams
@@ -92,7 +92,10 @@
                     }
                 }
 				console.log((maxX + minX) / 2 + ", " + (maxY + minY) / 2 + ", " + (maxZ + minZ) / 2);
-                renderer.bufferData(pos, rgb);
+                renderer.setCenterOfRotation([-80, 60, 300]);
+				renderer.setPosition([0, 0, -300]);
+				
+				renderer.bufferData(pos, rgb);
                 renderer.render();
                 // console.log(pos.length);
 			}
