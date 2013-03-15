@@ -9,34 +9,10 @@
         <script type="text/javascript" src="../js/mediaext.js"></script>
         <script type="text/javascript" src="../js/lib/webgl-utils.js"></script>
         <script type="text/javascript" src="../js/lib/glMatrix-0.9.5.min.js"></script>
-        
-        <link rel="stylesheet" type="text/css" href="css/pb.css"/>
-        <link rel="stylesheet" type="text/css" href="css/pointcloud.css"/>
-        
-        <script id="shader-fs" type="x-shader/x-fragment">
-            precision mediump float;
-            varying vec4 vColor;
-            void main(void) {
-                gl_FragColor = vColor;
-            }
-            </script>
-        
-        <script id="shader-vs" type="x-shader/x-vertex">
-            attribute vec3 aVertexPosition;
-            attribute vec4 aVertexColor;
-            
-            uniform mat4 uMVMatrix;
-            uniform mat4 uPMatrix;
-            
-            varying vec4 vColor;
-            
-            void main(void) {
-                vec4 pos = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
-                gl_PointSize = 5.0 / pos.z;
-                gl_Position = pos;
-                vColor = aVertexColor;
-            }
-            </script>
+        <script type="text/javascript" src="../js/point-cloud-renderer.js"></script>
+		
+        <link rel="stylesheet" type="text/css" href="../css/pb.css"/>
+        <link rel="stylesheet" type="text/css" href="../css/pointcloud.css"/>
         
         <script type="text/javascript">
             
@@ -82,140 +58,17 @@
         <script type="text/javascript">
             
             const kWidth = 640, kHeight = 480;
-            var glCanvas;
-            var gl, prog;
-            
-            function initShaders() {
-                
-                var vsStr = document.getElementById("shader-vs").text;
-                var fsStr = document.getElementById("shader-fs").text;
-                prog = WebGLUtils.createProgram(gl, vsStr, fsStr);
-                
-                gl.useProgram(prog);
-                
-                prog.vertexPositionAttribute = gl.getAttribLocation(prog, "aVertexPosition");
-                gl.enableVertexAttribArray(prog.vertexPositionAttribute);
-                
-                prog.vertexColorAttribute = gl.getAttribLocation(prog, "aVertexColor");
-                gl.enableVertexAttribArray(prog.vertexColorAttribute);
-                
-                prog.pMatrixUniform = gl.getUniformLocation(prog, "uPMatrix");
-                prog.mvMatrixUniform = gl.getUniformLocation(prog, "uMVMatrix");
-            }
-            
-            
-            var mvMatrix = mat4.create();
-            var pMatrix = mat4.create();
-            
-            function degToRad(degrees) {
-                return degrees * Math.PI / 180;
-            }
-            
-            function setMatrixUniforms() {
-                gl.uniformMatrix4fv(prog.pMatrixUniform, false, pMatrix);
-                gl.uniformMatrix4fv(prog.mvMatrixUniform, false, mvMatrix);
-            }
-            
-            var pointCloudPositionBuffer;
-            var pointCloudColorBuffer;
-            
-            function createBuffers(vertices, colors) {
-                
-                pointCloudPositionBuffer = gl.createBuffer();
-                gl.bindBuffer(gl.ARRAY_BUFFER, pointCloudPositionBuffer);
-                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-                pointCloudPositionBuffer.itemSize = 3;
-                pointCloudPositionBuffer.numItems = vertices.length / 3;
-                
-                pointCloudColorBuffer = gl.createBuffer();
-                gl.bindBuffer(gl.ARRAY_BUFFER, pointCloudColorBuffer);
-                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
-                pointCloudColorBuffer.itemSize = 4;
-                pointCloudColorBuffer.numItems = colors.length / 4;
-            }
-            
-            function drawScene() {
-                
-                requestAnimFrame(drawScene);
-                
-                gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
-                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-                
-                mat4.perspective(45, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0, pMatrix);
-                
-                mat4.identity(mvMatrix);
-                mat4.translate(mvMatrix, [0.0, 0.0, -3.0]);
-                mat4.multiply(mvMatrix, pcRotationMatrix);
-                
-                gl.bindBuffer(gl.ARRAY_BUFFER, pointCloudPositionBuffer);
-                gl.vertexAttribPointer(prog.vertexPositionAttribute, pointCloudPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
-                
-                gl.bindBuffer(gl.ARRAY_BUFFER, pointCloudColorBuffer);
-                gl.vertexAttribPointer(prog.vertexColorAttribute, pointCloudColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
-                
-                setMatrixUniforms();
-                gl.drawArrays(gl.POINTS, 0, pointCloudPositionBuffer.numItems);
-            }
-            
-            var mouseDown = false;
-            var lastMouseX = null;
-            var lastMouseY = null;
-            
-            var pcRotationMatrix = mat4.create();
-            mat4.identity(pcRotationMatrix);
-            
-            function handleMouseDown(event) {
-                mouseDown = true;
-                lastMouseX = event.clientX;
-                lastMouseY = event.clientY;
-            }
-            
-            function handleMouseUp(event) {
-                mouseDown = false;
-            }
-            
-            function handleMouseMove(event) {
-                
-                if (!mouseDown) {
-                    return;
-                }
-                var newX = event.clientX;
-                var newY = event.clientY;
-                
-                var deltaX = newX - lastMouseX;
-                var newRotationMatrix = mat4.create();
-                mat4.identity(newRotationMatrix);
-                mat4.rotate(newRotationMatrix, degToRad(deltaX / 10), [0, 1, 0]);
-                
-                var deltaY = newY - lastMouseY;
-                mat4.rotate(newRotationMatrix, degToRad(deltaY / 10), [1, 0, 0]);
-                
-                mat4.multiply(newRotationMatrix, pcRotationMatrix, pcRotationMatrix);
-                
-                lastMouseX = newX;
-                lastMouseY = newY;
-            }
-            
+            var glCanvas, renderer;
             
             function init() {
                 
                 glCanvas = MediaExt.createCanvas(kWidth, kHeight);
                 glCanvas.style.display = "none";
                 glCanvas.style.margin = "20px auto";
-                
-                gl = WebGLUtils.setupWebGL(glCanvas);
-                gl.viewportWidth = glCanvas.width;
-                gl.viewportHeight = glCanvas.height;
                 document.getElementById("container").appendChild(glCanvas);
-                
-                initShaders();
-                
-                gl.clearColor(0.0, 0.0, 0.0, 1.0);
-                gl.enable(gl.DEPTH_TEST);
-                
-                glCanvas.onmousedown = handleMouseDown;
-                document.onmouseup = handleMouseUp;
-                document.onmousemove = handleMouseMove;
+				
+				renderer = new PointCloudRenderer(glCanvas);
+				renderer.setPosition([0.0, 0.0, -3.0]);
                 
                 // **********************
                 // Drag and drop with File API
@@ -296,7 +149,7 @@
                     glCanvas.style.display = "block";
                     
                     var points = PlyParse.parse(event.target.result);
-                    createBuffers(points[0], points[1]);
+                    renderer.bufferData(points[0], points[1]);
                     drawScene();
                 };
                 
@@ -335,6 +188,12 @@
                     alert("An error occurred reading this file.");
                 };
             }
+			
+			
+			function drawScene() {
+				requestAnimFrame(drawScene);
+				renderer.render();
+			}
             
             </script>
         
