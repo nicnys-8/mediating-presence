@@ -15,7 +15,7 @@ PointCloudRenderer = function(canvas) {
 				 
 				 "void main(void) {",
 					"vec4 pos = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);",
-					"gl_PointSize = 3.0 / pos.z;",
+					"gl_PointSize = 5.0 / pos.z;",
 					"gl_Position = pos;",
 					"vColor = aVertexColor;",
 				 "}",
@@ -32,6 +32,9 @@ PointCloudRenderer = function(canvas) {
 		
 	// Get the WebGL context
 	var gl = WebGLUtils.setupWebGL2D(canvas);
+	
+	console.log(WebGLUtils);
+	console.log(gl);
 	
 	// Create the shader program
 	var prog = WebGLUtils.createProgram(gl, vsStr, fsStr);
@@ -50,6 +53,8 @@ PointCloudRenderer = function(canvas) {
 	
 	// Set black background
 	gl.clearColor(0.0, 0.0, 0.0, 1.0);
+	gl.enable(gl.DEPTH_TEST);
+	// gl.depthFunc(gl.LEQUAL);
 	
 	// Create buffers for point cloud data
 	var positionBuffer = gl.createBuffer();
@@ -80,13 +85,21 @@ PointCloudRenderer = function(canvas) {
 		colorBuffer.numItems = colors.length / 4;
 	}
 	
-	var center = vec3.create([0, 0, 0]);
+	var cor = vec3.create([0, 0, 0]),
+		pos = vec3.create([0, 0, 0]);
+	
 	this.setCenterOfRotation = function(vec) {
-		center[0] = vec[0];
-		center[1] = vec[1];
-		center[2] = vec[2];
+		cor[0] = vec[0];
+		cor[1] = vec[1];
+		cor[2] = vec[2];
+	}
+	this.setPosition = function(vec) {
+		pos[0] = vec[0];
+		pos[1] = vec[1];
+		pos[2] = vec[2];
 	}
 	
+	// TODO: Add boolean parameter that specifies if requestAnimationFrame should be called?
 	this.render = function() {
 		
 		gl.viewport(0, 0, canvas.width, canvas.height);
@@ -95,10 +108,10 @@ PointCloudRenderer = function(canvas) {
 		mat4.perspective(45, canvas.width / canvas.height, 0.1, 1000, pMatrix);
 		
 		mat4.identity(mvMatrix);
-		mat4.translate(mvMatrix, [center[0], center[1], center[2]]);
-		// mat4.scale(mvMatrix, vec3.create([0.125, 0.125, 0.125]));
+		mat4.translate(mvMatrix, pos);
+		// mat4.scale(mvMatrix, vec3.create([0.125, 0.125, -0.125]));
 		mat4.multiply(mvMatrix, pcRotationMatrix);
-		mat4.translate(mvMatrix, [-center[0], -center[1], -center[2]]);
+		mat4.translate(mvMatrix, cor);
 		
 		gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
 		gl.vertexAttribPointer(prog.attrPosition, positionBuffer.itemSize, gl.FLOAT, false, 0, 0);
