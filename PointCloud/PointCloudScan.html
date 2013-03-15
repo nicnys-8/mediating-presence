@@ -61,9 +61,9 @@
         <script type="text/javascript" src="../js/kinect-decoder.js"></script>
         <script type="text/javascript" src="../js/image-handling.js"></script>
 		<script type="text/javascript" src="../js/lib/webgl-utils.js"></script>
-		<script type="text/javascript" src="../js/point-cloud-renderer.js"></script>
 		<script type="text/javascript" src="../js/lib/glMatrix-0.9.5.min.js"></script>
-        
+        <script type="text/javascript" src="../js/point-cloud-renderer.js"></script>
+		
 		<script>
 
             Plane = function(anchor, normal) {
@@ -623,7 +623,8 @@
                     divID : "stepFive",
                     onBegin : function() {
 						this.renderer = new PointCloudRenderer($("pcCanvas"));
-						this.renderer.setCenterOfRotation(haxx);
+						// this.renderer.setCenterOfRotation(haxxCor);
+						this.renderer.setCenterOfRotation(haxxPos);
 						this.renderer.bufferData(CALIBRATION_STEP_4.posList,
 												 CALIBRATION_STEP_4.colorList);
 					},
@@ -708,11 +709,10 @@
                 var axis = plane.normal;
                 var rotation = mat4.create();
                 
-				haxx = vec3.create([cx, cy, cz]);
-				
+				haxxCor = vec3.create([-cx, cy, cz]);
+				haxxPos = vec3.create([0, 0, -cz]);
 				mat4.identity(rotation);
-				mat4.translate(rotation, vec3.negate(center));
-                mat4.rotate(rotation, degToRad(degrees), axis);
+				mat4.rotate(rotation, degToRad(degrees), axis);
 				mat4.translate(rotation, center);
 				
 				return rotation;
