@@ -93,8 +93,7 @@
             
             var kinectTouchController;
 			var depthData = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT),
-            depthRef = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT),
-            planeError = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT);
+            depthRef = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT);
 			var currentVideoFrame, videoData;
             var point2D;
 			
@@ -139,6 +138,9 @@
 				plugin = document.getElementById("ZigPlugin");
 				// Start the video streams
 				plugin.requestStreams({updateDepth:true, updateImage:true});
+                
+                
+                
 				// Start updating the canvases every new kinect frame
                 plugin.addEventListener("NewFrame", updateKinectData);
             }

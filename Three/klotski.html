@@ -58,7 +58,7 @@
                 scene.add(camera);
                 camera.position.set(
                                     gridSize * 2,
-                                    gridSize * 8,
+                                    gridSize * 10,
                                     gridSize * 6
                                     );
                 
@@ -79,11 +79,11 @@
                 
                 // Point light
                 var light = new THREE.PointLight(0xffffff);
-                light.position.set(0, 250, 0);
+                light.position.set(0, 250, 100);
                 scene.add(light);
                 
                 // Ambient light
-                var light = new THREE.AmbientLight(0x404040); // soft white light
+                var light = new THREE.AmbientLight(0x303030); // soft white light
                 scene.add(light);
                 
                 // Floor
@@ -92,7 +92,7 @@
                 floorMaterial.map.wrapS = floorMaterial.map.wrapT = THREE.RepeatWrapping;
                 floorMaterial.map.repeat.set(3, 3);
                 
-                var floorGeometry = new THREE.PlaneGeometry(600, 600, 10, 10);
+                var floorGeometry = new THREE.PlaneGeometry(600, 800, 10, 10);
                 floor = new THREE.Mesh(floorGeometry, floorMaterial);
                 floor.doubleSided = true;
                 

@@ -18,12 +18,10 @@ KlotskiWall = function(width, height) {
     var t = THREE.ImageUtils.loadTexture('../images/rock.png');
     
     this.material = new THREE.MeshLambertMaterial({map: t})
-    
     this.material.map.wrapS = THREE.RepeatWrapping;
     this.material.map.wrapT = THREE.RepeatWrapping;
     
     this.material.map.repeat.set(width, height);
-
     
     this.width = width * gridSize;
     this.height = height * gridSize;
@@ -93,6 +91,7 @@ KlotskiBlock = function(width, height) {
     this.add(this.mesh);
     
     this.superDuper = false;
+
 };
 
 KlotskiBlock.prototype = Object.create(THREE.Object3D.prototype);
