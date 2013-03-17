@@ -1,9 +1,19 @@
-
-
 // MOVE LATER
 /*-------------------
  ====================
  ------------------*/
+
+var Klotski = Klotski || {};
+
+// De här två ska flyttas till en separat Klotskiklass sen
+Klotski.setBlockblockSpeed = function(speed) {
+    blockSpeed = speed;
+}
+
+Klotski.setGridSize = function(size) {
+    gridSize = size;
+}
+
 
 // Default values
 var gridSize = 50;
@@ -40,34 +50,15 @@ KlotskiWall.prototype.snapToGridPoint = function(x, z) {
 }
 
 
-
-
-
-var Klotski = Klotski || {};
-
-// De här två ska flyttas till en separat Klotskiklass sen
-Klotski.setBlockblockSpeed = function(speed) {
-    blockSpeed = speed;
-}
-
-Klotski.setGridSize = function(size) {
-    gridSize = size;
-}
-
 /*-------------------
  ====================
  ------------------*/
-
-
-
-
 
 /**
  Constructor
  */
 KlotskiBlock = function(width, height, obstacles) {
     THREE.Object3D.call(this);
-    this.selected = false;
     
     this.targetX = this.position.x;
     this.targetZ = this.position.z;
@@ -75,17 +66,12 @@ KlotskiBlock = function(width, height, obstacles) {
     this.obstacles = obstacles;
     
     this.material = new THREE.MeshLambertMaterial();
-    this.material.color.setRGB(
-                               1,
-                               0.4 * Math.random(),
-                               0.4 * Math.random()
-                               );
+    this.material.color.setRGB(1, 0.4 * Math.random(), 0.4 * Math.random());
     
     this.width = width * gridSize;
     this.height = height * gridSize;
     
     var geometry = new THREE.CubeGeometry(this.width, gridSize, this.height);
-    
     this.mesh = new THREE.Mesh(geometry, this.material);
     // Set the origin to the upper left corner of the mesh
     this.mesh.position.set((width * gridSize / 2), 0, (height * gridSize / 2));
@@ -99,16 +85,12 @@ KlotskiBlock.prototype = Object.create(THREE.Object3D.prototype);
 
 KlotskiBlock.prototype.setSuperDuper = function() {
     this.superDuper = true;
-    this.material.color.setRGB(
-                               0.4 * Math.random(),
-                               0.4 * Math.random(),
-                               1
-                               );
+    this.material.color.setRGB(0.4 * Math.random(), 0.4 * Math.random(), 1);
 }
 
 
 /**
- 
+ ...
  */
 KlotskiBlock.prototype.setPosition = function(x, y, z) {
     // Maybe I shouldn't round here...
@@ -118,54 +100,31 @@ KlotskiBlock.prototype.setPosition = function(x, y, z) {
 }
 
 
+/**
+ ...
+ */
 KlotskiBlock.prototype.snapToGridPoint = function(x, z) {
     this.setPosition(x * gridSize, gridSize / 2, z * gridSize);
 }
 
 
 /**
+ ...
  */
-KlotskiBlock.prototype.setSelected = function(bool) {
-    this.selected = bool;
-    if (this.selected) {
-        //this.material.color.setHex(0x00ff00);
-    } else {
-        //this.material.color.setHex(0xff0000);
-        this.targetClosestGridPoint();
-    }
-}
-
-
-/**
- Returns a boolean telling us whether the cube has been selected
- */
-KlotskiBlock.prototype.isSelected = function() {
-    return this.selected;
-}
-
-
-/**
- Not used right now, since I made the sneaky move to make obstacles
- a globally accessible variable...
- /**
- Set the array of objects the cube will check collisions against
- 
- MovingCube.prototype.setObstacles = function(obstacles) {
- this.obstacles = obstacles;
- }*/
-
-
 KlotskiBlock.prototype.xSnapped = function() {
     return (this.position.x % gridSize == 0);
 }
 
 
+/**
+ ...
+ */
 KlotskiBlock.prototype.zSnapped = function() {
     return (this.position.z % gridSize == 0);
 }
 
 
-/*
+/**
  ...
  */
 KlotskiBlock.prototype.updateTargetPosition = function(point) {
@@ -176,27 +135,27 @@ KlotskiBlock.prototype.updateTargetPosition = function(point) {
     zDistance = point.z - this.position.z;
     
     if (Math.abs(xDistance) > Math.abs(zDistance)) {
-        if (this.zSnapped()) {
-            sign = Math.sign(xDistance);
-            this.targetX = Math.round((this.position.x + xDistance) / gridSize) * gridSize;
-            this.targetZ = (Math.round(this.position.z / gridSize)) * gridSize;
-        }
+        
+        if (Math.abs(xDistance) < gridSize / 2) return;
+        if (!this.zSnapped()) return;
+        
+        sign = Math.sign(xDistance);
+        // Set the target one gridpoint away in the direction of 'sign'
+        this.targetX = Math.round(sign + (this.position.x) / gridSize) * gridSize;
+        // Prevent diagonal motion
+        this.targetZ = (Math.round(this.position.z / gridSize)) * gridSize;
+        
     } else {
-        if (this.xSnapped()) {
-            sign = Math.sign(zDistance);
-            this.targetZ = Math.round((this.position.z + zDistance) / gridSize) * gridSize;
-            this.targetX = (Math.round(this.position.x / gridSize)) * gridSize;
-        }
+        
+        if (Math.abs(zDistance) < gridSize / 2) return;
+        if (!this.xSnapped()) return;
+        
+        sign = Math.sign(zDistance);
+        // Set the target one gridpoint away in the direction of 'sign'
+        this.targetZ = Math.round(sign + (this.position.z + sign) / gridSize) * gridSize;
+        // Prevent diagonal motion
+        this.targetX = (Math.round(this.position.x / gridSize)) * gridSize;
     }
-}
-
-
-/**
- ...
- */
-KlotskiBlock.prototype.targetClosestGridPoint = function() {
-    this.targetX = (Math.round(this.position.x / gridSize)) * gridSize;
-    this.targetZ = (Math.round(this.position.z / gridSize)) * gridSize;
 }
 
 
@@ -212,7 +171,7 @@ KlotskiBlock.prototype.step = function() {
         this.superDuper &&
         this.position.x == gridSize * 1 &&
         this.position.z == gridSize * 4) {
-        alert("Hooray!");
+        alert("You win!");
         this.superDuper = false;
     }
 }
@@ -223,7 +182,7 @@ KlotskiBlock.prototype.step = function() {
  */
 KlotskiBlock.prototype.xStep = function(dx) {
     var distance = Math.abs(this.position.x - this.targetX);
-    if (distance == 0) return;
+    // if (distance == 0) return;
     
     dx = Math.min(dx, distance);
     var dir = ((this.position.x < this.targetX) ? 1 : -1);
@@ -240,9 +199,9 @@ KlotskiBlock.prototype.xStep = function(dx) {
             this.translateX(dir);
         }
         this.translateX(-dir);
+        this.targetClosestGridPoint();
         
     }
-    this.position.x = Math.round(this.position.x);
 }
 
 
@@ -251,7 +210,7 @@ KlotskiBlock.prototype.xStep = function(dx) {
  */
 KlotskiBlock.prototype.zStep = function(dz) {
     var distance = Math.abs(this.position.z - this.targetZ);
-    if (distance == 0) return;
+    // if (distance == 0) return;
     
     dz = Math.min(dz, distance);
     var dir = ((this.position.z < this.targetZ) ? 1 : -1);
@@ -269,8 +228,17 @@ KlotskiBlock.prototype.zStep = function(dz) {
             this.translateZ(dir);
         }
         this.translateZ(-dir);
+        this.targetClosestGridPoint();
     }
-    this.position.z = Math.round(this.position.z);
+}
+
+
+/**
+ ...
+ */
+KlotskiBlock.prototype.targetClosestGridPoint = function() {
+    this.targetX = (Math.round(this.position.x / gridSize)) * gridSize;
+    this.targetZ = (Math.round(this.position.z / gridSize)) * gridSize;
 }
 
 
@@ -280,23 +248,22 @@ KlotskiBlock.prototype.zStep = function(dz) {
  */
 KlotskiBlock.prototype.collides = function() {
     var collides = false;
-    var offset = gridSize / 2;
     var obstacle;
     
     for (var i = 0; i < this.obstacles.length; i++) {
         obstacle = this.obstacles[i];
+        if (this == obstacle) continue;
         
-        if (this !== obstacle && !(
-                                   this.position.x + this.width <=
-                                   obstacle.position.x ||
-                                   this.position.x >=
-                                   obstacle.position.x + obstacle.width ||
-                                   
-                                   this.position.z + this.height <=
-                                   obstacle.position.z ||
-                                   this.position.z >=
-                                   obstacle.position.z + obstacle.height
-                                   )) {
+        if (!(this.position.x + this.width <=
+              obstacle.position.x ||
+              this.position.x >=
+              obstacle.position.x + obstacle.width ||
+              
+              this.position.z + this.height <=
+              obstacle.position.z ||
+              this.position.z >=
+              obstacle.position.z + obstacle.height
+              )) {
             collides = true;
         }
     }

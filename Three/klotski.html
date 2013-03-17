@@ -112,7 +112,6 @@
                     var hit = MouseInterface.getMouseHit(level.blocks, mouseX, mouseY);
                     if (hit) {
                         selected = hit.object.parent;
-                        selected.setSelected(true);
                         
                         hit = MouseInterface.getMouseHit([level.floor], mouseX, mouseY);
                         
@@ -149,7 +148,6 @@
             function mouseReleased(event) {
                 // If a cube is selected, deselect it.
                 if (selected) {
-                    selected.setSelected(false);
                     selected = null;
                 }
                 // Stop listening for mousemove move and mouseup events
