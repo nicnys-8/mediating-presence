@@ -7,7 +7,7 @@
 
 // Default values
 var gridSize = 50;
-var blockSpeed = 5;
+var blockSpeed = 4;
 
 /**
  Wall constructor
@@ -16,6 +16,7 @@ KlotskiWall = function(width, height) {
     THREE.Object3D.call(this);
     
     var t = THREE.ImageUtils.loadTexture('../images/rock.png');
+    
     this.material = new THREE.MeshLambertMaterial({map: t})
     this.material.map.wrapS = THREE.RepeatWrapping;
     this.material.map.wrapT = THREE.RepeatWrapping;
@@ -65,14 +66,12 @@ Klotski.setGridSize = function(size) {
 /**
  Constructor
  */
-KlotskiBlock = function(width, height, obstacles) {
+KlotskiBlock = function(width, height) {
     THREE.Object3D.call(this);
     this.selected = false;
     
     this.targetX = this.position.x;
     this.targetZ = this.position.z;
-    
-    this.obstacles = obstacles;
     
     this.material = new THREE.MeshLambertMaterial();
     this.material.color.setRGB(
@@ -92,6 +91,7 @@ KlotskiBlock = function(width, height, obstacles) {
     this.add(this.mesh);
     
     this.superDuper = false;
+
 };
 
 KlotskiBlock.prototype = Object.create(THREE.Object3D.prototype);
@@ -207,7 +207,6 @@ KlotskiBlock.prototype.step = function() {
     this.xStep(blockSpeed);
     this.zStep(blockSpeed);
     
-    // Stupid code for winning the game
     if (
         this.superDuper &&
         this.position.x == gridSize * 1 &&
@@ -222,11 +221,9 @@ KlotskiBlock.prototype.step = function() {
  Move (at most) the specified distance toward the specified point along the x-axis
  */
 KlotskiBlock.prototype.xStep = function(dx) {
-    var distance = Math.abs(this.position.x - this.targetX);
-    if (distance == 0) return;
-    
-    dx = Math.min(dx, distance);
     var dir = ((this.position.x < this.targetX) ? 1 : -1);
+    var distance = Math.abs(this.position.x - this.targetX);
+    dx = Math.min(dx, distance);
     
     // Translate by dx in the specified direction
     var xMovement = dir * dx;
@@ -235,6 +232,7 @@ KlotskiBlock.prototype.xStep = function(dx) {
     if (this.collides()) {
         //If so, undo it...
         this.translateX(-xMovement);
+        
         // ...and move to contact position
         while (!this.collides()) {
             this.translateX(dir);
@@ -247,14 +245,12 @@ KlotskiBlock.prototype.xStep = function(dx) {
 
 
 /**
- Move (at most) the specified distance toward the specified point along the z-axis
+ Move (at most) the specified distance toward the specified point along the x-axis
  */
 KlotskiBlock.prototype.zStep = function(dz) {
-    var distance = Math.abs(this.position.z - this.targetZ);
-    if (distance == 0) return;
-    
-    dz = Math.min(dz, distance);
     var dir = ((this.position.z < this.targetZ) ? 1 : -1);
+    var distance = Math.abs(this.position.z - this.targetZ);
+    dz = Math.min(dz, distance);
     
     // Translate by dz in the specified direction
     var zMovement = dir * dz;
@@ -283,8 +279,8 @@ KlotskiBlock.prototype.collides = function() {
     var offset = gridSize / 2;
     var obstacle;
     
-    for (var i = 0; i < this.obstacles.length; i++) {
-        obstacle = this.obstacles[i];
+    for (var i = 0; i < obstacles.length; i++) {
+        obstacle = obstacles[i];
         
         if (this !== obstacle && !(
                                    this.position.x + this.width <=
