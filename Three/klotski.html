@@ -30,11 +30,8 @@
             var container, scene, camera, renderer, controls;
             
             var mouseXOnMouseDown = 0;
-            var selected = null;
             
             var level;
-            
-            var mouseCubeOffset = new THREE.Vector3(0, 0, 0);
             
             init();
             tick();
@@ -50,7 +47,7 @@
                 scene = new THREE.Scene();
                 
                 // Level
-                level = new KlotskiLevel();
+                level = new KlotskiLevel(callback);
                 scene.add(level);
                 
                 // Camera
@@ -77,8 +74,7 @@
                 // Events -- Oy!!!! Make this work again later!
                 //THREEx.WindowResize(renderer, camera);
                 
-                
-                // Mouse events
+                // Start listening for mouse clicks
 				document.addEventListener('mousedown', mouseClicked, false);
             }
             
@@ -93,68 +89,51 @@
             }
             
             
+            /**
+             Called when the player can't move any more blocks
+             */
+            function callback() {
+                console.log("End of turns!");
+            }
+            
             /*-------------------------------
              --------| Mouse Events |--------
              -------------------------------*
              /**
-             When the mouse is clicked, XXX
+             When the mouse is clicked
              */
 			function mouseClicked(event) {
 				event.preventDefault();
-                var mouseX = event.clientX;
-                var mouseY = event.clientY;
                 
                 // Add listeners for future mouse events
                 document.addEventListener('mousemove', mouseMoved, false);
                 document.addEventListener('mouseup', mouseReleased, false);
                 
-                for (var i = 0; i < level.blocks.length; i++) {
-                    var hit = MouseInterface.getMouseHit(level.blocks, mouseX, mouseY);
-                    if (hit) {
-                        selected = hit.object.parent;
-                        
-                        hit = MouseInterface.getMouseHit([level.floor], mouseX, mouseY);
-                        
-                        if (hit) {
-                            mouseCubeOffset.subVectors(hit.point, selected.position);
-                        }
-                    } return;
-                }
+                /* var mouseX = event.clientX;
+                 var mouseY = event.clientY; */
+                level.clickEvent(event.clientX, event.clientY);
             }
             
             
             /**
              Called whenever the mouse is moved.
              */
-            function mouseMoved(event) {                
-                // If a cube is selected, update its target position
-                if (selected) {
-                    var mouseX = event.clientX;
-                    var mouseY = event.clientY;
-                    // Find where the mouse intersects the floor
-                    var hit = MouseInterface.getMouseHit([level.floor],mouseX, mouseY);
-                    if (hit) {
-                        var target = new THREE.Vector3();
-                        target.subVectors(hit.point, mouseCubeOffset);
-                        selected.updateTargetPosition(target);
-                    }
-                }
+            function mouseMoved(event) {
+                level.moveEvent(event.clientX, event.clientY);
             }
             
             
             /**
-             This is called when the left mouse button is released
+             Called when the left mouse button is released
              */
             function mouseReleased(event) {
-                // If a cube is selected, deselect it.
-                if (selected) {
-                    selected = null;
-                }
-                // Stop listening for mousemove move and mouseup events
-                // until the mouse has been clicked again
+                level.releaseEvent();
+                /* Stop listening for mousemove move and mouseup events
+                 until the mouse has been clicked again */
                 document.removeEventListener('mousemove', mouseMoved, false);
                 document.removeEventListener('mouseup', mouseReleased, false);
             }
+            
             
             </script>
     </body>

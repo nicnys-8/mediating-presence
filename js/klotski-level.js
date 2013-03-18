@@ -3,7 +3,7 @@
 /**
  Level constructor
  */
-KlotskiLevel = function() {
+KlotskiLevel = function(callback) {
     THREE.Object3D.call(this);
     this.obstacles = [];
     this.blocks = [];
@@ -11,23 +11,96 @@ KlotskiLevel = function() {
     this.initBlocks();
     this.initLights();
     this.initFloor();
+    this.activeBlock = null;
+    this.clickOffset = new THREE.Vector3(0, 0, 0);
+    this.callback = callback;
 }
+
 
 KlotskiLevel.prototype = Object.create(THREE.Object3D.prototype);
 
 
 /**
- ..
+ Move all blocks toward their target positions
  */
 KlotskiLevel.prototype.tick = function() {
     for (var i = 0; i < this.blocks.length; i++) {
-        this.blocks[i].step();
+        this.blocks[i].stepTowardTarget();
     }
 }
 
 
 /**
- ...
+ If an object is clicked, activate it
+ */
+KlotskiLevel.prototype.clickEvent = function(x, y) {
+    for (var i = 0; i < this.blocks.length; i++) {
+        var blockHit = MouseInterface.getMouseHit(this.blocks, x, y);
+        if (blockHit) {
+            
+            this.activeBlock = blockHit.object.parent;
+            
+            // Store the current position of the clicked block
+            this.activeBlock.startPoint.x = this.activeBlock.position.x;
+            this.activeBlock.startPoint.z = this.activeBlock.position.z;
+
+            floorHit = MouseInterface.getMouseHit([this.floor], x, y);
+            
+            if (floorHit) {
+                // Get the offset between hitpoint and the block
+                this.clickOffset.subVectors(floorHit.point, this.activeBlock.position);
+            }
+        } return;
+    }
+}
+
+
+
+/**
+ If a block is active, move it
+ */
+KlotskiLevel.prototype.moveEvent = function(x, y) {
+    // Find where the mouse intersects the floor
+    if (this.activeBlock) {
+        var hit = MouseInterface.getMouseHit([this.floor], x, y);
+        // Return if the floor isn't at the touch point
+        if (!hit) return;
+        
+        var target = new THREE.Vector3();
+        target.subVectors(hit.point, this.clickOffset);
+        /* Update the active blocks target position
+        to the clicked point */
+        this.activeBlock.updateTargetPosition(target);
+    }
+}
+
+
+/**
+ When the user input is released, deactivate the active block
+ */
+KlotskiLevel.prototype.releaseEvent = function(x, y) {
+    /* If a block was moved to a new position
+     and then released, send the callback method
+     */
+    if (this.activeBlock) {
+        if (this.activeBlock.startPoint.x != this.activeBlock.position.x
+            ||
+            this.activeBlock.startPoint.z != this.activeBlock.position.z
+            ) {
+            this.callback();
+        }
+        // If a cube is selected, deselect it.
+        this.activeBlock = null;
+    }
+}
+
+
+/*-----------------------
+ ===| Init functions |===
+ ----------------------*/
+
+/**
+ Add the walls to the level
  */
 KlotskiLevel.prototype.initWalls = function() {
     var wall = new KlotskiWall(1, 7);
@@ -63,7 +136,7 @@ KlotskiLevel.prototype.initWalls = function() {
 
 
 /**
- ...
+ Add all blocks to the level
  */
 KlotskiLevel.prototype.initBlocks = function() {
     var block = new KlotskiBlock(2, 1, this.obstacles);
@@ -131,7 +204,7 @@ KlotskiLevel.prototype.initBlocks = function() {
 
 
 /**
- ...
+ Add lights to the level
  */
 KlotskiLevel.prototype.initLights = function() {
     // Point light
@@ -146,7 +219,7 @@ KlotskiLevel.prototype.initLights = function() {
 
 
 /**
- ...
+ Add the level's floor
  */
 KlotskiLevel.prototype.initFloor = function() {
     var floorMaterial = new THREE.MeshLambertMaterial({map: THREE.ImageUtils.loadTexture('../images/grass.png')});

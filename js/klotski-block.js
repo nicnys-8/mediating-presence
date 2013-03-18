@@ -17,19 +17,18 @@ Klotski.setGridSize = function(size) {
 
 // Default values
 var gridSize = 50;
-var blockSpeed = 5;
+var blockSpeed = 4;
 
 /**
  Wall constructor
  */
 KlotskiWall = function(width, height) {
     THREE.Object3D.call(this);
-    
-    var t = THREE.ImageUtils.loadTexture('../images/rock.png');
-    this.material = new THREE.MeshLambertMaterial({map: t})
+    // Set texture
+    var texture = THREE.ImageUtils.loadTexture('../images/rock.png');
+    this.material = new THREE.MeshLambertMaterial({map: texture})
     this.material.map.wrapS = THREE.RepeatWrapping;
     this.material.map.wrapT = THREE.RepeatWrapping;
-    
     this.material.map.repeat.set(width, height);
     
     this.width = width * gridSize;
@@ -59,6 +58,8 @@ KlotskiWall.prototype.snapToGridPoint = function(x, z) {
  */
 KlotskiBlock = function(width, height, obstacles) {
     THREE.Object3D.call(this);
+    
+    this.startPoint = {x: this.position.x, z: this.position.z};
     
     this.targetX = this.position.x;
     this.targetZ = this.position.z;
@@ -90,7 +91,8 @@ KlotskiBlock.prototype.setSuperDuper = function() {
 
 
 /**
- ...
+ Set the position of the block, and stop it
+ from moving by setting the target position
  */
 KlotskiBlock.prototype.setPosition = function(x, y, z) {
     // Maybe I shouldn't round here...
@@ -101,7 +103,7 @@ KlotskiBlock.prototype.setPosition = function(x, y, z) {
 
 
 /**
- ...
+ Snap the block to an exact gridpoint
  */
 KlotskiBlock.prototype.snapToGridPoint = function(x, z) {
     this.setPosition(x * gridSize, gridSize / 2, z * gridSize);
@@ -109,7 +111,7 @@ KlotskiBlock.prototype.snapToGridPoint = function(x, z) {
 
 
 /**
- ...
+ Check if the block is snapped vertically
  */
 KlotskiBlock.prototype.xSnapped = function() {
     return (this.position.x % gridSize == 0);
@@ -117,7 +119,7 @@ KlotskiBlock.prototype.xSnapped = function() {
 
 
 /**
- ...
+ Check if the block is snapped horizontally
  */
 KlotskiBlock.prototype.zSnapped = function() {
     return (this.position.z % gridSize == 0);
@@ -125,7 +127,8 @@ KlotskiBlock.prototype.zSnapped = function() {
 
 
 /**
- ...
+ Update the blocks target position; decides where the
+ block will move when stepTowardTarget is called
  */
 KlotskiBlock.prototype.updateTargetPosition = function(point) {
     var xDistance, zDistance;
@@ -160,9 +163,9 @@ KlotskiBlock.prototype.updateTargetPosition = function(point) {
 
 
 /**
- ...
+ Move a bit toward the target position
  */
-KlotskiBlock.prototype.step = function() {
+KlotskiBlock.prototype.stepTowardTarget = function() {
     this.xStep(blockSpeed);
     this.zStep(blockSpeed);
     
@@ -272,7 +275,7 @@ KlotskiBlock.prototype.collides = function() {
 
 
 /**
- Returns the sign of a number
+ Returns the sign of a number SHOULD BE MOVED
  */
 Math.sign = function(x) {
     var sign = ((x < 0) ? -1 : 1);
