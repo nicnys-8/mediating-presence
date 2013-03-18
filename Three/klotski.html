@@ -96,9 +96,28 @@
                 console.log("End of turns!");
             }
             
-            /*-------------------------------
-             --------| Mouse Events |--------
-             -------------------------------*
+            
+            
+            /*---------------
+             ===| Kinect |===
+             --------------*/
+            var plugin;
+            
+            /**
+             Start retrieving and processing Kinect data
+            */
+            initKinect() {
+                plugin = document.getElementById("ZigPlugin");
+                // Start the video streams
+                plugin.requestStreams({updateDepth:true, updateImage:true});
+                // Start updating the canvases every new kinect frame
+                plugin.addEventListener("NewFrame", updateKinectData);
+            }
+            
+            
+            /*---------------------
+             ===| Mouse Events |===
+             --------------------*/
              /**
              When the mouse is clicked
              */

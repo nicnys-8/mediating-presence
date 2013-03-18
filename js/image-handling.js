@@ -67,12 +67,20 @@ var ImageHandling = function() {
     
     
     /**
-     Fill an aray with 1's
+     Fill an aray with the input value
+     */
+    var fillWithValue = function(array, value) {
+        for (var i = 0; i < array.length; i++) {
+            array[i] = value;
+        }
+    };
+    
+    
+    /**
+     Fill an aray with 1's TODO: Throw this away!
      */
     var fillWithOnes = function(array) {
-        for (var i = 0; i < array.length; i++) {
-            array[i] = 1;
-        }
+        fillWithValue(array, 1);
     };
     
     
@@ -86,6 +94,22 @@ var ImageHandling = function() {
             output[index++] = 0; // Green value is set to zero
             output[index++] = 0; // Blue is set to zero
             output[index++] = 255; // Full opacity
+        }
+    };
+    
+    
+    /**
+     Converts a red/black image to binary
+     */
+    var RGBAToBinary = function(input, output) {
+        var a = b = 0;
+        
+        for (var i = 0; i < output.length; i++) {
+            if (input[i * 4] == 0) {
+                output[i] = 0;
+            } else {
+                output[i] = 1;
+            }
         }
     };
     
@@ -105,7 +129,7 @@ var ImageHandling = function() {
         ImageHandling.expandToRGBA(temp, output);
     };
     
-    return {computeDifferenceMask: computeDifferenceMask, applyMask: applyMask, applyMaskOnRGB: applyMaskOnRGB, fillWithOnes: fillWithOnes, expandToRGBA: expandToRGBA, depthToRGBA: depthToRGBA};
+    return {computeDifferenceMask: computeDifferenceMask, applyMask: applyMask, applyMaskOnRGB: applyMaskOnRGB, fillWithOnes: fillWithOnes, fillWithValue: fillWithValue, expandToRGBA: expandToRGBA, RGBAToBinary: RGBAToBinary, depthToRGBA: depthToRGBA};
     
 }();
 

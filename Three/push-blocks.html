@@ -44,7 +44,7 @@
 			1,
 			1000
 		);
-		camera.position.set(60, 50, 60);
+		camera.position.set(0, 40, 50);
 		camera.lookAt(scene.position);
 		scene.add(camera);
 		
@@ -86,7 +86,7 @@
 		
 		// Ground
 		ground = new Physijs.BoxMesh(
-			new THREE.CubeGeometry(100, 1, 100),
+			new THREE.CubeGeometry(50, 1, 50),
 			ground_material,
 			0 // mass
 		);

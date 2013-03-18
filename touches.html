@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+
+<html>
+    
+    <head>
+        <title>Touch detection</title>
+		
+        <script src="../js/image-handling.js"></script>
+        <script type="text/javascript">
+            
+            const WIDTH = 160;
+            const HEIGHT = 120;
+            
+            function init() {
+                var image = new Image();
+                image.onload = onImageLoaded;
+                image.src = "../images/touch.png";
+            }
+            
+            
+            /**
+             
+             */
+            function onImageLoaded() {
+                
+                var canvas = document.getElementById("touchCanvas");
+                var context = canvas.getContext("2d");
+                
+                context.drawImage(this, 0, 0);
+                var imageData = context.getImageData(0, 0, WIDTH, HEIGHT);
+                
+                var binary = new Array(WIDTH * HEIGHT);
+                var buffer = new Array(WIDTH * HEIGHT);
+                
+                ImageHandling.RGBAToBinary(imageData.data, binary);
+                ImageHandling.fillWithValue(buffer, 0);
+                
+                getTouches(binary, buffer);
+            }
+            
+            
+            /**
+             
+             */
+            function getTouches(data, buffer) {
+                
+                for (var y = 0; y < HEIGHT; y++) {
+                    for (var x = 0; x < WIDTH; x++) {
+                        
+                        var points = detectSingleTouch(data, buffer, x, y, 1);
+                        if (points > 0) console.log(points);
+                    }
+                }
+            }
+            
+            
+            /**
+             
+             */
+            function detectSingleTouch(data, buffer, x, y, fillValue) {
+                var result = false;
+                var n, index;
+                var queue = [];
+                
+                queue.push({x: x, y: y});
+                
+                while (queue.length > 0) {
+                    /* Set n to be the last element in queue,
+                     removing it from the queue */
+                    n = queue.pop();
+                    
+                    index = (n.y * WIDTH + n.x);
+                    
+                    // Check if index is out of bounds
+                    if (index < 0 || index > data.length) {
+                        console.log("undefined");
+                        continue;
+                    }
+                    
+                    if (data[index] == 1 && buffer[index] == 0) {
+                        buffer[index] = fillValue;
+                        result = true;
+                        /*
+                         Add the points above, to the right,
+                         below and to the left of the current point
+                         */
+                        queue.push({x: n.x + 0, y: n.y - 1});
+                        queue.push({x: n.x + 1, y: n.y + 0});
+                        queue.push({x: n.x + 0, y: n.y + 1});
+                        queue.push({x: n.x - 1, y: n.y + 0});
+                    }
+                }
+                return result;
+            }
+            
+            
+            function 
+            
+            </script>
+    </head>
+    
+    <body onload="init()">
+        
+        <div>
+            <canvas id="touchCanvas">
+                </div>
+        
+    </body>
+    
+</html>

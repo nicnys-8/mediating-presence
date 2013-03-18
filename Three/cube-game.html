@@ -52,7 +52,7 @@
                 // Camera
                 camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
                 scene.add(camera);
-                camera.position.set(0,400,400);
+                camera.position.set(0,400,200);
                 camera.lookAt(scene.position);
                 
                 // Renderer
@@ -72,31 +72,31 @@
                 
                 // Floor
                 var floorMaterial = new THREE.MeshLambertMaterial();
-                var floorGeometry = new THREE.PlaneGeometry(800, 800, 10, 10);
+                var floorGeometry = new THREE.PlaneGeometry(500, 500, 10, 10);
                 floor = new THREE.Mesh(floorGeometry, floorMaterial);
                 
                 floor.rotation.x -= Math.PI / 2; // Rotate the floor correctly
                 floor.position.y = -0.5; // Move a tiny bit to prevent flickering
                 
                 floor.doubleSided = true;
-                scene.add(floor);
+                // scene.add(floor);
                 
                 
                 // Cube
                 var movingCube1 = new MovingCube();
-                movingCube1.setPosition(-300, 25, 0);
+                movingCube1.setPosition(0, 25, -75);
                 scene.add(movingCube1);
                 movingCubes.push(movingCube1);
                 obstacles = obstacles.concat(movingCube1.meshes);
                 
                 var movingCube2 = new MovingCube();
-                movingCube2.setPosition(200, 25, 0);
+                movingCube2.setPosition(100, 25, 50);
                 scene.add(movingCube2);
                 movingCubes.push(movingCube2);
                 obstacles = obstacles.concat(movingCube2.meshes);
                 
                 var movingCube3 = new MovingCube();
-                movingCube3.setPosition(0, 25, 0);
+                movingCube3.setPosition(-150, 25, 0);
                 scene.add(movingCube3);
                 movingCubes.push(movingCube3);
                 obstacles = obstacles.concat(movingCube3.meshes);
