@@ -1,7 +1,7 @@
 
 // Constants
-const MIN_TOUCHES = 5;
-const TOUCH_LIFE_TIME = 3;
+const MIN_TOUCHES = 3;
+const TOUCH_LIFE_TIME = 5;
 //******
 // width and height should be gotten from somewhere else!1
 const KINECT_DEPTH_WIDTH = 160;
@@ -13,8 +13,8 @@ const KINECT_PIXELS = KINECT_DEPTH_HEIGHT * KINECT_DEPTH_WIDTH;
  Touch constructor
  @param x, y Coordinates of the touch
  */
-Touch = function() {
-    this.point = {x: null, y: null};
+Touch = function(point) {
+    this.point = {x: point.x, y: point.y};
     this.lifeTime = TOUCH_LIFE_TIME;
 }
 
@@ -35,7 +35,7 @@ KinectTouchController = function(depthRef, transform) {
  Updates the state of the controller
  */
 KinectTouchController.prototype.update = function(depthData) {
-    this.updateTouchData();
+    this.updateTouchData(depthData);
     this.updateTouch();
 }
 
@@ -43,7 +43,7 @@ KinectTouchController.prototype.update = function(depthData) {
 /**
  Update the image representing current touch points
  */
-KinectTouchController.prototype.updateTouchData = function() {
+KinectTouchController.prototype.updateTouchData = function(depthData) {
     var KINECT_PIXELS = KINECT_DEPTH_HEIGHT * KINECT_DEPTH_WIDTH;
     
     for (var i = 0; i < KINECT_PIXELS; i++) {
@@ -60,7 +60,7 @@ KinectTouchController.prototype.updateTouchData = function() {
                 continue;
             
             // Compute the difference compared to the reference image
-            var distance = depthRef[index] - z;
+            var distance = this.depthRef[index] - z;
             
             var p = this.transform.transformPoint({x:x, y:y});
             
@@ -106,27 +106,39 @@ KinectTouchController.prototype.updateTouch = function() {
             index++;
         }
     }
-        
+    
     // Check if enough touch points were found for it to
     // count as a touch
     if (nrOfTouchPoints > MIN_TOUCHES) {
         var xValue = Math.round(xTotal / nrOfTouchPoints);
         var yValue = Math.round(yTotal / nrOfTouchPoints);
         var touchPoint = {x: xValue + 10, y: yValue};
-        touchPoint = transform.transformPoint(touchPoint);
         
-        if (!this.touch) {
-            this.touch = new Touch();
-            this.onTouch(touchPoint); // Touched callback
+        touchPoint = this.transform.transformPoint(touchPoint);
+        
+        // If a touch already exists, update it
+        if (this.touch) {
+            this.touch.lifeTime = TOUCH_LIFE_TIME;
+            // Check if it has moved
+            if (this.touch.point.x != touchPoint.x ||
+                this.touch.point.y != touchPoint.y)
+            {
+                this.touch.point = touchPoint;
+                this.onMove(this.touch.point); // Move callback
+            }
         }
-        this.onTouchMoved(touchPoint); // Moved callback
-        this.touch.point = touchPoint;
-        this.touch.lifeTime = TOUCH_LIFE_TIME;
-        this.touch.point = touchPoint;
+        
+        // If no touch exists, create a new one!
+        else {
+            this.touch = new Touch(touchPoint);
+            this.onClick(this.touch.point); // Click callback
+        }
+        
+        
     }
     
     if (this.touch && this.touch.lifeTime <= 0) {
-        this.onTouchReleased(touchPoint); // Released callback
+        this.onRelease(this.touch.point); // Release callback
         this.touch = null;
     }
 }
@@ -138,18 +150,18 @@ KinectTouchController.prototype.updateTouch = function() {
 
 /**
  */
-KinectTouchController.prototype.onTouch = function(touchPoint) {
+KinectTouchController.prototype.onClick = function(touchPoint) {
 }
 
 
 /**
  */
-KinectTouchController.prototype.onTouchMoved = function(touchPoint) {
+KinectTouchController.prototype.onMove = function(touchPoint) {
 }
 
 
 /**
  */
-KinectTouchController.prototype.onTouchReleased = function(touchPoint) {
+KinectTouchController.prototype.onRelease = function(touchPoint) {
 }
 

@@ -286,10 +286,8 @@
                             // Finished, save the current video frame and go to the next step of the calibration
                             snapshotContext.drawImage(currentVideoFrame, 0, 0, VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
                             
-                            // Set cokie
-                            
-                            dJSON = JSON.stringify(depthRef);
-                            setCookie("depthRef", dJSON, null, null, null, "/");
+                            // Store depth reference image
+                            localStorage.depthRef = JSON.stringify(depthRef);
                             return true;
                         }
                         return false;
@@ -424,9 +422,8 @@
                                           {x:calibrationPoints[3].cameraX, y:calibrationPoints[3].cameraY}]
                                          ];
                             
-                            var tJSON = JSON.stringify(tData);
-                            setCookie ("transform", tJSON, null, null, null, "/");
-                            console.log(getCookie("transform"));
+                            // Store transform
+                            localStorage.transform = JSON.stringify(tData);
                             
                             transform = new Geometry.Transform(tData[0], tData[1]);
 							this.isDone = true;

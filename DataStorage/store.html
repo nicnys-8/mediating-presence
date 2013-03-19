@@ -10,13 +10,8 @@
         <script type="text/javascript">
             
             console.log("Storing a cookie");
-            
-            //Make a delete function!!!!
-            var cookie_date = new Date ( );  // current date & time
-            cookie_date.setTime ( cookie_date.getTime() - 1 );
-            document.cookie = "username=; expires=" + cookie_date.toGMTString();
-            
             setCookie ("username", "Jimmy", null, null, null, "/");
+            
             </script>
     </head>
     
