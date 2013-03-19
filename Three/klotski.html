@@ -10,10 +10,13 @@
         
         <div id="message"></div>
         
-        <script src="../js/lib/Three.js"></script>
-        <script src="../js/mouse-interface.js"></script>
-        <script src="../js/klotski-block.js"></script>
-        <script src="../js/klotski-level.js"></script>
+        <script type="text/javascript" src="../js/lib/Three.js"></script>
+        <script type="text/javascript" src="../js/mouse-interface.js"></script>
+        <script type="text/javascript" src="../js/klotski-block.js"></script>
+        <script type="text/javascript" src="../js/klotski-level.js"></script>
+        <script type="text/javascript" src="../js/kinect-touch-controller.js"></script>
+        <script type="text/javascript" src="../js/cookies.js"></script>
+        <script type="text/javascript" src="../js/geometry.js"></script>
         
         <script>
             // Camera constants
@@ -41,6 +44,10 @@
              Set up the scene
              */
             function init() {
+                
+                // Kinect
+                initKinect();
+                
                 Klotski.setGridSize(gridSize);
                 
                 // Scene
@@ -59,10 +66,7 @@
                                     gridSize * 6
                                     );
                 
-                camera.lookAt(new THREE.Vector3(
-                                                gridSize * 2,
-                                                0,
-                                                gridSize * 2.5));
+                camera.lookAt(new THREE.Vector3(gridSize * 2, 0, gridSize * 2.5));
                 
                 // Renderer
                 renderer = new THREE.WebGLRenderer({antialias: true});
@@ -75,7 +79,7 @@
                 //THREEx.WindowResize(renderer, camera);
                 
                 // Start listening for mouse clicks
-				document.addEventListener('mousedown', mouseClicked, false);
+				document.addEventListener('mousedown', inputClicked, false);
             }
             
             
@@ -101,19 +105,46 @@
             /*---------------
              ===| Kinect |===
              --------------*/
+            const KINECT_DEPTH_WIDTH = 160;
+            const KINECT_DEPTH_HEIGHT = 120;
+            
             var plugin;
+            var depthData = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT);
+            
             
             /**
              Start retrieving and processing Kinect data
             */
-            initKinect() {
+            function initKinect() {
                 plugin = document.getElementById("ZigPlugin");
                 // Start the video streams
                 plugin.requestStreams({updateDepth:true, updateImage:true});
                 // Start updating the canvases every new kinect frame
                 plugin.addEventListener("NewFrame", updateKinectData);
+                                
+                var depthRef = getCookie ("depthRef");
+                depthRef = JSON.parse(depthRef);
+                
+                var tData = getCookie ("transform");
+                tData = JSON.parse(tData);
+                var transform = new Geometry.Transform(tData[0], tData[1]);
+                
+                kinectTouchController = new KinectTouchController(depthRef, transform);
+                // Set event callbacks
+                kinectTouchController.onTouchMoved = inputClicked;
+                kinectTouchController.onTouch = inputMoved;
+                kinectTouchController.onTouchReleased = inputReleased;
             }
             
+            
+            /**
+             ...
+             */
+            function updateKinectData() {
+                /* Take a snapshot from the Kinect depth video */
+                KinectDecoder.decodeDepth(plugin.depthMap, depthData);
+			}
+
             
             /*---------------------
              ===| Mouse Events |===
@@ -121,12 +152,12 @@
              /**
              When the mouse is clicked
              */
-			function mouseClicked(event) {
+			function inputClicked(event) {
 				event.preventDefault();
                 
                 // Add listeners for future mouse events
-                document.addEventListener('mousemove', mouseMoved, false);
-                document.addEventListener('mouseup', mouseReleased, false);
+                document.addEventListener('mousemove', inputMoved, false);
+                document.addEventListener('mouseup', inputReleased, false);
                 
                 /* var mouseX = event.clientX;
                  var mouseY = event.clientY; */
@@ -137,7 +168,7 @@
             /**
              Called whenever the mouse is moved.
              */
-            function mouseMoved(event) {
+            function inputMoved(event) {
                 level.moveEvent(event.clientX, event.clientY);
             }
             
@@ -145,12 +176,12 @@
             /**
              Called when the left mouse button is released
              */
-            function mouseReleased(event) {
+            function inputReleased(event) {
                 level.releaseEvent();
                 /* Stop listening for mousemove move and mouseup events
                  until the mouse has been clicked again */
-                document.removeEventListener('mousemove', mouseMoved, false);
-                document.removeEventListener('mouseup', mouseReleased, false);
+                document.removeEventListener('mousemove', inputMoved, false);
+                document.removeEventListener('mouseup', inputReleased, false);
             }
             
             

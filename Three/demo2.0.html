@@ -137,16 +137,16 @@
                 
 				plugin = document.getElementById("ZigPlugin");
 				// Start the video streams
-				plugin.requestStreams({updateDepth:true, updateImage:true});
-                
-                
-                
+				plugin.requestStreams({updateDepth: true, updateImage: true});
 				// Start updating the canvases every new kinect frame
                 plugin.addEventListener("NewFrame", updateKinectData);
             }
             
+            
+            /**
+             ...
+             */
 			function updateKinectData() {
-				
                 /* Take a snapshot from the Kinect RGB video */
                 KinectDecoder.decodeRGB(plugin.imageMap, videoData.data);
                 currentVideoFrame.getContext("2d").putImageData(videoData, 0, 0);
