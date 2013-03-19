@@ -14,7 +14,13 @@
         <script type="text/javascript" src="../js/mouse-interface.js"></script>
         <script type="text/javascript" src="../js/klotski-block.js"></script>
         <script type="text/javascript" src="../js/klotski-level.js"></script>
+        
+        <script type="text/javascript" src="../js/lib/zig.js"></script>
+        
+        <script type="text/javascript" src="../js/kinect-decoder.js"></script>
+        <script type="text/javascript" src="../js/image-handling.js"></script>
         <script type="text/javascript" src="../js/kinect-touch-controller.js"></script>
+        
         <script type="text/javascript" src="../js/cookies.js"></script>
         <script type="text/javascript" src="../js/geometry.js"></script>
         
@@ -101,7 +107,6 @@
             }
             
             
-            
             /*---------------
              ===| Kinect |===
              --------------*/
@@ -110,22 +115,27 @@
             
             var plugin;
             var depthData = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT);
-            
+
             
             /**
              Start retrieving and processing Kinect data
             */
             function initKinect() {
                 plugin = document.getElementById("ZigPlugin");
-                // Start the video streams
-                plugin.requestStreams({updateDepth:true, updateImage:true});
-                // Start updating the canvases every new kinect frame
-                plugin.addEventListener("NewFrame", updateKinectData);
-                                
-                var depthRef = getCookie ("depthRef");
-                depthRef = JSON.parse(depthRef);
                 
-                var tData = getCookie ("transform");
+                /*
+                var depthRef = getCookie ("depthRef");
+                console.log(depthRef);
+                
+                depthRef = JSON.parse(depthRef);
+                */
+                depthRef = new Array(160 * 120);
+                for (var i = 0; i < depthRef.length; i++) {
+                    depthRef[i] = 0;
+                }
+                
+                var tData = getCookie("transform");
+                console.log(tData);
                 tData = JSON.parse(tData);
                 var transform = new Geometry.Transform(tData[0], tData[1]);
                 
@@ -134,6 +144,11 @@
                 kinectTouchController.onTouchMoved = inputClicked;
                 kinectTouchController.onTouch = inputMoved;
                 kinectTouchController.onTouchReleased = inputReleased;
+                
+                // Start the video streams
+                plugin.requestStreams({updateDepth:true, updateImage:true});
+                // Start updating the canvases every new kinect frame
+                plugin.addEventListener("NewFrame", updateKinectData);
             }
             
             
@@ -186,5 +201,12 @@
             
             
             </script>
+        
+        <div id="pluginContainer">
+            <object id="ZigPlugin" type="application/x-zig" width="0" height="0">
+                <param name="onload" value="zigPluginLoaded">
+                    </object>
+        </div>
+        
     </body>
 </html>
