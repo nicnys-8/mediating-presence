@@ -1,0 +1,142 @@
+
+<!-- :hover doesn't work with the doctype tag..?
+<!DOCTYPE html>
+-->
+
+<html>
+    <head>
+        
+        <title>Menu?</title>
+		
+        <style type="text/css">
+			
+			* {
+				margin:0;
+				padding:0;
+			}
+			
+			html, body {
+				height:100%;
+				width:100%;
+			}
+			
+			body {
+				background:url('images/paper.jpg');
+				/*background:url('images/paper-tile.png');*/
+			}
+			
+			#wrap {
+				min-height:100%;
+			}
+			#content {
+				overflow:auto;
+				padding-bottom:-200px;
+				/*
+				left:0;
+				right:0;
+				top:0;
+				bottom:200;
+				 */
+				/*
+				min-height:100%;
+				height:auto !important;
+				height:100%;
+				width:100%;
+				margin:0 auto -200px auto;
+				 */
+			}
+			
+			#footermenu {
+				position:relative;
+				margin:-200px auto 0 auto;
+				height:200px;
+				width:1000px;
+				clear:both;
+			}
+			
+			ul {
+				list-style:none;
+			}
+			
+			ul li {
+				display:inline;
+			}
+			
+			.linkbutton {
+				display:inline-block;
+				width:200px;
+				height:200px;
+			}
+			
+			#chatbutton {
+				background:url('images/chat.png');
+				background-position: 0 0;
+			}
+			#chatbutton:hover {
+				background-position: -200 0;
+			}
+			
+			#sharebutton {
+				background:url('images/share.png');
+				background-position: 0 0;
+			}
+			#sharebutton:hover {
+				background-position: -200 0;
+			}
+			
+			#playbutton {
+				background:url('images/play.png');
+				background-position: 0 0;
+			}
+			#playbutton:hover {
+				background-position: -200 0;
+			}
+			
+			#audiobutton {
+				background:url('images/audio.png');
+				background-position: 0 0;
+			}
+			#audiobutton:hover {
+				background-position: -200 0;
+			}
+			
+			#videobutton {
+				background:url('images/video.png');
+				background-position: 0 0;
+			}
+			#videobutton:hover {
+				background-position: -200 0;
+			}
+
+		</style>
+
+		<script>
+			
+			
+			
+		</script>
+        
+    </head>
+	
+	<body>
+		
+		<div id="wrap">
+			<div id="content">
+				
+			</div>
+		</div>
+		
+		<div id="footermenu"><!--
+			--><ul><!--
+				--><li><div class="linkbutton" id="chatbutton" onclick="console.log('hej');"></div></li><!--
+				--><li><div class="linkbutton" id="sharebutton"></div></li><!--
+				--><li><div class="linkbutton" id="playbutton"></div></li><!--
+				--><li><div class="linkbutton" id="audiobutton"></div></li><!--
+				--><li><div class="linkbutton" id="videobutton"></div></li><!--
+			--></ul><!--
+		--></div>
+        
+    </body>
+	
+</html>
+
