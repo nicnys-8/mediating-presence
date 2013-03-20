@@ -1,3 +1,7 @@
+/**
+ Requires image-handling.js
+ */
+
 
 // Constants
 const MIN_TOUCHES = 3;
@@ -9,13 +13,16 @@ const KINECT_DEPTH_HEIGHT = 120;
 const KINECT_PIXELS = KINECT_DEPTH_HEIGHT * KINECT_DEPTH_WIDTH;
 //******
 
+
 /**
  Touch constructor
  @param x, y Coordinates of the touch
  */
-Touch = function(point) {
-    this.point = {x: point.x, y: point.y};
+Touch = function(size, x, y, left, top, width, height) {
+    this.size = size;
+    this.point = {x: Math.round(x), y: Math.round(y)};
     this.lifeTime = TOUCH_LIFE_TIME;
+    this.bounds = {x: left, y: top, width: width, height: height};
 }
 
 
@@ -28,6 +35,9 @@ KinectTouchController = function(depthRef, transform) {
     this.touch = null;
     this.touchData = new Array(KINECT_PIXELS);
     this.transform = transform;
+    
+    // Create the buffer used for finding touches
+    this.buffer = new Array(KINECT_PIXELS);
 }
 
 
@@ -44,28 +54,18 @@ KinectTouchController.prototype.update = function(depthData) {
  Update the image representing current touch points
  */
 KinectTouchController.prototype.updateTouchData = function(depthData) {
-    var KINECT_PIXELS = KINECT_DEPTH_HEIGHT * KINECT_DEPTH_WIDTH;
-    
-    for (var i = 0; i < KINECT_PIXELS; i++) {
-        this.touchData[i] = 0;
-    }
+    // Empty the touch data
+    ImageHandling.fillWithValue(this.touchData, 0);
     
     for (var y = 0, index = 0; y < KINECT_DEPTH_HEIGHT; y++) {
         for (var x = 0; x < KINECT_DEPTH_WIDTH; x++, index++) {
-            
             var z = depthData[index];
-            
             // Ignore points where depth data is missing
-            if (z == 0)
-                continue;
-            
+            if (z == 0) continue;
             // Compute the difference compared to the reference image
             var distance = this.depthRef[index] - z;
-            
             var p = this.transform.transformPoint({x:x, y:y});
-            
             if (p.x >= 0 && p.y >= 0 && p.x <= window.innerWidth && p.y <= window.innerHeight) {
-                
                 // A touch occurs at a certain depth threshold
                 // (to be determined/calculated) :)
                 if (distance > 10 && distance < 20) {
@@ -78,75 +78,145 @@ KinectTouchController.prototype.updateTouchData = function(depthData) {
 
 
 /**
- Given an array with touch data, a 2D-point is returned,
- specifying where a touch occured
- (this requires that the touchData is up-to-date)
+ ...
  */
 KinectTouchController.prototype.updateTouch = function() {
-    // Age the current touch
-    if (this.touch) {
-        this.touch.lifeTime--;
-    }
+    var newTouch = this.detectLargestTouch();
     
-    // Threshold value: at least this many touch points are
-    // needed for a touch to occur
-    var nrOfTouchPoints = 0;
-    var xTotal = 0;
-    var yTotal = 0;
-    var index = 0;
-    
-    for (var currentRow = 0; currentRow < KINECT_DEPTH_HEIGHT; currentRow++) {
-        for (var currentCol = 0; currentCol < KINECT_DEPTH_WIDTH; currentCol++) {
-            
-            if (this.touchData[index]) {
-                nrOfTouchPoints++;
-                xTotal += currentCol;
-                yTotal += currentRow;
-            }
-            index++;
-        }
-    }
-    
-    // Check if enough touch points were found for it to
-    // count as a touch
-    if (nrOfTouchPoints > MIN_TOUCHES) {
-        var xValue = Math.round(xTotal / nrOfTouchPoints);
-        var yValue = Math.round(yTotal / nrOfTouchPoints);
-        var touchPoint = {x: xValue + 10, y: yValue};
-        
-        touchPoint = this.transform.transformPoint(touchPoint);
-        
-        // If a touch already exists, update it
+    /*------------------------------
+     == If no new touch is found: ==
+     -----------------------------*/
+    if (!newTouch) {
         if (this.touch) {
-            this.touch.lifeTime = TOUCH_LIFE_TIME;
-            // Check if it has moved
-            if (this.touch.point.x != touchPoint.x ||
-                this.touch.point.y != touchPoint.y)
-            {
-                this.touch.point = touchPoint;
-                this.onMove(this.touch.point); // Move callback
+            this.touch.lifeTime--;
+            if (this.touch.lifeTime <= 0) {
+                this.onRelease(this.touch.point); // Release callback
+                this.touch = null;
             }
         }
-        
-        // If no touch exists, create a new one!
-        else {
-            this.touch = new Touch(touchPoint);
-            this.onClick(this.touch.point); // Click callback
-        }
-        
-        
+        return;
     }
     
-    if (this.touch && this.touch.lifeTime <= 0) {
-        this.onRelease(this.touch.point); // Release callback
-        this.touch = null;
+    /*-----------------------------
+     == If a new touch is found: ==
+     ----------------------------*/
+    newTouch.point = this.transform.transformPoint(newTouch.point);
+    
+    // If a live touch exists:
+    if (this.touch) {
+        // Check if it has moved
+        if (this.touch.point.x != newTouch.point.x ||
+            this.touch.point.y != newTouch.point.y)
+        {
+            this.onMove(newTouch.point); // Move callback
+        }
     }
+    // If no live touch exists:
+    else {
+        this.onClick(newTouch.point); // Click callback
+    }
+    // Set the object's touch to the new one
+    this.touch = newTouch;
 }
 
 
-/*----------------------
- -- Callback functions --
- ----------------------*/
+/**
+ Returns the largest Touch in the object's depth data
+ */
+KinectTouchController.prototype.detectLargestTouch = function() {
+    var largestSize = 0;
+    var largestTouch;
+    // Empty the buffer
+    ImageHandling.fillWithValue(this.buffer, 0);
+    
+    for (var y = 0; y < KINECT_DEPTH_HEIGHT; y++) {
+        for (var x = 0; x < KINECT_DEPTH_WIDTH; x++) {
+            var touch = this.getTouchAtPoint(x, y);
+            if (touch && touch.size > largestSize) largestTouch = touch;
+        }
+    }
+    return largestTouch;
+}
+
+
+/**
+ ...
+ @param x
+ @param y
+ */
+KinectTouchController.prototype.getTouchAtPoint = function(x, y) {
+    var n, index;
+    var queue = [];
+    
+    queue.push({x: x, y: y});
+    
+    var size = 0;
+    var xTotal = 0;
+    var yTotal = 0;
+    var leftMost = KINECT_DEPTH_WIDTH;
+    var rightMost = 0;
+    var upper = KINECT_DEPTH_HEIGHT;
+    var lower = 0;
+    
+    while (queue.length > 0) {
+        
+        /* Set n to be the last element in queue,
+         removing it from the queue */
+        n = queue.pop();
+        
+        index = (n.y * KINECT_DEPTH_WIDTH + n.x);
+        
+        // Check if index is out of bounds
+        if (index < 0 || index > this.touchData.length) {
+            console.log("undefined");
+            continue;
+        }
+        
+        /* Check if the point defined by index is
+         part of the current touch */
+        if (this.touchData[index] == 1 && this.buffer[index] == 0) {
+            this.buffer[index] = 1;
+            size++;
+            xTotal += n.x;
+            yTotal += n.y;
+            
+            if (n.x < leftMost) leftMost = n.x;
+            if (n.x > rightMost) rightMost = n.x;
+            if (n.y > lower) lower = n.y;
+            if (n.y < upper) upper = n.y;
+            
+            /*
+             Add the points above surrounding this one
+             */
+            queue.push({x: n.x + 0, y: n.y + 1});
+            queue.push({x: n.x + 1, y: n.y + 1});
+            queue.push({x: n.x + 1, y: n.y + 0});
+            queue.push({x: n.x + 1, y: n.y - 1});
+            queue.push({x: n.x + 0, y: n.y - 1});
+            queue.push({x: n.x - 1, y: n.y - 1});
+            queue.push({x: n.x - 1, y: n.y + 0});
+            queue.push({x: n.x - 1, y: n.y + 1});
+        }
+    }
+    
+    if (size > 0) {
+        var touch = new Touch(
+                              size,
+                              xTotal / size,
+                              yTotal / size,
+                              leftMost,
+                              upper,
+                              rightMost - leftMost + 1,
+                              lower - upper + 1
+                              );
+    }
+    return touch;
+}
+
+
+/*-----------------------
+ == Callback functions ==
+ -----------------------*/
 
 /**
  */
