@@ -1,0 +1,221 @@
+
+<!-- :hover doesn't work with the doctype tag..?
+<!DOCTYPE html>
+-->
+
+<html>
+    <head>
+        
+        <title>Menu?</title>
+		
+        <style type="text/css">
+			
+			* {
+				margin:0;
+				padding:0;
+			}
+			
+			html, body {
+				height:100%;
+				width:100%;
+			}
+			
+			body {
+				background:url('images/paper.jpg');
+				/*background:url('images/paper-tile.png');*/
+			}
+			
+			iframe {
+				display:none;
+				overflow:auto;
+				position:absolute;
+				width:100%;
+				height:100%;
+				left:-100%;
+			}
+			
+			#wrap {
+				position:absolute;
+				top:100px;
+				bottom:0px;
+				left:0px;
+				right:0px;
+			}
+			
+			#menu {
+				width:500px;
+				height:100px;
+				margin:0 auto 0 auto;
+				clear:both;
+			}
+			
+			#menu ul {
+				list-style:none;
+			}
+			#menu ul li {
+				display:inline;
+			}
+			
+			.linkbutton {
+				display:inline-block;
+				width:100px;
+				height:100px;
+				background-position: 0 0;
+				background-size:400%;
+			}
+			
+			.linkbutton.selected,
+			.linkbutton.selected:hover {
+				background-position:66.6666666% 0;
+			}
+			.linkbutton.disabled,
+			.linkbutton.disabled:hover,
+			.linkbutton.disabled:active {
+				background-position:100% 0;
+			}
+			
+			.linkbutton:hover {
+				background-position:33.3333333% 0;
+			}
+			.linkbutton:active {
+				background-position:66.6666666% 0;
+			}
+			
+			#chatbutton {
+				background-image:url('images/chat-top.png');
+			}
+			
+			#sharebutton {
+				background-image:url('images/share-top.png');
+			}
+			
+			#playbutton {
+				background-image:url('images/play-top.png');
+			}
+			
+			#audiobutton {
+				background-image:url('images/audio-top.png');
+			}
+			
+			#videobutton {
+				background-image:url('images/video-top.png');
+			}
+			
+		</style>
+		
+		<script type="text/javascript" src="js/lib/jquery.js"></script>
+		
+		<script>
+			
+			var current;
+			var enableVideo = true;
+			var enableAudio = true;
+			
+			var buttonOrder = ["#chat", "#share", "#play"];
+			
+			function init() {
+				current = "#chat";
+				$(current).show();
+				$(current).css("left", "0");
+				$(current + "button").addClass("selected");
+			}
+			
+			function switchTo(name) {
+				
+				var currentNode = $(current);
+				var nextNode = $(name);
+				
+				var fromLeft = buttonOrder.indexOf(current) > buttonOrder.indexOf(name);
+				var startPos = fromLeft ? "-100%" : "100%";
+				
+				currentNode.animate({
+									left:"-=" + startPos,
+									opacity:0.0,
+									}, 500, function() {
+										// Animation complete.
+										currentNode.hide();
+									});
+
+				nextNode.show();
+				nextNode.css("left", startPos);
+				nextNode.css("opacity", 0.0);
+				nextNode.animate({
+								 left:"-=" + startPos,
+								 opacity:1.0,
+								 }, 500, function() {});
+				
+				$(current + "button").toggleClass("selected");
+				$(name +"button").toggleClass("selected");
+				
+				current = name;
+			}
+			
+			function showChat() {
+				switchTo("#chat");
+			}
+			
+			function showShare() {
+				switchTo("#share");
+			}
+			
+			function showPlay() {
+				switchTo("#play");
+			}
+			
+			function toggleAudio() {
+				
+				var audiobutton = $("#audiobutton");
+				if (audiobutton.hasClass("disabled"))
+					return;
+				
+				audiobutton.css("background-image", enableAudio ? "url('images/noaudio-top.png')" : "url('images/audio-top.png')");
+
+				enableAudio = !enableAudio;
+			}
+			
+			function toggleVideo() {
+				
+				var videobutton = $("#videobutton");
+				if (videobutton.hasClass("disabled"))
+					return;
+				
+				videobutton.css("background-image", enableVideo ? "url('images/novideo-top.png')" : "url('images/video-top.png')");
+				
+				enableVideo = !enableVideo;
+			}
+			
+		</script>
+        
+    </head>
+	
+	<body onload="init();">
+		
+		<div id="menu"><!--
+			--><ul><!--
+				--><li><div class="linkbutton" id="chatbutton"
+					onclick="showChat();"></div></li><!--
+				--><li><div class="linkbutton" id="sharebutton"
+					onclick="showShare();"></div></li><!--
+				--><li><div class="linkbutton" id="playbutton"
+					onclick="showPlay();"></div></li><!--
+				--><li><div class="linkbutton" id="audiobutton"
+					onclick="toggleAudio();"></div></li><!--
+				--><li><div class="linkbutton disabled" id="videobutton"
+					onclick="toggleVideo();"></div></li><!--
+			--></ul><!--
+		--></div>
+        
+		<div id="wrap">
+			<div id="content">
+				
+				<iframe id="chat" src="passThroughTest.html" seamless>GAH!</iframe>
+				<iframe id="share" src="PointCloud/PointCloudViewer.html" seamless>GAH!</iframe>
+				<iframe id="play" src="Three/klotski.html" seamless>GAH!</iframe>
+				
+				 
+			</div>
+		</div>
+    </body>
+	
+</html>
+
