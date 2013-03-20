@@ -286,6 +286,16 @@
                             // Finished, save the current video frame and go to the next step of the calibration
                             snapshotContext.drawImage(currentVideoFrame, 0, 0, VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
                             
+                            /*
+                             //Check if local storage is supported
+                            function supports_html5_storage() {
+                                try {
+                                    return 'localStorage' in window && window['localStorage'] !== null;
+                                } catch (e) {
+                                    return false;
+                                }
+                            }*/
+                            
                             // Store depth reference image
                             localStorage.depthRef = JSON.stringify(depthRef);
                             return true;
@@ -523,6 +533,12 @@
                                         this.ctx.beginPath();
                                         this.ctx.arc(p.x, p.y, 10, 0, 2 * Math.PI, false);
                                         this.ctx.fillStyle = "yellow";
+                                        this.ctx.closePath();
+                                        this.ctx.fill();
+                                        
+                                        this.ctx.beginPath();
+                                        this.ctx.arc(p.x * 0.85, p.y, 10, 0, 2 * Math.PI, false);
+                                        this.ctx.fillStyle = "blue";
                                         this.ctx.closePath();
                                         this.ctx.fill();
                                     }

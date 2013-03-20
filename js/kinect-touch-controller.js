@@ -96,11 +96,13 @@ KinectTouchController.prototype.updateTouch = function() {
         }
         return;
     }
-    
     /*-----------------------------
      == If a new touch is found: ==
      ----------------------------*/
     newTouch.point = this.transform.transformPoint(newTouch.point);
+    
+    //HAXX:
+    newTouch.point.x = newTouch.point.x * 0.85;
     
     // If a live touch exists:
     if (this.touch) {
@@ -140,9 +142,8 @@ KinectTouchController.prototype.detectLargestTouch = function() {
 
 
 /**
- ...
- @param x
- @param y
+ If the point (x, y) in the object's touch data
+ is part of a touch, return it
  */
 KinectTouchController.prototype.getTouchAtPoint = function(x, y) {
     var n, index;
