@@ -8,8 +8,9 @@
         <script src="../js/image-handling.js"></script>
         <script type="text/javascript">
             
-            const WIDTH = 160;
-            const HEIGHT = 120;
+            const KINECT_DEPTH_WIDTH = 160;
+            const KINECT_DEPTH_HEIGHT = 120;
+            const TOUCH_LIFE_TIME = 5;
             
             function init() {
                 var image = new Image();
@@ -19,7 +20,19 @@
             
             
             /**
-             
+             Touch constructor
+             @param x, y Coordinates of the touch
+             */
+            Touch = function(size, x, y, left, top, width, height) {
+                this.size = size;
+                this.point = {x: Math.round(x), y: Math.round(y)};
+                this.lifeTime = TOUCH_LIFE_TIME;
+                this.bounds = {x: left, y: top, width: width, height: height};
+            }
+            
+            
+            /**
+             ...
              */
             function onImageLoaded() {
                 
@@ -27,49 +40,80 @@
                 var context = canvas.getContext("2d");
                 
                 context.drawImage(this, 0, 0);
-                var imageData = context.getImageData(0, 0, WIDTH, HEIGHT);
+                var imageData = context.getImageData(0, 0, KINECT_DEPTH_WIDTH, KINECT_DEPTH_HEIGHT);
                 
-                var binary = new Array(WIDTH * HEIGHT);
-                var buffer = new Array(WIDTH * HEIGHT);
+                var binary = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT);
+                var buffer = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT);
                 
                 ImageHandling.RGBAToBinary(imageData.data, binary);
                 ImageHandling.fillWithValue(buffer, 0);
                 
-                getTouches(binary, buffer);
+                getTouches(context, binary, buffer);
+                
+                /*
+                 canvas.beginPath();
+                 canvas.moveTo(20, 20);
+                 canvas.moveTo(100, 100);
+                 canvas.stroke();
+                 */
+                
             }
-            
+
             
             /**
-             
+             Get all touches in an image
              */
-            function getTouches(data, buffer) {
-                
-                for (var y = 0; y < HEIGHT; y++) {
-                    for (var x = 0; x < WIDTH; x++) {
+            function getTouches(context, data, buffer) {
+                for (var y = 0; y < KINECT_DEPTH_HEIGHT; y++) {
+                    for (var x = 0; x < KINECT_DEPTH_WIDTH; x++) {
                         
-                        var points = detectSingleTouch(data, buffer, x, y, 1);
-                        if (points > 0) console.log(points);
+                        var point = detectSingleTouch(data, buffer, x, y, 1);
+                        if (point) {
+                            console.log(point);
+                            var bounds = point.bounds;
+                            
+                            console.log(bounds);
+                            localStorage.hund = {x:3, y:3};
+                            
+                            context.strokeStyle="#FF0000";
+                            context.strokeRect(bounds.x,
+                                             bounds.y,
+                                             bounds.width,
+                                             bounds.height);
+                        }
                     }
                 }
             }
             
             
             /**
-             
+             If there is a touch at the specified point, return it
+             @param  data A binary image
+             @param buffer .......................
+             @ x, y Point to search for a touch
+             @ fillvalue .........................
              */
             function detectSingleTouch(data, buffer, x, y, fillValue) {
-                var result = false;
                 var n, index;
                 var queue = [];
                 
                 queue.push({x: x, y: y});
+                
+                var size = 0;
+                var xTotal = 0;
+                var yTotal = 0;
+                var leftMost = KINECT_DEPTH_WIDTH;
+                var rightMost = 0;
+                var upper = KINECT_DEPTH_HEIGHT;
+                var lower = 0;
+                
                 
                 while (queue.length > 0) {
                     /* Set n to be the last element in queue,
                      removing it from the queue */
                     n = queue.pop();
                     
-                    index = (n.y * WIDTH + n.x);
+                    index = (n.y * KINECT_DEPTH_WIDTH + n.x);
                     
                     // Check if index is out of bounds
                     if (index < 0 || index > data.length) {
@@ -77,34 +121,54 @@
                         continue;
                     }
                     
+                    /* Check if the point defined by index is
+                     part of the current touch */
                     if (data[index] == 1 && buffer[index] == 0) {
                         buffer[index] = fillValue;
-                        result = true;
+                        size++;
+                        xTotal += n.x;
+                        yTotal += n.y;
+                        
+                        if (n.x < leftMost) leftMost = n.x;
+                        if (n.x > rightMost) rightMost = n.x;
+                        if (n.y > lower) lower = n.y;
+                        if (n.y < upper) upper = n.y;
+                        
                         /*
-                         Add the points above, to the right,
-                         below and to the left of the current point
+                         Add the points above surrounding this one
                          */
-                        queue.push({x: n.x + 0, y: n.y - 1});
-                        queue.push({x: n.x + 1, y: n.y + 0});
                         queue.push({x: n.x + 0, y: n.y + 1});
+                        queue.push({x: n.x + 1, y: n.y + 1});
+                        queue.push({x: n.x + 1, y: n.y + 0});
+                        queue.push({x: n.x + 1, y: n.y - 1});
+                        queue.push({x: n.x + 0, y: n.y - 1});
+                        queue.push({x: n.x - 1, y: n.y - 1});
                         queue.push({x: n.x - 1, y: n.y + 0});
+                        queue.push({x: n.x - 1, y: n.y + 1});
                     }
                 }
-                return result;
+                
+                if (size > 0) {
+                    var touch = new Touch(
+                                          size,
+                                          xTotal / size,
+                                          yTotal / size,
+                                          leftMost,
+                                          upper,
+                                          rightMost - leftMost + 1,
+                                          lower - upper + 1
+                                          );
+                }
+                return touch;
             }
             
             
-            function 
-            
             </script>
     </head>
-    
     <body onload="init()">
         
         <div>
             <canvas id="touchCanvas">
                 </div>
-        
     </body>
-    
 </html>
