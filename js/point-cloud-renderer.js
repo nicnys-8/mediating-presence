@@ -31,10 +31,7 @@ PointCloudRenderer = function(canvas) {
 				  ].join("\n");
 		
 	// Get the WebGL context
-	var gl = WebGLUtils.setupWebGL2D(canvas);
-	
-	console.log(WebGLUtils);
-	console.log(gl);
+	var gl = WebGLUtils.setupWebGL(canvas);
 	
 	// Create the shader program
 	var prog = WebGLUtils.createProgram(gl, vsStr, fsStr);
@@ -105,7 +102,7 @@ PointCloudRenderer = function(canvas) {
 		gl.viewport(0, 0, canvas.width, canvas.height);
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 		
-		mat4.perspective(45, canvas.width / canvas.height, 0.1, 1000, pMatrix);
+		mat4.perspective(45, canvas.width / canvas.height, 0.1, 1000.0, pMatrix);
 		
 		mat4.identity(mvMatrix);
 		mat4.translate(mvMatrix, pos);
