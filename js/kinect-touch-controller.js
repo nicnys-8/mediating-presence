@@ -140,6 +140,28 @@ KinectTouchController.prototype.detectLargestTouch = function() {
     return largestTouch;
 }
 
+/**
+ Returns the largest Touch in the object's depth data
+ */
+KinectTouchController.prototype.getTouches = function() {
+    var largestSize = 0;
+    var largestTouch;
+    // Empty the buffer
+    ImageHandling.fillWithValue(this.buffer, 0);
+    
+	var touches = [];
+	
+    for (var y = 0; y < KINECT_DEPTH_HEIGHT; y++) {
+        for (var x = 0; x < KINECT_DEPTH_WIDTH; x++) {
+            var touch = this.getTouchAtPoint(x, y);
+            if (touch) {
+				touches.push(touch);
+			}
+        }
+    }
+    return touches;
+}
+
 
 /**
  If the point (x, y) in the object's touch data
