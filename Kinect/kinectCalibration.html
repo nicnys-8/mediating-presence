@@ -50,7 +50,7 @@
         <script type="text/javascript" src="../js/lib/zig.js"></script>
         <script type="text/javascript" src="../js/kinect-decoder.js"></script>
         <script type="text/javascript" src="../js/image-handling.js"></script>
-		
+		<script type="text/javascript" src="../js/kinect-touch-controller.js"></script>
         
         <script>
             
@@ -463,6 +463,14 @@
                      */
                     onBegin : function() {
                         
+						this.touchController = new KinectTouchController(depthRef, transform);
+                        // Set event callbacks
+						
+						var noop = function() {};
+                        this.touchController.onClick = noop;
+                        this.touchController.onMove = noop;
+                        this.touchController.onRelease = noop;
+						
                         // Used for drawing the touch area
                         tmpPoly = [{x:calibrationPoints[0].cameraX, y:calibrationPoints[0].cameraY},
                                    {x:calibrationPoints[1].cameraX, y:calibrationPoints[1].cameraY},
@@ -482,9 +490,13 @@
 
                         // ** TEMP **
                         // Draw the depth image in the background (temporary, just for reference)
+						
+						var videoCtx = currentVideoFrame.getContext("2d");
+						
                         ImageHandling.depthToRGBA(depthData, videoData.data);
-                        currentVideoFrame.getContext("2d").putImageData(videoData, 0, 0);
-                        Geometry.drawPolys([tmpPoly], currentVideoFrame.getContext("2d"));
+                        videoCtx.putImageData(videoData, 0, 0);
+                        Geometry.drawPolys([tmpPoly], videoCtx);
+						
                         this.ctx.drawImage(currentVideoFrame, 0, 0, window.innerWidth, window.innerHeight);
                         // **********
                         
@@ -502,7 +514,7 @@
                                 
                                 // A touch occurs between 5 and 15 millimeters
                                 // TODO: refine thresholds
-                                if (distance > 5 && distance < 15) {
+                                if (distance > 10 && distance < 20) {
                                     
                                     // Transform the point to browser coordinates
                                     var p = transform.transformPoint({x:x, y:y});
@@ -517,6 +529,21 @@
                                 }
                             }
                         }
+						
+						this.touchController.update(depthData);
+						var touches = this.touchController.getTouches();
+
+						this.ctx.strokeStyle="green";
+						this.ctx.lineWidth = 3;
+						for (var i = 0; i < touches.length; i++) {
+							var r = touches[i].bounds;
+							
+							var tl = transform.transformPoint({x:r.x, y:r.y});
+							var br = transform.transformPoint({x:r.x + r.width, y:r.y + r.height});
+							this.ctx.strokeRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
+						}
+						
+						
                         return false;
                     }, // end of CALIBRATION_STEP_4.onUpdate()
                     
