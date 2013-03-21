@@ -36,21 +36,21 @@ KlotskiLevel.prototype.tick = function() {
 KlotskiLevel.prototype.clickEvent = function(x, y) {
     for (var i = 0; i < this.blocks.length; i++) {
         
-        console.log("WAAAH");
         var blockHit = MouseInterface.getMouseHit(this.blocks, x, y);
         if (blockHit) {
             this.activeBlock = blockHit.object.parent;
             
             // Store the current position of the clicked block
+            /*
             this.activeBlock.startPoint.x = this.activeBlock.position.x;
             this.activeBlock.startPoint.z = this.activeBlock.position.z;
+             */
             
             floorHit = MouseInterface.getMouseHit([this.floor], x, y);
             
             if (floorHit) {
                 // Get the offset between hitpoint and the block
                 this.clickOffset.subVectors(floorHit.point, this.activeBlock.position);
-                
             }
         } return;
     }
@@ -84,16 +84,21 @@ KlotskiLevel.prototype.releaseEvent = function(x, y) {
     /* If a block was moved to a new position
      and then released, send the callback method
      */
+    
+    
     if (this.activeBlock) {
+        /*
         if (this.activeBlock.startPoint.x != this.activeBlock.position.x
             ||
             this.activeBlock.startPoint.z != this.activeBlock.position.z
             ) {
             this.callback();
-        }
+         
+        }*/
         // If a cube is selected, deselect it.
         this.activeBlock = null;
     }
+    
 }
 
 
@@ -105,33 +110,27 @@ KlotskiLevel.prototype.releaseEvent = function(x, y) {
  Add the walls to the level
  */
 KlotskiLevel.prototype.initWalls = function() {
-    var wall = new KlotskiWall(1, 7);
-    wall.snapToGridPoint(-1, -1);
+    var wall = new KlotskiWall(-1, -1, 1, 7);
     this.add(wall);
     this.obstacles.push(wall);
     
-    wall = new KlotskiWall(1, 7);
-    wall.snapToGridPoint(4, -1);
+    wall = new KlotskiWall(4, -1, 1, 7);
     this.add(wall);
     this.obstacles.push(wall);
     
-    wall = new KlotskiWall(4, 1);
-    wall.snapToGridPoint(0, -1);
+    wall = new KlotskiWall(0, -1, 4, 1);
     this.add(wall);
     this.obstacles.push(wall);
     
-    wall = new KlotskiWall(1, 7);
-    wall.snapToGridPoint(4, -1);
+    wall = new KlotskiWall(4, -1, 1, 7);
     this.add(wall);
     this.obstacles.push(wall);
     
-    wall = new KlotskiWall(1, 1);
-    wall.snapToGridPoint(0, 5);
+    wall = new KlotskiWall(0, 5, 1, 1);
     this.add(wall);
     this.obstacles.push(wall);
     
-    wall = new KlotskiWall(1, 1);
-    wall.snapToGridPoint(3, 5);
+    wall = new KlotskiWall(3, 5, 1, 1);
     this.add(wall);
     this.obstacles.push(wall);
 }
@@ -162,8 +161,7 @@ KlotskiLevel.prototype.initBlocks = function(tokens) {
     for (var i = 0; i < tokens.length; i++) {
         token = tokens[i];
         
-        var block = new KlotskiBlock(token.width, token.height, this.obstacles);
-        block.snapToGridPoint(token.x, token.y);
+        var block = new MovingBlock(token.x, token.y, token.width, token.height, this.obstacles);
         // Set the main block (this makes it blue and important and stuff...)
         if (token.main) block.setMain();
         
