@@ -3,12 +3,12 @@
 /**
  Level constructor
  */
-KlotskiLevel = function(callback) {
+KlotskiLevel = function(callback, blockList) {
     THREE.Object3D.call(this);
     this.obstacles = [];
     this.blocks = [];
     this.initWalls();
-    this.initBlocks();
+    this.initBlocks(blockList);
     this.initLights();
     this.initFloor();
     this.activeBlock = null;
@@ -138,7 +138,12 @@ KlotskiLevel.prototype.initWalls = function() {
 /**
  Add all blocks to the level
  */
-KlotskiLevel.prototype.initBlocks = function() {
+KlotskiLevel.prototype.initBlocks = function(blockList) {
+    
+    // Add some code to do some stuff!
+    
+    // http://help.dottoro.com/ljhlvomw.php
+    
     var block = new KlotskiBlock(2, 1, this.obstacles);
     block.snapToGridPoint(0, 0);
     this.add(block);
