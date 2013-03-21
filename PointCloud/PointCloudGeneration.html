@@ -61,8 +61,12 @@
                 var pos = [],
 					rgb = [];
                 
+				/*
 				var maxX=-Infinity, maxY=-Infinity, maxZ=-Infinity,
 					minX=Infinity, minY=Infinity, minZ=Infinity;
+				*/
+				
+				var zScale = document.getElementById("zScale").value;
 				
                 for (var y = 0, index = 0; y < KINECT_DEPTH_HEIGHT; y++) {
                     for (var x = 0; x < KINECT_DEPTH_WIDTH; x++, index++) {
@@ -73,13 +77,14 @@
                             // INCORRECT SCALING! :)
                             pos[index * 3 + 0] = x;
                             pos[index * 3 + 1] = -y;
-                            pos[index * 3 + 2] = -z / 3;
+                            pos[index * 3 + 2] = -z / zScale;
                             
                             rgb[index * 4 + 0] = videoData.data[index * 4 + 0] / 255.0;
                             rgb[index * 4 + 1] = videoData.data[index * 4 + 1] / 255.0;
                             rgb[index * 4 + 2] = videoData.data[index * 4 + 2] / 255.0;
                             rgb[index * 4 + 3] = videoData.data[index * 4 + 3] / 255.0;
 							
+							/*
 							maxX = Math.max(maxX, x);
 							maxY = Math.max(maxY, -y);
 							maxZ = Math.max(maxZ, -z);
@@ -87,13 +92,13 @@
 							minX = Math.min(minX, x);
 							minY = Math.min(minY, -y);
 							minZ = Math.min(minZ, -z);
-							
+							*/
                         }
                     }
                 }
-				console.log((maxX + minX) / 2 + ", " + (maxY + minY) / 2 + ", " + (maxZ + minZ) / 2);
-                renderer.setCenterOfRotation([-80, 60, 300]);
-				renderer.setPosition([0, 0, -300]);
+				// console.log((maxX + minX) / 2 + ", " + (maxY + minY) / 2 + ", " + (maxZ + minZ) / 2);
+                renderer.setCenterOfRotation([-80, 60, 1000 / zScale]);
+				renderer.setPosition([0, 0, -1000 / zScale]);
 				
 				renderer.bufferData(pos, rgb);
                 renderer.render();
@@ -115,4 +120,5 @@
         <h1>Point Cloud Generation</h1>
         <div id="container">
         </div>
+		z-scale: <input id="zScale" type="range" name="points" min="1" max="20" value="1">
 </html>
