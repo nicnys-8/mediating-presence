@@ -118,7 +118,6 @@
                         var tData = JSON.parse(localStorage.transform);
                         
                         var transform = new Geometry.Transform(tData[0], tData[1]);
-                        
                         kinectTouchController = new KinectTouchController(depthRef, transform);
                         // Set event callbacks
                         kinectTouchController.onClick = kinectClick;
@@ -224,13 +223,10 @@
                         level.releaseEvent();
                     }
                     
-                    
                     </script>
-                
-                
                 </head>
+    
     <body style="overflow:hidden; margin:0px" onload="init()">
-        
         
         <div id="pluginContainer">
             <object id="ZigPlugin" type="application/x-zig" width="0" height="0">

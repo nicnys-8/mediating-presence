@@ -78,14 +78,14 @@ KlotskiBlock = function(width, height, obstacles) {
     this.mesh.position.set((width * gridSize / 2), 0, (height * gridSize / 2));
     this.add(this.mesh);
     
-    this.superDuper = false;
+    this.main = false;
 };
 
 KlotskiBlock.prototype = Object.create(THREE.Object3D.prototype);
 
 
-KlotskiBlock.prototype.setSuperDuper = function() {
-    this.superDuper = true;
+KlotskiBlock.prototype.setMain = function() {
+    this.main = true;
     this.material.color.setRGB(0.4 * Math.random(), 0.4 * Math.random(), 1);
 }
 
@@ -171,11 +171,11 @@ KlotskiBlock.prototype.stepTowardTarget = function() {
     
     // Stupid code for winning the game
     if (
-        this.superDuper &&
+        this.main &&
         this.position.x == gridSize * 1 &&
         this.position.z == gridSize * 4) {
         alert("You win!");
-        this.superDuper = false;
+        this.main = false;
     }
 }
 
