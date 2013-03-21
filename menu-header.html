@@ -115,12 +115,24 @@
 			
 			function init() {
 				current = "#chat";
+				
+				var hash = window.location.hash;
+				hash = hash.substring(0, hash.length - 1); // remove underscore
+				
+				if (buttonOrder.indexOf(hash) != -1) {
+					current = hash;
+				}
+				
 				$(current).show();
 				$(current).css("left", "0");
 				$(current + "button").addClass("selected");
 			}
 			
 			function switchTo(name) {
+				
+				if (name == current) {
+					return;
+				}
 				
 				var currentNode = $(current);
 				var nextNode = $(name);
@@ -148,6 +160,7 @@
 				$(name +"button").toggleClass("selected");
 				
 				current = name;
+				document.location.hash = name + "_";
 			}
 			
 			function showChat() {
