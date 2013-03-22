@@ -1,29 +1,4 @@
-
-// MOVE LATER
-/*-------------------
- ====================
- ------------------*/
-
-
-var Klotski = Klotski || {};
-
-// De här två ska flyttas till en separat Klotskiklass sen
-Klotski.setBlockblockSpeed = function(speed) {
-    blockSpeed = speed;
-}
-
-Klotski.setGridSize = function(size) {
-    gridSize = size;
-}
-
-/*-------------------
- ====================
- ------------------*/
-
-// Default values
-var gridSize = 50;
-var blockSpeed = 4;
-
+const speed = 0.1;
 
 /**
  Block constructor
@@ -31,14 +6,15 @@ var blockSpeed = 4;
 Block = function(column, row, width, height) {
     THREE.Object3D.call(this);
     
-    this.width = width * gridSize;
-    this.height = height * gridSize;
+    this.width = width;
+    this.height = height;
     
     this.material = new THREE.MeshPhongMaterial();
-    var geometry = new THREE.CubeGeometry(this.width, gridSize * 2, this.height);
+    var geometry = new THREE.CubeGeometry(width, height, 1);
+    
     this.mesh = new THREE.Mesh(geometry, this.material);
-    // Set the origin to the upper left corner of the mesh
-    this.mesh.position.set((width * gridSize / 2), 0, (height * gridSize / 2));
+    // Move the mesh so that its corner is at the origin
+    this.mesh.position.set((width / 2), (height / 2), 0.5);
     this.add(this.mesh);
     this.snapToGridPoint(column, row);
 }
@@ -50,7 +26,7 @@ Block.prototype = Object.create(THREE.Object3D.prototype);
  Move the block to the specified grid point
  */
 Block.prototype.snapToGridPoint = function(column, row) {
-    this.position.set(column * gridSize, gridSize / 2, row * gridSize);
+    this.position.set(column, row, 0.5);
 }
 
 
@@ -59,7 +35,6 @@ Block.prototype.snapToGridPoint = function(column, row) {
  */
 KlotskiWall = function(column, row, width, height) {
     Block.call(this, column, row, width, height);
-    
     // Set the texture
     var texture = THREE.ImageUtils.loadTexture('../images/rock.png');
     this.material.map = texture;
@@ -78,7 +53,7 @@ MovingBlock = function(column, row, width, height, obstacles) {
     Block.call(this, column, row, width, height);
     
     this.targetX = this.position.x;
-    this.targetZ = this.position.z;
+    this.targetY = this.position.y;
     
     this.material.color.setRGB(1, 0.4 * Math.random(), 0.4 * Math.random());
     this.obstacles = obstacles;
@@ -102,15 +77,15 @@ MovingBlock.prototype.setMain = function() {
  Check if the block is snapped vertically
  */
 MovingBlock.prototype.xSnapped = function() {
-    return (this.position.x % gridSize == 0);
+    return (this.position.x % 1 == 0);
 }
 
 
 /**
  Check if the block is snapped horizontally
  */
-MovingBlock.prototype.zSnapped = function() {
-    return (this.position.z % gridSize == 0);
+MovingBlock.prototype.ySnapped = function() {
+    return (this.position.y % 1 == 0);
 }
 
 
@@ -118,37 +93,41 @@ MovingBlock.prototype.zSnapped = function() {
  Update the blocks target position; decides where the
  block will move when stepTowardTarget is called
  */
-MovingBlock.prototype.updateTargetPosition = function(point) {
-    var xDistance, zDistance;
+MovingBlock.prototype.updateTargetPosition = function(column, row) {
+    var xDistance, yDistance;
     var sign;
+    xDistance = column - this.position.x;
+    yDistance = row - this.position.y;
     
-    xDistance = point.x - this.position.x;
-    zDistance = point.z - this.position.z;
-    
-    // Horizontal movement:
-    if (Math.abs(xDistance) > Math.abs(zDistance)) {
+    /*------------------------
+     == Horizontal targeting==
+     ------------------------*/
+    if (Math.abs(xDistance) > Math.abs(yDistance)) {
         
-        if (Math.abs(xDistance) < gridSize / 2) return;
-        if (!this.zSnapped()) return;
+        if (Math.abs(xDistance) < 0.5) return; // Return if too close
+        if (!this.ySnapped()) return;
         
         sign = Math.sign(xDistance);
-        // Set the target one gridpoint away in the direction of 'sign'
-        this.targetX = Math.round(sign + (this.position.x) / gridSize) * gridSize;
+        
+        // Set the target in the direction of 'sign'
+        this.targetX = Math.round(this.position.x + sign);
         // Prevent diagonal motion
-        this.targetZ = (Math.round(this.position.z / gridSize)) * gridSize;
+        this.targetY = (Math.round(this.position.y));
     }
     
-    // Horizontal movement:
+    /*----------------------
+     == Vertical targeting==
+     ----------------------*/
     else {
         
-        if (Math.abs(zDistance) < gridSize / 2) return;
+        if (Math.abs(yDistance) < 0.5) return;
         if (!this.xSnapped()) return;
         
-        sign = Math.sign(zDistance);
+        sign = Math.sign(yDistance);
         // Set the target one gridpoint away in the direction of 'sign'
-        this.targetZ = Math.round(sign + (this.position.z + sign) / gridSize) * gridSize;
+        this.targetY = Math.round(this.position.y + sign);
         // Prevent diagonal motion
-        this.targetX = (Math.round(this.position.x / gridSize)) * gridSize;
+        this.targetX = (Math.round(this.position.x));
     }
 }
 
@@ -157,14 +136,14 @@ MovingBlock.prototype.updateTargetPosition = function(point) {
  Move a bit toward the target position
  */
 MovingBlock.prototype.stepTowardTarget = function() {
-    this.xStep(blockSpeed);
-    this.zStep(blockSpeed);
+    this.xStep(speed);
+    this.yStep(speed);
     
     // Stupid code for winning the game
     if (
         this.main &&
-        this.position.x == gridSize * 1 &&
-        this.position.z == gridSize * 4) {
+        this.position.x == 1 &&
+        this.position.y == 4) {
         alert("You win!");
         this.main = false;
     }
@@ -175,11 +154,13 @@ MovingBlock.prototype.stepTowardTarget = function() {
  Move (at most) the specified distance toward the specified point along the x-axis
  */
 MovingBlock.prototype.xStep = function(dx) {
-    var distance = Math.abs(this.position.x - this.targetX);
-    // if (distance == 0) return;
     
+    var distance = Math.abs(this.position.x - this.targetX);
+    if (distance == 0) return;
+    
+    // Make sure the block won't move past the target
     dx = Math.min(dx, distance);
-    var dir = ((this.position.x < this.targetX) ? 1 : -1);
+    var dir = ((this.position.x < this.targetX) ? 1 : -1); // ANVÄND SIGN!!!!!!
     
     // Translate by dx in the specified direction
     var xMovement = dir * dx;
@@ -189,11 +170,10 @@ MovingBlock.prototype.xStep = function(dx) {
         //If so, undo it...
         this.translateX(-xMovement);
         // ...move to contact position...
-        while (!this.collides()) {
-            this.translateX(dir);
-        }
+            this.snapToGridPoint(Math.round(this.position.x),
+                                 Math.round(this.position.y),
+                                            0);
         // ... and stop moving!
-        this.translateX(-dir);
         this.targetClosestGridPoint();
     }
 }
@@ -202,37 +182,37 @@ MovingBlock.prototype.xStep = function(dx) {
 /**
  Move (at most) the specified distance toward the specified point along the z-axis
  */
-MovingBlock.prototype.zStep = function(dz) {
-    var distance = Math.abs(this.position.z - this.targetZ);
-    // if (distance == 0) return;
+MovingBlock.prototype.yStep = function(dy) {
     
-    dz = Math.min(dz, distance);
-    var dir = ((this.position.z < this.targetZ) ? 1 : -1);
+    var distance = Math.abs(this.position.y - this.targetY);
+    if (distance == 0) return;
     
-    // Translate by dz in the specified direction
-    var zMovement = dir * dz;
-    this.translateZ(zMovement);
+    // Make sure the block won't move past the target
+    dy = Math.min(dy, distance);
+    var dir = ((this.position.y < this.targetY) ? 1 : -1);
+    // Translate by dy in the specified direction
+    var yMovement = dir * dy;
+    this.translateY(yMovement);
     // Check if the translation resulted in a collision
     if (this.collides()) {
         //If so, undo it...
-        this.translateZ(-zMovement);
+        this.translateY(-yMovement);
         // ...move to contact position...
-        while (!this.collides()) {
-            this.translateZ(dir);
-        }
+        this.snapToGridPoint(Math.round(this.position.x),
+                             Math.round(this.position.y),
+                                        0);
         // ... and stop moving!
-        this.translateZ(-dir);
         this.targetClosestGridPoint();
     }
 }
 
 
 /**
- ...
+ Target the gridpoint closest to the block's current position
  */
 MovingBlock.prototype.targetClosestGridPoint = function() {
-    this.targetX = (Math.round(this.position.x / gridSize)) * gridSize;
-    this.targetZ = (Math.round(this.position.z / gridSize)) * gridSize;
+    this.targetX = (Math.round(this.position.x));
+    this.targetY = (Math.round(this.position.y));
 }
 
 
@@ -253,10 +233,10 @@ MovingBlock.prototype.collides = function() {
               this.position.x >=
               obstacle.position.x + obstacle.width ||
               
-              this.position.z + this.height <=
-              obstacle.position.z ||
-              this.position.z >=
-              obstacle.position.z + obstacle.height
+              this.position.y + this.height <=
+              obstacle.position.y ||
+              this.position.y >=
+              obstacle.position.y + obstacle.height
               )) {
             collides = true;
         }
