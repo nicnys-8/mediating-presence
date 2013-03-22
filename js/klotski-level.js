@@ -36,7 +36,7 @@ KlotskiLevel.prototype.tick = function() {
  If a MovingBlock is clicked, make it controllable
  */
 KlotskiLevel.prototype.clickEvent = function(x, y) {
-    for (var i = 0; i < this.blocks.length; i++) {        
+    for (var i = 0; i < this.blocks.length; i++) {
         var blockHit = MouseInterface.getMouseHit(this.blocks, x, y);
         if (blockHit) {
             this.activeBlock = blockHit.object.parent;
@@ -51,18 +51,16 @@ KlotskiLevel.prototype.clickEvent = function(x, y) {
 }
 
 
-
 /**
  If a block is active, move it
  */
 KlotskiLevel.prototype.moveEvent = function(x, y) {
     // Find where the mouse intersects the floor
     if (this.activeBlock) {
-
+        
         var hit = MouseInterface.getMouseHit([this.floor], x, y);
         // Return if the floor isn't at the touch point
         if (!hit) return;
-        
         var target = new THREE.Vector3();
         target.subVectors(hit.point, this.clickOffset);
         /* Update the active blocks target position
