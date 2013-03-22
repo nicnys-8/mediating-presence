@@ -21,13 +21,12 @@
                 <script>
                     // Camera constants
                     const VIEW_ANGLE = 45;
-                    
-                    const SCREEN_WIDTH = window.innerWidth;
-                    const SCREEN_HEIGHT = window.innerHeight;
-                    
-                    const ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT;
                     const NEAR = 0.01;
                     const FAR = 200;
+					
+					var SCREEN_WIDTH = window.innerWidth;
+                    var SCREEN_HEIGHT = window.innerHeight;
+                    var ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT;
                     
                     var container, scene, camera, renderer, controls;
                     var level;
@@ -70,6 +69,23 @@
                         document.body.appendChild(container);
                         container.appendChild(renderer.domElement);
                         
+						window.onresize = function() {
+							
+							SCREEN_WIDTH = window.innerWidth;
+							SCREEN_HEIGHT = window.innerHeight;
+							ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT;
+							
+							scene.remove(camera);
+							
+							camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
+							camera.position.set(2, 2.5, 12);
+							camera.lookAt(new THREE.Vector3(2, 2.5, 0));
+							
+							scene.add(camera);
+							
+							renderer.setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
+						}
+						
                         // Events -- Oy!!!! Make this work again later!
                         //THREEx.WindowResize(renderer, camera);
                         
