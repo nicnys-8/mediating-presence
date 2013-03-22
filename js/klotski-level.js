@@ -27,19 +27,23 @@ KlotskiLevel = function(blockList) {
     var particles = new THREE.Geometry();
     
     
+    var pMaterial =
+    new THREE.ParticleBasicMaterial({
+                                    color: 0xFFFFFF,
+                                    size: 20
+                                    });
+    
     // create the particle variables
     var pMaterial =
     new THREE.ParticleBasicMaterial({
                                     color: 0xFFFFFF,
-                                    size: 20,
+                                    size: 0.1,
                                     map: THREE.ImageUtils.loadTexture(
                                                                       "../images/particle.png"
                                                                       ),
                                     blending: THREE.AdditiveBlending,
                                     transparent: true
                                     });
-    
-    
     
     
     // now create the individual particles
