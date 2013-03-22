@@ -120,11 +120,17 @@
                     function initKinect() {
                         plugin = document.getElementById("ZigPlugin");
                         
-                        var depthRef = JSON.parse(localStorage.depthRef);
-                        var tData = JSON.parse(localStorage.transform);
+                        var dJSON = localStorage.depthRef;
+                        var TJSON = localStorage.transform;
                         
                         // If no transform data is found, return.
-                        if (!depthRef || !tData) return;
+                        if (!dJSON || !TJSON) {
+                            alert("Kinect not calibrated! Motion controls won't work...");
+                            return;
+                        }
+                        
+                        var depthRef = JSON.parse(dJSON);
+                        var tData = JSON.parse(TJSON);
                         
                         var transform = new Geometry.Transform(tData[0], tData[1]);
                         kinectTouchController = new KinectTouchController(depthRef, transform);
