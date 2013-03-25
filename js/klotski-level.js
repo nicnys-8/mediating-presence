@@ -1,6 +1,10 @@
 
 function KlotskiLevel() {};
 
+var particleSystem;
+var particleCount = 100;
+var particles;
+
 
 /**
  Level constructor
@@ -16,71 +20,10 @@ KlotskiLevel = function(blockList) {
     this.initFloor();
     this.activeBlock = null;
     this.clickOffset = new THREE.Vector3(0, 0, 0);
-    
-    
-    //////////
-    //////////
-    ////////
-    
-    // create the particle variables
-    var particleCount = 100;
-    var particles = new THREE.Geometry();
-    
-    
-    var pMaterial =
-    new THREE.ParticleBasicMaterial({
-                                    color: 0xFFFFFF,
-                                    size: 20
-                                    });
-    
-    // create the particle variables
-    var pMaterial =
-    new THREE.ParticleBasicMaterial({
-                                    color: 0xFFFFFF,
-                                    size: 0.1,
-                                    map: THREE.ImageUtils.loadTexture(
-                                                                      "../images/particle.png"
-                                                                      ),
-                                    blending: THREE.AdditiveBlending,
-                                    transparent: true
-                                    });
-    
-    
-    // now create the individual particles
-    for(var p = 0; p < particleCount; p++) {
-        
-        // create a particle with random
-        // position values, -250 -> 250
-        var pX = Math.random() * 2,
-        pY = Math.random() * 2,
-        pZ = Math.random() * 2,
-        particle = new THREE.Vertex(
-                                    new THREE.Vector3(pX, pY, pZ)
-                                    );
-        
-        // add it to the geometry
-        particles.vertices.push(particle);
-    }
-    
-    // create the particle system
-    particleSystem =
-    new THREE.ParticleSystem(
-                             particles,
-                             pMaterial);
-    
-    // add it to the scene
+    this.particleSystem = new TouchParticleSystem();
     this.add(particleSystem);
-    
-    
-    // also update the particle system to
-    // sort the particles which enables
-    // the behaviour we want
-    particleSystem.sortParticles = true;
-        
-    ////////
-    //////////
-    //////////
-}
+    console.log(particleSystem);
+    }
 
 
 KlotskiLevel.prototype = Object.create(THREE.Object3D.prototype);
@@ -93,6 +36,7 @@ KlotskiLevel.prototype.tick = function() {
     for (var i = 0; i < this.blocks.length; i++) {
         this.blocks[i].stepTowardTarget();
     }
+    this.updateP();
 }
 
 
@@ -251,6 +195,10 @@ KlotskiToken = function(x, y, width, height, main) {
 }
 
 
-
+// animation loop
+KlotskiLevel.prototype.updateP = function() {
+    this.particleSystem.update();
+    
+}
 
 
