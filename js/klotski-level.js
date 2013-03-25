@@ -1,10 +1,6 @@
 
 function KlotskiLevel() {};
 
-var particleSystem;
-var particleCount = 100;
-var particles;
-
 
 /**
  Level constructor
@@ -21,8 +17,8 @@ KlotskiLevel = function(blockList) {
     this.activeBlock = null;
     this.clickOffset = new THREE.Vector3(0, 0, 0);
     this.particleSystem = new TouchParticleSystem();
-    this.add(particleSystem);
-    console.log(particleSystem);
+    this.add(this.particleSystem);
+    console.log(this.particleSystem);
     }
 
 
@@ -36,7 +32,7 @@ KlotskiLevel.prototype.tick = function() {
     for (var i = 0; i < this.blocks.length; i++) {
         this.blocks[i].stepTowardTarget();
     }
-    this.updateP();
+    this.particleSystem.update();
 }
 
 
@@ -86,7 +82,6 @@ KlotskiLevel.prototype.releaseEvent = function(x, y) {
         // If a cube is selected, deselect it.
         this.activeBlock = null;
     }
-    
 }
 
 
@@ -194,11 +189,5 @@ KlotskiToken = function(x, y, width, height, main) {
     if (main) this.main = main;
 }
 
-
-// animation loop
-KlotskiLevel.prototype.updateP = function() {
-    this.particleSystem.update();
-    
-}
 
 

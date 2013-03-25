@@ -1,10 +1,15 @@
+const particleCount = 100;
 
-function TouchParticleSystem() {};
+function TouchParticleSystem() {
+};
+
+//TouchParticleSystem.particleCount = 100;
 
 /**
  Particle constructor
  */
 TouchParticleSystem = function() {
+    console.log(TouchParticleSystem.hello);
     // create the particle variables
     this.particles = new THREE.Geometry();
     // create the particle variables
@@ -19,7 +24,7 @@ TouchParticleSystem = function() {
     
     THREE.ParticleSystem.call(this, this.particles, pMaterial);
     
-    this.particleCount = 100;
+    
     // now create the individual particles
     var particle;
     for (var p = 0; p < particleCount; p++) {
@@ -47,7 +52,6 @@ TouchParticleSystem.prototype = Object.create(THREE.ParticleSystem.prototype);
  ...
  */
 TouchParticleSystem.prototype.update = function() {
-
     // add some rotation to the system
     this.rotation.y += 0.01;
     
@@ -65,7 +69,7 @@ TouchParticleSystem.prototype.update = function() {
         // update the velocity with
         // a splat of randomniz
         particle.velocity.y -=
-        Math.random() * .1;
+        Math.random() * 0.1;
         
         // and the position
         particle.position.addSelf(particle.velocity);
@@ -74,7 +78,5 @@ TouchParticleSystem.prototype.update = function() {
     // flag to the particle system
     // that we've changed its vertices.
     this.geometry.__dirtyVertices = true;
-
-
 }
 
