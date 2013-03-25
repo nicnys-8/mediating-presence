@@ -18,8 +18,17 @@ KlotskiLevel = function(blockList) {
     this.clickOffset = new THREE.Vector3(0, 0, 0);
     this.particleSystem = new TouchParticleSystem();
     this.add(this.particleSystem);
-    console.log(this.particleSystem);
-    }
+    
+    /*
+     Move down a tiny bit to prevent flickering,
+     and move it so that it's center is at the center of the level
+     */
+    floor.position.set(2, 3, -0.1);
+    this.add(floor);
+    this.floor = floor;
+
+    
+}
 
 
 KlotskiLevel.prototype = Object.create(THREE.Object3D.prototype);
@@ -59,12 +68,15 @@ KlotskiLevel.prototype.clickEvent = function(x, y) {
  If a block is active, move it
  */
 KlotskiLevel.prototype.moveEvent = function(x, y) {
-    // Find where the mouse intersects the floor
+
+    var mouse3D = MouseInterface.getMouse3D(x, y);
+    this.particleSystem.position.set(mouse3D.x, mouse3D.y, mouse3D.z);
+    
+    var hit = MouseInterface.getMouseHit([this.floor], x, y);
+    if (!hit) return; // Return if the floor isn't hit
+    
+    // Blocks
     if (this.activeBlock) {
-        
-        var hit = MouseInterface.getMouseHit([this.floor], x, y);
-        // Return if the floor isn't at the touch point
-        if (!hit) return;
         var target = new THREE.Vector3();
         target.subVectors(hit.point, this.clickOffset);
         /* Update the active blocks target position

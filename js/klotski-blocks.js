@@ -170,9 +170,9 @@ MovingBlock.prototype.xStep = function(dx) {
         //If so, undo it...
         this.translateX(-xMovement);
         // ...move to contact position...
-            this.snapToGridPoint(Math.round(this.position.x),
-                                 Math.round(this.position.y),
-                                            0);
+        this.snapToGridPoint(Math.round(this.position.x),
+                             Math.round(this.position.y),
+                             0);
         // ... and stop moving!
         this.targetClosestGridPoint();
     }
@@ -200,7 +200,7 @@ MovingBlock.prototype.yStep = function(dy) {
         // ...move to contact position...
         this.snapToGridPoint(Math.round(this.position.x),
                              Math.round(this.position.y),
-                                        0);
+                             0);
         // ... and stop moving!
         this.targetClosestGridPoint();
     }
