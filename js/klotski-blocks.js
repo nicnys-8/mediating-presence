@@ -1,4 +1,4 @@
-const speed = 0.1;
+const SPEED = 0.1;
 
 /**
  Block constructor
@@ -136,8 +136,8 @@ MovingBlock.prototype.updateTargetPosition = function(column, row) {
  Move a bit toward the target position
  */
 MovingBlock.prototype.stepTowardTarget = function() {
-    this.xStep(speed);
-    this.yStep(speed);
+    this.xStep(SPEED);
+    this.yStep(SPEED);
     
     // Stupid code for winning the game
     if (
