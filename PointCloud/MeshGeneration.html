@@ -1,0 +1,204 @@
+
+<!-- Partly based on example from http://learningwebgl.com/lessons/lesson02/index.html -->
+
+<html>
+    <head>
+        
+        <title>Point Cloud Rendering Test</title>
+        
+        <script type="text/javascript" src="../js/mediaext.js"></script>
+        <script type="text/javascript" src="../js/lib/webgl-utils.js"></script>
+        <script type="text/javascript" src="../js/lib/glMatrix-0.9.5.min.js"></script>
+        <script type="text/javascript" src="../js/lib/zig.js"></script>
+        <script type="text/javascript" src="../js/kinect-decoder.js"></script>
+        <script type="text/javascript" src="../js/image-handling.js"></script>
+		<script type="text/javascript" src="../js/rgba-mesh-renderer.js"></script>
+		
+        <link rel="stylesheet" type="text/css" href="../css/pb.css"/>
+        <link rel="stylesheet" type="text/css" href="../css/pointcloud.css"/>
+        
+        <script type="text/javascript">
+            
+            const VIDEO_DISPLAY_WIDTH = 640, VIDEO_DISPLAY_HEIGHT = 480;
+			const KINECT_RGB_WIDTH = 160, KINECT_RGB_HEIGHT = 120;
+            const KINECT_DEPTH_WIDTH = 160, KINECT_DEPTH_HEIGHT = 120;
+            
+            var depthData = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT);
+            var videoData;
+            var glCanvas, renderer;
+			
+			var meshRowSizes = new Array(KINECT_DEPTH_HEIGHT);
+			
+            function init() {
+                
+                glCanvas = MediaExt.createCanvas(VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
+                glCanvas.style.margin = "20px auto";
+                document.getElementById("container").appendChild(glCanvas);
+				
+				var canvas = MediaExt.createCanvas(KINECT_RGB_WIDTH, KINECT_RGB_HEIGHT);
+				videoData = canvas.getContext("2d").createImageData(KINECT_RGB_WIDTH, KINECT_RGB_HEIGHT);
+				
+				renderer = new MeshRenderer(glCanvas);
+				
+                plugin = document.getElementById("ZigPlugin");
+				// Start the video streams
+				plugin.requestStreams({updateDepth:true, updateImage:true});
+				// Start updating the canvases every new kinect frame
+                plugin.addEventListener("NewFrame", onNewKinectData);
+            }
+            
+            var maxDepth = 1500;
+            
+            /**
+             Callback from the plugin when new depth and RGB data is available from the Kinect.
+             */
+			function onNewKinectData() {
+				
+                // Decode the video data
+                KinectDecoder.decodeRGB(plugin.imageMap, videoData.data);
+                
+                // Decode the depth data
+                KinectDecoder.decodeDepth(plugin.depthMap, depthData);
+                
+                var pos = [],
+					rgb = [];
+                
+				/*
+				var maxX=-Infinity, maxY=-Infinity, maxZ=-Infinity,
+					minX=Infinity, minY=Infinity, minZ=Infinity;
+				*/
+				
+				var zScale = document.getElementById("zScale").value;
+				
+                for (var y = 0, index = 0; y < KINECT_DEPTH_HEIGHT; y++) {
+				
+				meshRowSizes[y] = 0;
+				
+                    for (var x = 0; x < KINECT_DEPTH_WIDTH; x++, index++) {
+                        
+                        var z = depthData[index];
+                        
+                        if (z > 0 && z < maxDepth) {
+                            // INCORRECT SCALING! :)
+                            pos[index * 3 + 0] = x;
+                            pos[index * 3 + 1] = -y;
+                            pos[index * 3 + 2] = -z / zScale;
+                            
+                            rgb[index * 4 + 0] = videoData.data[index * 4 + 0] / 255.0;
+                            rgb[index * 4 + 1] = videoData.data[index * 4 + 1] / 255.0;
+                            rgb[index * 4 + 2] = videoData.data[index * 4 + 2] / 255.0;
+                            rgb[index * 4 + 3] = videoData.data[index * 4 + 3] / 255.0;
+							
+							/*
+							maxX = Math.max(maxX, x);
+							maxY = Math.max(maxY, -y);
+							maxZ = Math.max(maxZ, -z);
+							
+							minX = Math.min(minX, x);
+							minY = Math.min(minY, -y);
+							minZ = Math.min(minZ, -z);
+							*/
+							
+							meshRowSizes[y] += 1;
+                        }
+                    }
+                }
+				
+				var triangles = [];
+				var nextRow, index = 0;
+				
+				var rowSize, nextRowSize;
+				var pointsUp;
+				
+				/*
+				Bad first attempt at meshing the point cloud
+				*/
+				for (var i = 0; i < KINECT_DEPTH_HEIGHT; i++) {
+					
+					rowSize = meshRowSizes[i];
+					
+					// No triangles if a row is empty
+					if (rowSize == 0) {
+						continue;
+					}
+					
+					// Find the next row containing points
+					nextRow = i + 1;
+
+					while (nextRow < KINECT_DEPTH_HEIGHT && meshRowSizes[nextRow] == 0) {
+						nextRow++;
+					}
+					if (nextRow >= KINECT_DEPTH_HEIGHT) {
+						break;
+					}
+					nextRowSize = meshRowSizes[nextRow];
+					
+					// Can't make a triangle unless at least three vertices exist
+					if (rowSize < 2 && nextRowSize < 2) {
+						continue;
+					}
+					
+					// Does the first triangle point up or down?
+					pointsUp = (rowSize == 1);
+				
+					var rowIndex = 0;
+					var nextRowIndex = 0;
+					
+					// Add indices
+					while (true) {
+						
+						if (pointsUp) {
+						
+						if (nextRowIndex >= nextRowSize - 1)
+								break;
+								
+							triangles.push(index + rowIndex);
+							triangles.push(index + rowSize + nextRowIndex);
+							triangles.push(index + rowSize + nextRowIndex + 1);
+							
+							nextRowIndex++;
+							
+						} else {
+						
+							if (rowIndex >= rowSize - 1)
+								break;
+							
+							triangles.push(index + rowIndex);
+							triangles.push(index + rowSize + nextRowIndex);
+							triangles.push(index + rowIndex+ 1);
+							
+							rowIndex++;
+						}
+						
+						pointsUp = !pointsUp;
+					}
+					
+					index += rowSize;
+				}
+				
+				// console.log((maxX + minX) / 2 + ", " + (maxY + minY) / 2 + ", " + (maxZ + minZ) / 2);
+                renderer.setCenterOfRotation([-80, 60, 1000 / zScale]);
+				renderer.setPosition([0, 0, -1000 / zScale]);
+				
+				renderer.bufferData(pos, rgb, triangles);
+                renderer.render();
+                // console.log(pos.length);
+			}
+            
+            </script>
+        
+    </head>
+	
+	<body onload="init();">
+        
+        <div id="pluginContainer">
+            <object id="ZigPlugin" type="application/x-zig" width="0" height="0">
+                <param name="onload" value="zigPluginLoaded">
+                    </object>
+        </div>
+        
+        <h1>Point Cloud Generation</h1>
+        <div id="container">
+        </div>
+		z-scale: <input id="zScale" type="range" name="points" min="1" max="20" value="1">
+</html>
