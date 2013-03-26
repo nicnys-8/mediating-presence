@@ -54,7 +54,7 @@
                                        ];
                         
                         // Container in which the game is placed
-                        var container = document.getElementById("container");
+                        container = document.getElementById("container");
                         
                         SCREEN_WIDTH = container.offsetWidth;
                         SCREEN_HEIGHT = container.offsetHeight;
@@ -80,7 +80,7 @@
                                                 
 						window.onresize = function() {
                             
-                            var container = document.getElementById("container");
+                            container = document.getElementById("container");
                             
                             SCREEN_WIDTH = container.offsetWidth;
                             SCREEN_HEIGHT = container.offsetHeight;
@@ -101,9 +101,12 @@
                         //THREEx.WindowResize(renderer, camera);
                         
                         // Start listening for mouse clicks
-                        document.addEventListener('mousedown', mouseClick, false);
+                        
+                        //document.addEventListener('mousedown', mouseClick, false);
                         document.addEventListener('mousemove', mouseMove, false);
                         document.addEventListener('mouseup', mouseRelease, false);
+                        
+                        initMouseEvents();
                         
                         // Kinect
                         initKinect();
@@ -153,8 +156,8 @@
                         
                         var transform = new Geometry.Transform(tData[0], tData[1]);
                         kinectTouchController = new KinectTouchController(depthRef, transform);
-                        var container = document.getElementById("container");
-                        kinectTouchController.setTarget(container); // TODO: REMOVE AND REPLACE
+                        
+                        kinectTouchController.setTarget(document.getElementById("container"));
                         
                         // Start the video streams
                         plugin.requestStreams({updateDepth:true, updateImage:true});
@@ -183,14 +186,24 @@
                     /*---------------------
                      ===| Mouse Events |===
                      --------------------*/
+                    
+                    initMouseEvents = function() {
+                    
+                        container.onclick = function (event) {
+                            // event.preventDefault()
+                            // console.log("Clicked at (" + x + "), (" + y + ")");
+                            level.clickEvent(event.clientX, event.clientY);
+                        }
+                    }
+                    
                     /**
                      When the mouse is clicked
-                     */
+                     
                     function mouseClick(event) {
                         // event.preventDefault()
-                        //console.log("Clicked at (" + x + "), (" + y + ")");
+                        // console.log("Clicked at (" + x + "), (" + y + ")");
                         level.clickEvent(event.clientX, event.clientY);
-                    }
+                    }*/
                     
                     
                     /**
@@ -205,7 +218,7 @@
                      Called when the left mouse button is released
                      */
                     function mouseRelease(event) {
-                        //console.log("Released at (" + x + "), (" + y + ")");
+                        // console.log("Released at (" + x + "), (" + y + ")");
                         level.releaseEvent();
                     }
                     

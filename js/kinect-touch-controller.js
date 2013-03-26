@@ -277,6 +277,7 @@ KinectTouchController.prototype.simulateMouseDown = function(touchPoint) {
     console.log(event);
     
     //Fire the event
+    console.log(this.target.dispatchEvent);
     this.target.dispatchEvent(event);
 }
 
