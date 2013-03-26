@@ -56,6 +56,29 @@
 				display:inline;
 			}
 			
+			#sidebar-left {
+				position:absolute;
+				left:0px;
+				width:100px;
+				height:100%;
+				background-color:lightblue;
+				z-index:2;
+			}
+			#sidebar-right {
+				position:absolute;
+				right:0px;
+				width:100px;
+				height:100%;
+				background-color:lightblue;
+				z-index:2;
+			}
+			#content {
+				position:absolute;
+				left:0px; /*100px;*/
+				right:0px; /*100px;*/
+				height:100%;
+				z-index:1;
+			}
 			.linkbutton {
 				display:inline-block;
 				width:100px;
@@ -217,16 +240,26 @@
 					onclick="toggleVideo();"></div></li><!--
 			--></ul><!--
 		--></div>
-        
+		
 		<div id="wrap">
+			
+			<!--
+			<div id="sidebar-left">
+			</div>
+			-->
+			
 			<div id="content">
 				
-				<iframe id="chat" src="passThroughTest.html" seamless>GAH!</iframe>
+				<iframe id="chat" src="chat.html" seamless>GAH!</iframe>
 				<iframe id="share" src="PointCloud/PointCloudViewer.html" seamless>GAH!</iframe>
 				<iframe id="play" src="Three/klotski.html" seamless>GAH!</iframe>
-				
 				 
 			</div>
+			
+			<!--
+			<div id="sidebar-right">
+			</div>
+			-->
 		</div>
     </body>
 	
