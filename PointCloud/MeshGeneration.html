@@ -40,14 +40,48 @@
 				
 				renderer = new MeshRenderer(glCanvas);
 				
+
                 plugin = document.getElementById("ZigPlugin");
 				// Start the video streams
 				plugin.requestStreams({updateDepth:true, updateImage:true});
 				// Start updating the canvases every new kinect frame
                 plugin.addEventListener("NewFrame", onNewKinectData);
+				
+				/*
+				******
+				Testing shader
+				******
+				var pos = [	
+					-1, -1, -5,
+					2, -1, -4,
+					
+					-1, 1, -6,
+					1, 1, -3,
+				];
+				var rgba = [
+					1, 0, 0, 1,
+					0, 1, 0, 1,
+					0, 0, 1, 1,
+					1, 1, 0, 1,
+				];
+				var indices = [
+					0, 1, 2,
+					1, 2, 3,
+				];
+				renderer.setCenterOfRotation([0, 0, 5]);
+				renderer.setPosition([0, 0, -5]);
+				renderer.bufferData(pos, rgba, indices);
+				tick();
+				*/
             }
-            
-            var maxDepth = 1500;
+			/*
+            function tick() {
+				requestAnimFrame(tick);
+				renderer.render();
+			}
+            */
+			
+			var maxDepth = 1500;
             
             /**
              Callback from the plugin when new depth and RGB data is available from the Kinect.
@@ -72,7 +106,7 @@
 				
                 for (var y = 0, index = 0; y < KINECT_DEPTH_HEIGHT; y++) {
 				
-				meshRowSizes[y] = 0;
+					meshRowSizes[y] = 0;
 				
                     for (var x = 0; x < KINECT_DEPTH_WIDTH; x++, index++) {
                         
@@ -117,11 +151,6 @@
 					
 					rowSize = meshRowSizes[i];
 					
-					// No triangles if a row is empty
-					if (rowSize == 0) {
-						continue;
-					}
-					
 					// Find the next row containing points
 					nextRow = i + 1;
 
@@ -132,6 +161,11 @@
 						break;
 					}
 					nextRowSize = meshRowSizes[nextRow];
+					
+					// No triangles if a row is empty
+					if (rowSize == 0) {
+						continue;
+					}
 					
 					// Can't make a triangle unless at least three vertices exist
 					if (rowSize < 2 && nextRowSize < 2) {
@@ -149,8 +183,9 @@
 						
 						if (pointsUp) {
 						
-							if (nextRowIndex >= nextRowSize - 1)
+							if (nextRowIndex >= nextRowSize - 1) {
 								break;
+							}
 									
 							triangles.push(index + rowIndex);
 							triangles.push(index + rowSize + nextRowIndex);
@@ -160,8 +195,9 @@
 							
 						} else {
 						
-							if (rowIndex >= rowSize - 1)
+							if (rowIndex >= rowSize - 1) {
 								break;
+							}
 							
 							triangles.push(index + rowIndex);
 							triangles.push(index + rowSize + nextRowIndex);
@@ -177,6 +213,8 @@
 				// console.log((maxX + minX) / 2 + ", " + (maxY + minY) / 2 + ", " + (maxZ + minZ) / 2);
                 renderer.setCenterOfRotation([-80, 60, 1000 / zScale]);
 				renderer.setPosition([0, 0, -1000 / zScale]);
+				
+				// console.log(triangles.length);
 				
 				renderer.bufferData(pos, rgb, triangles);
                 renderer.render();
