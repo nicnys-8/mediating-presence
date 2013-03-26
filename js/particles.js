@@ -3,6 +3,7 @@ const particleCount = 32;
 function TouchParticleSystem() {
 };
 
+
 //TouchParticleSystem.particleCount = 100;
 
 /**

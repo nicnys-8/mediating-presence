@@ -68,7 +68,6 @@ KlotskiLevel.prototype.clickEvent = function(x, y) {
  If a block is active, move it
  */
 KlotskiLevel.prototype.moveEvent = function(x, y) {
-
     var mouse3D = MouseInterface.getMouse3D(x, y);
     this.particleSystem.position.set(mouse3D.x, mouse3D.y, mouse3D.z);
     

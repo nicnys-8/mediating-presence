@@ -37,5 +37,3 @@ MouseInterface.getMouse3D = function(x, y) {
     projector.unprojectVector(mouse3D, camera);
     return mouse3D;
 }
-
-
