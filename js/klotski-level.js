@@ -5,7 +5,7 @@ function KlotskiLevel() {};
 /**
  Level constructor
  */
-KlotskiLevel = function(blockList) {
+KlotskiLevel = function(blockList, blockSnappedCallback) {
     THREE.Object3D.call(this);
     
     this.obstacles = [];
@@ -14,10 +14,14 @@ KlotskiLevel = function(blockList) {
     this.initBlocks(blockList);
     this.initLights();
     this.initFloor();
-    this.activeBlock = null;
-    this.clickOffset = new THREE.Vector3(0, 0, 0);
+    
     this.particleSystem = new TouchParticleSystem();
     this.add(this.particleSystem);
+    
+    this.activeBlock = null;
+    this.clickOffset = new THREE.Vector3(0, 0, 0);
+    
+    this.blockSnappedCallback = blockSnappedCallback;
     
     /*
      Move down a tiny bit to prevent flickering,
@@ -26,8 +30,6 @@ KlotskiLevel = function(blockList) {
     floor.position.set(2, 3, -0.1);
     this.add(floor);
     this.floor = floor;
-
-    
 }
 
 
@@ -35,12 +37,30 @@ KlotskiLevel.prototype = Object.create(THREE.Object3D.prototype);
 
 
 /**
- Move all blocks toward their target positions
+ Update the state of the level
  */
 KlotskiLevel.prototype.tick = function() {
+    var block;
+    var snappedBefore;
+    var snappedAfter;
+    
+    // Update blocks
     for (var i = 0; i < this.blocks.length; i++) {
-        this.blocks[i].stepTowardTarget();
+        block = this.blocks[i];
+        snappedBefore = block.isSnapped();
+        // Move the block toward its target
+        block.stepTowardTarget();
+        snappedAfter = block.isSnapped();
+        
+        // If the block snapped to an even grid point, run the callback method
+        if (!snappedBefore && snappedAfter) {
+            this.blockSnappedCallback(block.id,
+                                      block.position.x,
+                                      block.position.y);
+        }
     }
+    
+    // Update particle system
     this.particleSystem.update();
 }
 
@@ -69,7 +89,9 @@ KlotskiLevel.prototype.clickEvent = function(x, y) {
  */
 KlotskiLevel.prototype.moveEvent = function(x, y) {
     var mouse3D = MouseInterface.getMouse3D(x, y);
+    
     this.particleSystem.position.set(mouse3D.x, mouse3D.y, mouse3D.z);
+    // this.particleSystem.setOrigin(mouse3D);
     
     var hit = MouseInterface.getMouseHit([this.floor], x, y);
     if (!hit) return; // Return if the floor isn't hit
@@ -78,7 +100,7 @@ KlotskiLevel.prototype.moveEvent = function(x, y) {
     if (this.activeBlock) {
         var target = new THREE.Vector3();
         target.subVectors(hit.point, this.clickOffset);
-        /* Update the active blocks target position
+        /* Set the active block's target position
          to the clicked point */
         this.activeBlock.updateTargetPosition(target.x ,target.y);
     }
@@ -90,57 +112,30 @@ KlotskiLevel.prototype.moveEvent = function(x, y) {
  */
 KlotskiLevel.prototype.releaseEvent = function(x, y) {
     if (this.activeBlock) {
-        // If a cube is selected, deselect it.
         this.activeBlock = null;
     }
 }
 
+
+/*
+ This is called whenever a block is moved to a new position
+ */
+KlotskiLevel.prototype.blockSnappedCallback = function(blockID, x, y) {
+}
 
 /*-----------------------
  ===| Init functions |===
  ----------------------*/
 
 /**
- Add the walls to the level
- - The origin of the level is at the lower left,
- inside of the walls
- */
-KlotskiLevel.prototype.initWalls = function() {
-    var wall = new KlotskiWall(-1, -1, 1, 7);
-    this.add(wall);
-    this.obstacles.push(wall);
-    
-    wall = new KlotskiWall(4, -1, 1, 7);
-    this.add(wall);
-    this.obstacles.push(wall);
-    
-    wall = new KlotskiWall(0, -1, 4, 1);
-    this.add(wall);
-    this.obstacles.push(wall);
-    
-    wall = new KlotskiWall(4, -1, 1, 7);
-    this.add(wall);
-    this.obstacles.push(wall);
-    
-    wall = new KlotskiWall(0, 5, 1, 1);
-    this.add(wall);
-    this.obstacles.push(wall);
-    
-    wall = new KlotskiWall(3, 5, 1, 1);
-    this.add(wall);
-    this.obstacles.push(wall);
-}
-
-
-/**
  Add all blocks to the level
  */
 KlotskiLevel.prototype.initBlocks = function(tokens) {
-    // http://help.dottoro.com/ljhlvomw.php
     var token;
     for (var i = 0; i < tokens.length; i++) {
         token = tokens[i];
-        var block = new MovingBlock(token.x, token.y, token.width, token.height, this.obstacles);
+        var id = i;
+        var block = new MovingBlock(id, token.x, token.y, token.width, token.height, this.obstacles);
         // Set the main block (this makes it blue and important and stuff...)
         if (token.main) block.setMain();
         this.add(block);
@@ -185,6 +180,38 @@ KlotskiLevel.prototype.initFloor = function() {
     floor.position.set(2, 3, -0.1);
     this.add(floor);
     this.floor = floor;
+}
+
+
+/**
+ Add the walls to the level
+ - The origin of the level is at the lower left,
+ inside of the walls
+ */
+KlotskiLevel.prototype.initWalls = function() {
+    var wall = new KlotskiWall(-1, -1, 1, 7);
+    this.add(wall);
+    this.obstacles.push(wall);
+    
+    wall = new KlotskiWall(4, -1, 1, 7);
+    this.add(wall);
+    this.obstacles.push(wall);
+    
+    wall = new KlotskiWall(0, -1, 4, 1);
+    this.add(wall);
+    this.obstacles.push(wall);
+    
+    wall = new KlotskiWall(4, -1, 1, 7);
+    this.add(wall);
+    this.obstacles.push(wall);
+    
+    wall = new KlotskiWall(0, 5, 1, 1);
+    this.add(wall);
+    this.obstacles.push(wall);
+    
+    wall = new KlotskiWall(3, 5, 1, 1);
+    this.add(wall);
+    this.obstacles.push(wall);
 }
 
 

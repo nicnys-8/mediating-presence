@@ -5,7 +5,7 @@ const SPEED = 0.1;
  */
 Block = function(column, row, width, height) {
     THREE.Object3D.call(this);
-    
+        
     this.width = width;
     this.height = height;
     
@@ -31,6 +31,29 @@ Block.prototype.snapToGridPoint = function(column, row) {
 
 
 /**
+ Check if the block is snapped vertically
+ */
+Block.prototype.xSnapped = function() {
+    return (this.position.x % 1 == 0);
+}
+
+
+/**
+ Check if the block is snapped horizontally
+ */
+Block.prototype.ySnapped = function() {
+    return (this.position.y % 1 == 0);
+}
+
+
+/**
+ Check if the block is completely snapped
+ */
+Block.prototype.isSnapped = function() {
+    return (this.ySnapped() && this.xSnapped());
+}
+
+/**
  Wall constructor
  */
 KlotskiWall = function(column, row, width, height) {
@@ -49,8 +72,10 @@ KlotskiWall.prototype = Object.create(Block.prototype);
 /**
  MovingBlock constructor
  */
-MovingBlock = function(column, row, width, height, obstacles) {
+MovingBlock = function(id, column, row, width, height, obstacles) {
     Block.call(this, column, row, width, height);
+    
+    this.id = id;
     
     this.targetX = this.position.x;
     this.targetY = this.position.y;
@@ -70,22 +95,6 @@ MovingBlock.prototype = Object.create(Block.prototype);
 MovingBlock.prototype.setMain = function() {
     this.main = true;
     this.material.color.setRGB(0.4 * Math.random(), 0.4 * Math.random(), 1);
-}
-
-
-/**
- Check if the block is snapped vertically
- */
-MovingBlock.prototype.xSnapped = function() {
-    return (this.position.x % 1 == 0);
-}
-
-
-/**
- Check if the block is snapped horizontally
- */
-MovingBlock.prototype.ySnapped = function() {
-    return (this.position.y % 1 == 0);
 }
 
 

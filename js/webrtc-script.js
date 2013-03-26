@@ -17,7 +17,6 @@ onClick = function() {
         var data = c.toDataURL()
         localStream.sendData({image:data});
     };
-    
 }
 
 receiveData = function(event) {

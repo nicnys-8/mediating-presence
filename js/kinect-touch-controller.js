@@ -90,7 +90,7 @@ KinectTouchController.prototype.updateTouch = function() {
         if (this.touch) {
             this.touch.lifeTime--;
             if (this.touch.lifeTime <= 0) {
-                this.onRelease(this.touch.point); // Release callback
+                this.simulateMouseUp(this.touch.point); // Release callback
                 this.touch = null;
             }
         }
@@ -110,12 +110,12 @@ KinectTouchController.prototype.updateTouch = function() {
         if (this.touch.point.x != newTouch.point.x ||
             this.touch.point.y != newTouch.point.y)
         {
-            this.onMove(newTouch.point); // Move callback
+            this.simulateMouseMove(newTouch.point); // Move callback
         }
     }
     // If no live touch exists:
     else {
-        this.onClick(newTouch.point); // Click callback
+        this.simulateMouseDown(newTouch.point); // Click callback
     }
     // Set the object's touch to the new one
     this.touch = newTouch;
@@ -240,21 +240,23 @@ KinectTouchController.prototype.getTouchAtPoint = function(x, y) {
 /*-----------------------
  == Callback functions ==
  -----------------------*/
-
-/**
- */
-KinectTouchController.prototype.onClick = function(touchPoint) {
+function simulateMouseDown(touchPoint) {
+    var evt = document.createEvent("mousedown");
+    evt.initMouseEvent("click", true, true, window,
+                       0, 0, 0, touchPoint.x, touchPoint.y, false, false, false, false, 0, null);
 }
 
 
-/**
- */
-KinectTouchController.prototype.onMove = function(touchPoint) {
+function simulateMouseMove(touchPoint) {
+    var evt = document.createEvent("MouseEvents");
+    evt.initMouseEvent("mousemove", true, true, window,
+                       0, 0, 0, touchPoint.x, touchPoint.y, false, false, false, false, 0, null);
 }
 
 
-/**
- */
-KinectTouchController.prototype.onRelease = function(touchPoint) {
+function simulateMouseUp(touchPoint) {
+    var evt = document.createEvent("MouseEvents");
+    evt.initMouseEvent("mouseup", true, true, window,
+                       0, 0, 0, touchPoint.x, touchPoint.y, false, false, false, false, 0, null);
 }
 

@@ -71,7 +71,7 @@
                         
                         camera.lookAt(new THREE.Vector3(2, 2.5, 0));
                         
-                        level = new KlotskiLevel(blockTokens);
+                        level = new KlotskiLevel(blockTokens, blockSnappedCallback);
                         scene.add(level);
                         
 
@@ -123,14 +123,6 @@
                     }
                     
                     
-                    /**
-                     Called when the player can't move any more blocks
-                     */
-                    function callback() {
-                        console.log("End of turns!");
-                    }
-                    
-                    
                     /*---------------
                      ===| Kinect |===
                      --------------*/
@@ -161,10 +153,6 @@
                         
                         var transform = new Geometry.Transform(tData[0], tData[1]);
                         kinectTouchController = new KinectTouchController(depthRef, transform);
-                        // Set event callbacks
-                        kinectTouchController.onClick = kinectClick;
-                        kinectTouchController.onMove = kinectMove;
-                        kinectTouchController.onRelease = kinectRelease;
                         
                         // Start the video streams
                         plugin.requestStreams({updateDepth:true, updateImage:true});
@@ -174,7 +162,8 @@
                     
                     
                     /**
-                     ...
+                     Decode the latest depth image and update the touch controller 
+                     accordingly
                      */
                     function updateKinectData() {
                         /* Take a snapshot from the Kinect depth video */
@@ -182,33 +171,12 @@
                         kinectTouchController.update(depthData);
                     }
                     
-                    /*----------------------
-                     ===| Kinect Events |===
-                     ---------------------*/
                     /**
-                     When the screen is clicked
+                     ...
                      */
-                    function kinectClick(point) {
-                        inputClick(point.x, point.y);
+                    function blockSnappedCallback(id, x, y) {
+                        console.log("Snap! ID: " + id + " x: " + x + " y: " + y);
                     }
-                    
-                    
-                    /**
-                     Called whenever the screen is moved.
-                     */
-                    function kinectMove(point) {
-                        inputMove(point.x, point.y);
-                    }
-                    
-                    
-                    /**
-                     Called when the screen is released
-                     */
-                    function kinectRelease(point) {
-                        console.log();
-                        inputRelease(point.x, point.y);
-                    }
-                    
                     
                     /*---------------------
                      ===| Mouse Events |===
@@ -217,32 +185,6 @@
                      When the mouse is clicked
                      */
                     function mouseClick(event) {
-                        inputClick(event.clientX, event.clientY);
-                    }
-                    
-                    
-                    /**
-                     Called whenever the mouse is moved.
-                     */
-                    function mouseMove(event) {
-                        inputMove(event.clientX, event.clientY);
-                    }
-                    
-                    
-                    /**
-                     Called when the left mouse button is released
-                     */
-                    function mouseRelease(event) {
-                        inputRelease(event.clientX, event.clientY);
-                    }
-                    
-                    /*-----------------------------
-                     ===| General Input Events |===
-                     ----------------------------*/
-                    /**
-                     When the mouse is clicked
-                     */
-                    function inputClick(x, y) {
                         // event.preventDefault()
                         console.log("Clicked at (" + x + "), (" + y + ")");
                         level.clickEvent(x, y);
@@ -252,7 +194,7 @@
                     /**
                      Called whenever the mouse is moved.
                      */
-                    function inputMove(x, y) {
+                    function mouseMove(event) {
                         level.moveEvent(x, y);
                     }
                     
@@ -260,7 +202,7 @@
                     /**
                      Called when the left mouse button is released
                      */
-                    function inputRelease(x, y) {
+                    function mouseRelease(event) {
                         console.log("Released at (" + x + "), (" + y + ")");
                         level.releaseEvent();
                     }
