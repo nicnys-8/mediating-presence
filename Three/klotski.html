@@ -102,11 +102,11 @@
                         
                         // Start listening for mouse clicks
                         
-                        //document.addEventListener('mousedown', mouseClick, false);
+                        document.addEventListener('mousedown', mouseDown, false);
                         document.addEventListener('mousemove', mouseMove, false);
-                        document.addEventListener('mouseup', mouseRelease, false);
+                        document.addEventListener('mouseup', mouseUp, false);
                         
-                        initMouseEvents();
+                        //initMouseEvents();
                         
                         // Kinect
                         initKinect();
@@ -157,7 +157,6 @@
                         var transform = new Geometry.Transform(tData[0], tData[1]);
                         kinectTouchController = new KinectTouchController(depthRef, transform);
                         
-                        kinectTouchController.setTarget(document.getElementById("container"));
                         
                         // Start the video streams
                         plugin.requestStreams({updateDepth:true, updateImage:true});
@@ -187,27 +186,18 @@
                      ===| Mouse Events |===
                      --------------------*/
                     
-                    initMouseEvents = function() {
-                    
-                        container.onclick = function (event) {
-                            // event.preventDefault()
-                            // console.log("Clicked at (" + x + "), (" + y + ")");
-                            level.clickEvent(event.clientX, event.clientY);
-                        }
-                    }
-                    
                     /**
-                     When the mouse is clicked
-                     
-                    function mouseClick(event) {
+                     Called whenever the left mouse button is clicked
+                     */
+                    function mouseDown(event) {
                         // event.preventDefault()
                         // console.log("Clicked at (" + x + "), (" + y + ")");
                         level.clickEvent(event.clientX, event.clientY);
-                    }*/
-                    
+                        console.log(container);
+                    }
                     
                     /**
-                     Called whenever the mouse is moved.
+                     Called whenever the mouse is moved
                      */
                     function mouseMove(event) {
                         level.moveEvent(event.clientX, event.clientY);
@@ -217,7 +207,7 @@
                     /**
                      Called when the left mouse button is released
                      */
-                    function mouseRelease(event) {
+                    function mouseUp(event) {
                         // console.log("Released at (" + x + "), (" + y + ")");
                         level.releaseEvent();
                     }

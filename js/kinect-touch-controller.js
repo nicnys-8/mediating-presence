@@ -240,49 +240,42 @@ KinectTouchController.prototype.getTouchAtPoint = function(x, y) {
 /*-----------------------
  == Callback functions ==
  -----------------------*/
-KinectTouchController.prototype.simulateMouseDownOld = function(touchPoint) {
-    if (event.initMouseEvent) {
-    var evt = document.createEvent("mousedown");
-    evt.initMouseEvent("click", true, true, window,
-                       0, 0, 0, touchPoint.x, touchPoint.y, false, false, false, false, 0, null);
-    }
-}
-
-
 
 KinectTouchController.prototype.simulateMouseMove = function(touchPoint) {
-    var evt = document.createEvent("MouseEvents");
-    evt.initMouseEvent("mousemove", true, true, window,
-                       0, 0, 0, touchPoint.x, touchPoint.y, false, false, false, false, 0, null);
-}
-
-
-KinectTouchController.prototype.simulateMouseUp = function(touchPoint) {
-    var evt = document.createEvent("MouseEvents");
-    evt.initMouseEvent("mouseup", true, true, window,
-                       0, 0, 0, touchPoint.x, touchPoint.y, false, false, false, false, 0, null);
-}
-
-
-
-
-KinectTouchController.prototype.simulateMouseDown = function(touchPoint) {
-    
-    var event = this.target.ownerDocument.createEvent('MouseEvents');
-    event.initMouseEvent("click", true, true,
+    var event = document.createEvent("MouseEvents");
+    event.initMouseEvent("mousemove", true, true,
                          window, 0, 0, 0, touchPoint.x,
                          touchPoint.y,
                          false, false, false,
                          false, 0, null);
-    console.log(event);
     
     //Fire the event
-    console.log(this.target.dispatchEvent);
-    this.target.dispatchEvent(event);
+    document.body.dispatchEvent(event);
 }
 
-KinectTouchController.prototype.setTarget = function(target) {
-    this.target = target;
+
+KinectTouchController.prototype.simulateMouseUp = function(touchPoint) {
+    var event = document.createEvent("MouseEvents");
+    event.initMouseEvent("mouseup", true, true,
+                         window, 0, 0, 0, touchPoint.x,
+                         touchPoint.y,
+                         false, false, false,
+                         false, 0, null);
+    
+    //Fire the event
+    document.body.dispatchEvent(event);
+}
+
+
+KinectTouchController.prototype.simulateMouseDown = function(touchPoint) {
+    var event = document.createEvent("MouseEvents");
+    event.initMouseEvent("mousedown", true, true,
+                         window, 0, 0, 0, touchPoint.x,
+                         touchPoint.y,
+                         false, false, false,
+                         false, 0, null);
+    //Fire the event
+    document.body.dispatchEvent(event);
 }
 
 
