@@ -14,9 +14,7 @@ MeshRenderer = function(canvas) {
 				 "varying vec4 vColor;",
 				 
 				 "void main(void) {",
-					"vec4 pos = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);",
-					"gl_PointSize = 5.0 / pos.z;",
-					"gl_Position = pos;",
+					"gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);",
 					"vColor = aVertexColor;",
 				 "}",
 				 ].join("\n");

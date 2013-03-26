@@ -113,7 +113,7 @@
 				/*
 				Bad first attempt at meshing the point cloud
 				*/
-				for (var i = 0; i < KINECT_DEPTH_HEIGHT; i++) {
+				for (var i = 0; i < KINECT_DEPTH_HEIGHT; i = nextRow, index += rowSize) {
 					
 					rowSize = meshRowSizes[i];
 					
@@ -149,9 +149,9 @@
 						
 						if (pointsUp) {
 						
-						if (nextRowIndex >= nextRowSize - 1)
+							if (nextRowIndex >= nextRowSize - 1)
 								break;
-								
+									
 							triangles.push(index + rowIndex);
 							triangles.push(index + rowSize + nextRowIndex);
 							triangles.push(index + rowSize + nextRowIndex + 1);
@@ -165,15 +165,13 @@
 							
 							triangles.push(index + rowIndex);
 							triangles.push(index + rowSize + nextRowIndex);
-							triangles.push(index + rowIndex+ 1);
+							triangles.push(index + rowIndex + 1);
 							
 							rowIndex++;
 						}
 						
 						pointsUp = !pointsUp;
 					}
-					
-					index += rowSize;
 				}
 				
 				// console.log((maxX + minX) / 2 + ", " + (maxY + minY) / 2 + ", " + (maxZ + minZ) / 2);
