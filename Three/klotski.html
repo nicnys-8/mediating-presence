@@ -56,8 +56,8 @@
                         // Container in which the game is placed
                         var container = document.getElementById("container");
                         
-                        SCREEN_WIDTH = container.style.width;
-                        SCREEN_HEIGHT = container.style.height;
+                        SCREEN_WIDTH = container.offsetWidth;
+                        SCREEN_HEIGHT = container.offsetHeight;
                         ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT;
                         
                         // Renderer

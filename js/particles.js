@@ -14,7 +14,7 @@ TouchParticleSystem = function() {
     var geometry = new THREE.Geometry();
     // create the particle variables
     var material = new THREE.ParticleBasicMaterial({color: 0xFFFFFF,
-                                                    size: 0.005,
+                                                    size: 0.001,
                                                     map: THREE.ImageUtils.loadTexture(
                                                                                       "../images/particle.png"
                                                                                       ),
