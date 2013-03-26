@@ -153,6 +153,8 @@
                         
                         var transform = new Geometry.Transform(tData[0], tData[1]);
                         kinectTouchController = new KinectTouchController(depthRef, transform);
+                        var container = document.getElementById("container");
+                        kinectTouchController.setTarget(container); // TODO: REMOVE AND REPLACE
                         
                         // Start the video streams
                         plugin.requestStreams({updateDepth:true, updateImage:true});
@@ -186,8 +188,8 @@
                      */
                     function mouseClick(event) {
                         // event.preventDefault()
-                        console.log("Clicked at (" + x + "), (" + y + ")");
-                        level.clickEvent(x, y);
+                        //console.log("Clicked at (" + x + "), (" + y + ")");
+                        level.clickEvent(event.clientX, event.clientY);
                     }
                     
                     
@@ -195,7 +197,7 @@
                      Called whenever the mouse is moved.
                      */
                     function mouseMove(event) {
-                        level.moveEvent(x, y);
+                        level.moveEvent(event.clientX, event.clientY);
                     }
                     
                     
@@ -203,7 +205,7 @@
                      Called when the left mouse button is released
                      */
                     function mouseRelease(event) {
-                        console.log("Released at (" + x + "), (" + y + ")");
+                        //console.log("Released at (" + x + "), (" + y + ")");
                         level.releaseEvent();
                     }
                     

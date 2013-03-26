@@ -240,23 +240,48 @@ KinectTouchController.prototype.getTouchAtPoint = function(x, y) {
 /*-----------------------
  == Callback functions ==
  -----------------------*/
-function simulateMouseDown(touchPoint) {
+KinectTouchController.prototype.simulateMouseDownOld = function(touchPoint) {
+    if (event.initMouseEvent) {
     var evt = document.createEvent("mousedown");
     evt.initMouseEvent("click", true, true, window,
                        0, 0, 0, touchPoint.x, touchPoint.y, false, false, false, false, 0, null);
+    }
 }
 
 
-function simulateMouseMove(touchPoint) {
+
+KinectTouchController.prototype.simulateMouseMove = function(touchPoint) {
     var evt = document.createEvent("MouseEvents");
     evt.initMouseEvent("mousemove", true, true, window,
                        0, 0, 0, touchPoint.x, touchPoint.y, false, false, false, false, 0, null);
 }
 
 
-function simulateMouseUp(touchPoint) {
+KinectTouchController.prototype.simulateMouseUp = function(touchPoint) {
     var evt = document.createEvent("MouseEvents");
     evt.initMouseEvent("mouseup", true, true, window,
                        0, 0, 0, touchPoint.x, touchPoint.y, false, false, false, false, 0, null);
 }
+
+
+
+
+KinectTouchController.prototype.simulateMouseDown = function(touchPoint) {
+    
+    var event = this.target.ownerDocument.createEvent('MouseEvents');
+    event.initMouseEvent("click", true, true,
+                         window, 0, 0, 0, touchPoint.x,
+                         touchPoint.y,
+                         false, false, false,
+                         false, 0, null);
+    console.log(event);
+    
+    //Fire the event
+    this.target.dispatchEvent(event);
+}
+
+KinectTouchController.prototype.setTarget = function(target) {
+    this.target = target;
+}
+
 
