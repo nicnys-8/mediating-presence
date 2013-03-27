@@ -4,7 +4,7 @@
 <html>
     <head>
         
-        <title>Point Cloud Rendering Test</title>
+        <title>Point Cloud Meshing Test</title>
         
         <script type="text/javascript" src="../js/mediaext.js"></script>
         <script type="text/javascript" src="../js/lib/webgl-utils.js"></script>
@@ -81,7 +81,7 @@
 			}
             */
 			
-			var maxDepth = 1500;
+			var maxDepth = 3000;
             
             /**
              Callback from the plugin when new depth and RGB data is available from the Kinect.
@@ -113,14 +113,15 @@
                         var z = depthData[index];
                         
                         if (z > 0 && z < maxDepth) {
+							
                             // INCORRECT SCALING! :)
                             pos[index * 3 + 0] = x;
                             pos[index * 3 + 1] = -y;
                             pos[index * 3 + 2] = -z / zScale;
                             
-                            rgb[index * 4 + 0] = videoData.data[index * 4 + 0] / 255.0;
-                            rgb[index * 4 + 1] = videoData.data[index * 4 + 1] / 255.0;
-                            rgb[index * 4 + 2] = videoData.data[index * 4 + 2] / 255.0;
+                            rgb[index * 4 + 0] = 3 * videoData.data[index * 4 + 0] / 255.0;
+                            rgb[index * 4 + 1] = 3 * videoData.data[index * 4 + 1] / 255.0;
+                            rgb[index * 4 + 2] = 3 * videoData.data[index * 4 + 2] / 255.0;
                             rgb[index * 4 + 3] = videoData.data[index * 4 + 3] / 255.0;
 							
 							/*
@@ -153,7 +154,7 @@
 					
 					// Find the next row containing points
 					nextRow = i + 1;
-
+					
 					while (nextRow < KINECT_DEPTH_HEIGHT && meshRowSizes[nextRow] == 0) {
 						nextRow++;
 					}
@@ -186,10 +187,19 @@
 							if (nextRowIndex >= nextRowSize - 1) {
 								break;
 							}
-									
-							triangles.push(index + rowIndex);
-							triangles.push(index + rowSize + nextRowIndex);
-							triangles.push(index + rowSize + nextRowIndex + 1);
+							
+							var i1 = index + rowIndex,
+								i2 = index + rowSize + nextRowIndex,
+								i3 = index + rowSize + nextRowIndex + 1;
+							/*var z1 = pos[i1 * 3 + 2],
+								z2 = pos[i2 * 3 + 2],
+								z3 = pos[i3 * 3 + 2];
+							*/
+							// if (Math.abs(z1 - z2) < 100 && Math.abs(z2 - z3) < 100) {
+								triangles.push(i1);
+								triangles.push(i2);
+								triangles.push(i3);
+							// }
 							
 							nextRowIndex++;
 							
@@ -199,10 +209,24 @@
 								break;
 							}
 							
-							triangles.push(index + rowIndex);
-							triangles.push(index + rowSize + nextRowIndex);
-							triangles.push(index + rowIndex + 1);
+							var i1 = index + rowIndex,
+								i2 = index + rowSize + nextRowIndex,
+								i3 = index + rowIndex + 1;
+							/*var z1 = pos[i1 * 3 + 2],
+								z2 = pos[i2 * 3 + 2],
+								z3 = pos[i3 * 3 + 2];
+							*/
+							// if (Math.abs(z1 - z2) < 100 && Math.abs(z2 - z3) < 100) {
+								triangles.push(i1);
+								triangles.push(i2);
+								triangles.push(i3);
+							// }
 							
+							/*
+							triangles.push(index + rowSize + nextRowIndex);
+							triangles.push(index + rowIndex);
+							triangles.push(index + rowIndex + 1);
+							*/
 							rowIndex++;
 						}
 						
@@ -233,7 +257,7 @@
                     </object>
         </div>
         
-        <h1>Point Cloud Generation</h1>
+        <h1>Point Cloud Meshing</h1>
         <div id="container">
         </div>
 		z-scale: <input id="zScale" type="range" name="points" min="1" max="20" value="1">
