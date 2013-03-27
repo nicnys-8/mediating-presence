@@ -66,6 +66,18 @@ KlotskiLevel.prototype.tick = function() {
 
 
 /**
+ React when a block is moved by another player
+ */
+KlotskiLevel.prototype.externalBlockMove = function(id, x, y) {
+    for (var i = 0; i < this.blocks.length; i++) {
+        var block = this.blocks[i];
+        if (block.id != id) continue;
+        block.updateTargetPosition(x, y);
+    }
+}
+
+
+/**
  If a MovingBlock is clicked, make it controllable
  */
 KlotskiLevel.prototype.clickEvent = function(x, y) {
