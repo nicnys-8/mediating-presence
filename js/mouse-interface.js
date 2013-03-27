@@ -1,19 +1,20 @@
 /**
- Interface for using the mouse with a Three.js scene
- Requires Three.js to be included in html
+ Interface for using the mouse with Klotski.
+ Requires Three.js to be included in the html
  */
-
 
 var MouseInterface = MouseInterface || {};
 var projector = new THREE.Projector();
+
+var container = document.getElementById("container");
 
 /**
  Returns the intersection point if an object is hit
  */
 MouseInterface.getMouseHit = function(objects, x, y) {
     
-    var x = (x / window.innerWidth) * 2 - 1;
-    var y = -(y / window.innerHeight) * 2 + 1;
+    var x = ((x - container.offsetLeft) / container.offsetWidth) * 2 - 1;
+    var y = -((y - container.offsetTop) / container.offsetHeight) * 2 + 1;
     
     var v = new THREE.Vector3(x, y, 0);
     
@@ -30,8 +31,8 @@ MouseInterface.getMouseHit = function(objects, x, y) {
  Returns the intersection point if an object is hit
  */
 MouseInterface.getMouse3D = function(x, y) {
-    var x = (x / window.innerWidth) * 2 - 1;
-    var y = -(y / window.innerHeight) * 2 + 1;
+    var x = ((x - container.offsetLeft) / container.offsetWidth) * 2 - 1;
+    var y = -((y - container.offsetTop) / container.offsetHeight) * 2 + 1;
     var z = 0.8;
     var mouse3D = new THREE.Vector3(x, y, z);
     projector.unprojectVector(mouse3D, camera);

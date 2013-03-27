@@ -190,10 +190,7 @@
                      Called whenever the left mouse button is clicked
                      */
                     function mouseDown(event) {
-                        // event.preventDefault()
-                        // console.log("Clicked at (" + x + "), (" + y + ")");
                         level.clickEvent(event.clientX, event.clientY);
-                        console.log(container);
                     }
                     
                     /**
@@ -208,7 +205,6 @@
                      Called when the left mouse button is released
                      */
                     function mouseUp(event) {
-                        // console.log("Released at (" + x + "), (" + y + ")");
                         level.releaseEvent();
                     }
                     
