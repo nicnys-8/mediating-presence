@@ -15,7 +15,7 @@ PointCloudRenderer = function(canvas) {
 				 
 				 "void main(void) {",
 					"vec4 pos = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);",
-					"gl_PointSize = 5.0 / pos.z;",
+					"gl_PointSize = 3.0; // 10.0 / pos.z;",
 					"gl_Position = pos;",
 					"vColor = aVertexColor;",
 				 "}",
