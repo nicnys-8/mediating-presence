@@ -45,7 +45,7 @@
                 plugin.addEventListener("NewFrame", onNewKinectData);
             }
             
-            var maxDepth = 1500;
+            var maxDepth = 3000;
             
             /**
              Callback from the plugin when new depth and RGB data is available from the Kinect.
@@ -67,15 +67,21 @@
 				*/
 				
 				var zScale = document.getElementById("zScale").value;
+				var lerp = document.getElementById("lerp").checked;
 				
                 for (var y = 0, index = 0; y < KINECT_DEPTH_HEIGHT; y++) {
                     for (var x = 0; x < KINECT_DEPTH_WIDTH; x++, index++) {
                         
                         var z = depthData[index];
-                        
+						
+                        var zr = depthData[index + 1];
+						var zb = depthData[index + KINECT_DEPTH_WIDTH];
+						var zbr = depthData[index + KINECT_DEPTH_WIDTH + 1];
+						
                         if (z > 0 && z < maxDepth) {
                             // INCORRECT SCALING! :)
-                            pos[index * 3 + 0] = x;
+                            /*
+							pos[index * 3 + 0] = x;
                             pos[index * 3 + 1] = -y;
                             pos[index * 3 + 2] = -z / zScale;
                             
@@ -83,6 +89,67 @@
                             rgb[index * 4 + 1] = videoData.data[index * 4 + 1] / 255.0;
                             rgb[index * 4 + 2] = videoData.data[index * 4 + 2] / 255.0;
                             rgb[index * 4 + 3] = videoData.data[index * 4 + 3] / 255.0;
+							 
+							
+							
+                            rgb[index * 4 + 0] = videoData.data[ri * 4 + 0] / 255.0;
+                            rgb[index * 4 + 1] = videoData.data[ri * 4 + 1] / 255.0;
+                            rgb[index * 4 + 2] = videoData.data[ri * 4 + 2] / 255.0;
+                            rgb[index * 4 + 3] = videoData.data[ri * 4 + 3] / 255.0;
+							*/
+							
+							var ri = x < 80 ? Math.round(y * KINECT_DEPTH_WIDTH + Math.max(x + 6 + (6 * Math.abs(x - 80) / 80), 0))
+							: Math.round(y * KINECT_DEPTH_WIDTH + Math.max(x + 6 - (6 * Math.abs(x - 80) / 80), 0));
+							
+							var r = 1.5 * videoData.data[ri * 4 + 0] / 255.0;
+							var g = 1.5 * videoData.data[ri * 4 + 1] / 255.0;
+							var b = 1.5 * videoData.data[ri * 4 + 2] / 255.0;
+							var a = 1.0;
+							
+							pos.push(x);
+							pos.push(-y);
+							pos.push(-z / zScale);
+						
+							rgb.push(r);
+                            rgb.push(g);
+                            rgb.push(b);
+                            rgb.push(a);
+							
+							if (lerp) {
+								
+								if (zr && x < KINECT_DEPTH_WIDTH - 1) {
+									pos.push(x + 0.5);
+									pos.push(-y);
+									pos.push(-((z + zr) / 2) / zScale);
+									
+									rgb.push(r);
+									rgb.push(g);
+									rgb.push(b);
+									rgb.push(a);
+								}
+								
+								if (zb && y < KINECT_DEPTH_HEIGHT - 1) {
+									pos.push(x);
+									pos.push(-(y + 0.5));
+									pos.push(-((z + zb) / 2) / zScale);
+									
+									rgb.push(r);
+									rgb.push(g);
+									rgb.push(b);
+									rgb.push(a);
+								}
+								
+								if (zbr && x < KINECT_DEPTH_WIDTH - 1 && y < KINECT_DEPTH_HEIGHT - 1) {
+									pos.push(x + 0.5);
+									pos.push(-(y + 0.5));
+									pos.push(-((z + zbr) / 2) / zScale);
+								
+									rgb.push(r);
+									rgb.push(g);
+									rgb.push(b);
+									rgb.push(a);
+								}
+							}
 							
 							/*
 							maxX = Math.max(maxX, x);
@@ -120,5 +187,10 @@
         <h1>Point Cloud Generation</h1>
         <div id="container">
         </div>
-		z-scale: <input id="zScale" type="range" name="points" min="1" max="20" value="1">
+		z-scale: <input id="zScale" type="range" name="points" min="1" max="20" value="3">
+			<br>
+			<input id="lerp" type="checkbox">
+			
+			
 </html>
+
