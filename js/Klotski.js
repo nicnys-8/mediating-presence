@@ -40,6 +40,7 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
         camera.position.set(2, 2.5, 12);
         camera.lookAt(new THREE.Vector3(2, 2.5, 0));
         scene.add(camera);
+        mouseInterface = new MouseInterface(container, camera);
         
         // If a renderer does not already exist, create it
         if (!renderer) {
@@ -158,7 +159,6 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
     
     resetRenderer();
     window.addEventListener("resize", resetRenderer, false);
-    mouseInterface = new MouseInterface(container, camera);
     clickOffset = new THREE.Vector3(0, 0, 0);
     
     /*---------------------

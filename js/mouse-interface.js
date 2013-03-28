@@ -2,9 +2,10 @@
  Interface object for using the mouse with Klotski.
  */
 
-MouseInterface = function(container, camera) {
+MouseInterface = function(container, cameraArg) {
 
     var projector = new THREE.Projector();
+    var camera = cameraArg;
     
     /**
      Returns the intersection point if an object is hit
@@ -32,7 +33,17 @@ MouseInterface = function(container, camera) {
         return mouse3D;
     }
     
+    /**
+     Set the camera object used for unprojecting
+     */
+    var setCamera = function(cameraArg) {
+        camera = cameraArg;
+    }
+    
     // Public functions
     this.getMouseHit = getMouseHit;
     this.getMouse3D = getMouse3D;
+    
+    // Public method
+    this.setCamera = setCamera;
 };
