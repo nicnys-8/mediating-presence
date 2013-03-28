@@ -1,19 +1,21 @@
+/**
+ An online multiplayer version of the classic board game Klotski
+ */
 
 // Camera constants
 const VIEW_ANGLE = 45;
 const NEAR = 0.01;
 const FAR = 100;
 
-Klotski = function(blocksArg, callbackArg, containerArg) {
+Klotski = function(blockTokens, blockSnappedCallback, container) {
     
     /*--------------------------
-     ===| Private varaibles |===
+     ===| Private variables |===
      -------------------------*/
     var scene;
     var camera
     var renderer;
     var obstacles;
-    var container;
     var particleSystem;
     var blocks;
     var activeBlock;
@@ -24,15 +26,14 @@ Klotski = function(blocksArg, callbackArg, containerArg) {
     /*-----------------------
      ===| Init functions |===
      ----------------------*/
-    
     /**
      Sets up the camera and renderer
      */
     var resetRenderer = function() {
+        
         var gameScreenWidth = container.offsetWidth;
         var gameScreenHeight = container.offsetHeight;
         var aspect = gameScreenWidth / gameScreenHeight;
-        
         // If a camera already exists, remove it
         if (camera) scene.remove(camera);
         camera = new THREE.PerspectiveCamera(VIEW_ANGLE, aspect, NEAR, FAR);
@@ -142,16 +143,13 @@ Klotski = function(blocksArg, callbackArg, containerArg) {
     
     /*-----------------------
      ==| Constructor code |==
-     ----------------------*/
-    blockSnappedCallback = callbackArg;
-    container = containerArg;
-    
+     -----------------------*/    
     scene = new THREE.Scene();
     
     blocks = [];
     obstacles = [];
     activeBlock = null;
-    initBlocks(blocksArg);
+    initBlocks(blockTokens);
     
     initWalls();
     initFloor();
@@ -166,19 +164,17 @@ Klotski = function(blocksArg, callbackArg, containerArg) {
     /*---------------------
      ==| Game mechanics |==
      --------------------*/
-    
     /**
      Update the game state
      */
-    var tick = function() {
-        
-        requestAnimationFrame(tick);
-        renderer.render(scene, camera);
-        
+    var updateScene = function() {
+        // If the tab is active, render the current frame
+        if (this.shouldRender) {
+           renderer.render(scene, camera);
+        }
         var block;
         var snappedBefore;
         var snappedAfter;
-        
         // Update blocks
         for (var i = 0; i < blocks.length; i++) {
             block = blocks[i];
@@ -209,16 +205,9 @@ Klotski = function(blocksArg, callbackArg, containerArg) {
         }
     }
     
-    /**
-     This is called whenever a block is moved to a new position
-     */
-    var blockSnappedCallback = function(blockID, x, y) {
-    }
-    
     /*-----------------------
      ==| Mouse input code |==
      ----------------------*/
-    
     /**
      If a MovingBlock is clicked, make it controllable
      */
@@ -228,7 +217,6 @@ Klotski = function(blocksArg, callbackArg, containerArg) {
             if (blockHit) {
                 activeBlock = blockHit.object.parent;
                 floorHit = mouseInterface.getMouseHit([floor], x, y);
-                
                 if (floorHit) {
                     // Get the offset between hitpoint and the block
                     clickOffset.subVectors(floorHit.point, activeBlock.position);
@@ -242,7 +230,6 @@ Klotski = function(blocksArg, callbackArg, containerArg) {
      */
     var onMouseMove = function(x, y) {
         var mouse3D = mouseInterface.getMouse3D(x, y);
-        
         particleSystem.position.set(mouse3D.x, mouse3D.y, mouse3D.z);
         // particleSystem.setOrigin(mouse3D);
         
@@ -268,14 +255,19 @@ Klotski = function(blocksArg, callbackArg, containerArg) {
         }
     }
     
-    /*---------------------------------------
-     ==| Declarations of public functions |==
-     --------------------------------------*/
+    /*-----------------------
+     ==| Public functions |==
+     ----------------------*/
     this.onMouseDown = onMouseDown;
     this.onMouseMove = onMouseMove;
     this.onMouseUp = onMouseUp;
     
-    this.tick = tick;
+    this.updateScene = updateScene;
+    
+    /*-----------------------
+     ==| Public variables |==
+     ----------------------*/
+    this.shouldRender = true;
 };
 
 /**
@@ -289,7 +281,6 @@ KlotskiToken = function(x, y, width, height, main) {
     this.height = height;
     if (main) this.main = main;
 }
-
 
 Klotski.level1 = [new KlotskiToken(0, 0, 2, 1),
                   new KlotskiToken(2, 0, 2, 1),

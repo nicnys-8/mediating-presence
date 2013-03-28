@@ -5,33 +5,50 @@
         <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
                 
+                <script type="text/javascript" src="../js/tab-control.js"></script>
                 <script type="text/javascript" src="../js/lib/Three.js"></script>
                 <script type="text/javascript" src="../js/mouse-interface.js"></script>
                 <script type="text/javascript" src="../js/klotski.js"></script>
                 <script type="text/javascript" src="../js/klotski-blocks.js"></script>
                 <script type="text/javascript" src="../js/particles.js"></script>
-                
                 <script type="text/javascript" src="../js/lib/zig.js"></script>
-                
                 <script type="text/javascript" src="../js/kinect-decoder.js"></script>
                 <script type="text/javascript" src="../js/image-handling.js"></script>
                 <script type="text/javascript" src="../js/kinect-touch-controller.js"></script>
-                
                 <script type="text/javascript" src="../js/geometry.js"></script>
                 
                 <script>
                     
                     var klotski;
                     
-                    function init() {
-                        
+                    TabControl.onActivate = function() {
+                        klotski.shouldRender = true;
+                    }
+                    
+                    TabControl.onDeactivate = function() {
+                        klotski.shouldRender = false;
+                    }
+                    
+                    TabControl.onStreamAdded = function(stream) {
+                    }
+                    
+                    TabControl.onStreamRemoved = function(stream) {
+                    }
+                    
+                    TabControl.onDataReceived = function(senderId, packet) {
+                    }
+                    
+                    TabControl.onKinectProxyCreated = function(proxy) {
+                    }
+                    
+                    TabControl.onLoad = function() {
                         var container = document.getElementById("klotskiContainer");
                         // Create the Klotski object
                         klotski = new Klotski(
-                                                  Klotski.level1,
-                                                  blockSnappedCallback,
-                                                  container
-                                                  );
+                                              Klotski.level1,
+                                              blockSnappedCallback,
+                                              container
+                                              );
                         
                         // Start listening for mouse events
                         document.addEventListener('mousedown', onMouseDown, false);
@@ -39,11 +56,19 @@
                         document.addEventListener('mouseup', onMouseUp, false);
                         
                         // Start the update loop
-                        klotski.tick();
+                        tick();
                     }
                     
                     /**
-                     ...
+                     The update loop of the tab
+                     */
+                    function tick() {
+                        requestAnimationFrame(tick);
+                        klotski.updateScene();
+                    }
+                    
+                    /**
+                     Called when a Klotski block snaps to an even grid point
                      */
                     function blockSnappedCallback(id, x, y) {
                         console.log("Snap! ID: " + id + " x: " + x + " y: " + y);
@@ -66,7 +91,6 @@
                         klotski.onMouseMove(event.clientX, event.clientY);
                     }
                     
-                    
                     /**
                      Called when the left mouse button is released
                      */
@@ -77,15 +101,7 @@
                     </script>
                 </head>
     
-    <body style="overflow:hidden; margin:0px; height:100%; width:100%" onload="init()">
-        
-        <div id ="klotskiContainer" style="height:100%; width:100%;"> </div>
-        
-        <div id="pluginContainer">
-            <object id="ZigPlugin" type="application/x-zig" width="0" height="0">
-                <param name="onload" value="zigPluginLoaded">
-                    </object>
-        </div>
-        
+    <body style="overflow:hidden; margin:0px; height:100%; width:100%">
+        <div id ="klotskiContainer" style="height:100%; width:100%"> </div>
     </body>
 </html>
