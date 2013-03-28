@@ -2,11 +2,61 @@
 function KlotskiLevel() {};
 
 
+// Camera constants
+const VIEW_ANGLE = 45;
+const NEAR = 0.01;
+const FAR = 100;
+
+var gameScreenWidth;
+var gameScreenHeight;
+var aspect;
+
+var camera, renderer, controls;
+
+
 /**
  Level constructor
  */
 KlotskiLevel = function(blockList, blockSnappedCallback) {
-    THREE.Object3D.call(this);
+    
+    // Scene
+    this.scene = new THREE.Scene();
+    
+    // Container in which the game is placed
+    this.container = document.getElementById("klotskiContainer");
+    
+    gameScreenWidth = this.container.offsetWidth;
+    gameScreenHeight = this.container.offsetHeight;
+    aspect = gameScreenWidth / gameScreenHeight;
+    
+    // Renderer
+    renderer = new THREE.WebGLRenderer({antialias: true});
+    renderer.setSize(gameScreenWidth, gameScreenHeight);
+    
+    // Camera
+    camera = new THREE.PerspectiveCamera(VIEW_ANGLE, aspect, NEAR, FAR);
+    this.scene.add(camera);
+    camera.position.set(2, 2.5, 12);
+    
+    camera.lookAt(new THREE.Vector3(2, 2.5, 0));
+    this.container.appendChild(renderer.domElement);
+    
+    /*
+     
+     Add event listener!
+     
+    window.onresize = function() {
+        aspect = container.offsetWidth / container.offsetHeight;
+        
+        scene.remove(camera);
+        
+        camera = new THREE.PerspectiveCamera(VIEW_ANGLE, aspect, NEAR, FAR);
+        camera.position.set(2, 2.5, 12);
+        camera.lookAt(new THREE.Vector3(2, 2.5, 0));
+        scene.add(camera);
+        renderer.setSize(container.offsetWidth, container.offsetHeight);
+    }
+    */
     
     this.obstacles = [];
     this.blocks = [];
@@ -16,7 +66,7 @@ KlotskiLevel = function(blockList, blockSnappedCallback) {
     this.initFloor();
     
     this.particleSystem = new TouchParticleSystem();
-    this.add(this.particleSystem);
+    this.scene.add(this.particleSystem);
     
     this.activeBlock = null;
     this.clickOffset = new THREE.Vector3(0, 0, 0);
@@ -28,18 +78,19 @@ KlotskiLevel = function(blockList, blockSnappedCallback) {
      and move it so that it's center is at the center of the level
      */
     floor.position.set(2, 3, -0.1);
-    this.add(floor);
+    this.scene.add(floor);
     this.floor = floor;
 }
-
-
-KlotskiLevel.prototype = Object.create(THREE.Object3D.prototype);
 
 
 /**
  Update the state of the level
  */
 KlotskiLevel.prototype.tick = function() {
+    
+    requestAnimationFrame(tick);
+    renderer.render(this.scene, camera);
+    
     var block;
     var snappedBefore;
     var snappedAfter;
@@ -150,7 +201,7 @@ KlotskiLevel.prototype.initBlocks = function(tokens) {
         var block = new MovingBlock(id, token.x, token.y, token.width, token.height, this.obstacles);
         // Set the main block (this makes it blue and important and stuff...)
         if (token.main) block.setMain();
-        this.add(block);
+        this.scene.add(block);
         this.blocks.push(block);
         this.obstacles.push(block);
     }
@@ -164,11 +215,11 @@ KlotskiLevel.prototype.initLights = function() {
     // Point light
     var light = new THREE.PointLight(0xffffff);
     light.position.set(0, 0, 20);
-    this.add(light);
+    this.scene.add(light);
     
     // Ambient light
     var light = new THREE.AmbientLight(0x404040); // soft white light
-    this.add(light);
+    this.scene.add(light);
 }
 
 
@@ -190,7 +241,7 @@ KlotskiLevel.prototype.initFloor = function() {
      and move it so that it's center is at the center of the level
      */
     floor.position.set(2, 3, -0.1);
-    this.add(floor);
+    this.scene.add(floor);
     this.floor = floor;
 }
 
@@ -202,27 +253,27 @@ KlotskiLevel.prototype.initFloor = function() {
  */
 KlotskiLevel.prototype.initWalls = function() {
     var wall = new KlotskiWall(-1, -1, 1, 7);
-    this.add(wall);
+    this.scene.add(wall);
     this.obstacles.push(wall);
     
     wall = new KlotskiWall(4, -1, 1, 7);
-    this.add(wall);
+    this.scene.add(wall);
     this.obstacles.push(wall);
     
     wall = new KlotskiWall(0, -1, 4, 1);
-    this.add(wall);
+    this.scene.add(wall);
     this.obstacles.push(wall);
     
     wall = new KlotskiWall(4, -1, 1, 7);
-    this.add(wall);
+    this.scene.add(wall);
     this.obstacles.push(wall);
     
     wall = new KlotskiWall(0, 5, 1, 1);
-    this.add(wall);
+    this.scene.add(wall);
     this.obstacles.push(wall);
     
     wall = new KlotskiWall(3, 5, 1, 1);
-    this.add(wall);
+    this.scene.add(wall);
     this.obstacles.push(wall);
 }
 

@@ -21,68 +21,23 @@
                 <script type="text/javascript" src="../js/geometry.js"></script>
                 
                 <script>
-                    // Camera constants
-                    const VIEW_ANGLE = 45;
-                    const NEAR = 0.01;
-                    const FAR = 100;
-					
-					var gameScreenWidth;
-                    var gameScreenHeight;
-                    var aspect;
-                    
-                    var container, scene, camera, renderer, controls;
+
                     var level;
                     
                     /**
                      Set up the scene
                      */
                     function init() {
+                        /* Kinect
+                        initKinect(); */
                         
-                        // Scene
-                        scene = new THREE.Scene();
-                        
-                        // Container in which the game is placed
-                        container = document.getElementById("container");
-                        
-                        gameScreenWidth = container.offsetWidth;
-                        gameScreenHeight = container.offsetHeight;
-                        aspect = gameScreenWidth / gameScreenHeight;
-                        
-                        // Renderer
-                        renderer = new THREE.WebGLRenderer({antialias: true});
-                        renderer.setSize(gameScreenWidth, gameScreenHeight);
-                        
-                        // Camera
-                        camera = new THREE.PerspectiveCamera(VIEW_ANGLE, aspect, NEAR, FAR);
-                        scene.add(camera);
-                        camera.position.set(2, 2.5, 12);
-                        
-                        camera.lookAt(new THREE.Vector3(2, 2.5, 0));
-                        
+                        // Create the level
                         level = new KlotskiLevel(KlotskiLevels.level1, blockSnappedCallback);
-                        scene.add(level);
                         
-                        container.appendChild(renderer.domElement);
-                                                
-						window.onresize = function() {
-							aspect = container.offsetWidth / container.offsetHeight;
-							
-							scene.remove(camera);
-							
-							camera = new THREE.PerspectiveCamera(VIEW_ANGLE, aspect, NEAR, FAR);
-							camera.position.set(2, 2.5, 12);
-							camera.lookAt(new THREE.Vector3(2, 2.5, 0));
-							scene.add(camera);
-							renderer.setSize(container.offsetWidth, container.offsetHeight);
-						}
-						
+                        // Start listening for mouse events
                         document.addEventListener('mousedown', onMouseDown, false);
                         document.addEventListener('mousemove', onMouseMove, false);
                         document.addEventListener('mouseup', onMouseUp, false);
-                        
-                        // Kinect
-                        initKinect();
-                        
                         // Start the update loop
                         tick();
                     }
@@ -92,8 +47,6 @@
                      Update loop
                      */
                     function tick() {
-                        requestAnimationFrame(tick);
-                        renderer.render(scene, camera)
                         level.tick();
                     }
                     
@@ -110,7 +63,7 @@
                     
                     /**
                      Start retrieving and processing Kinect data
-                     */
+                     
                     function initKinect() {
                         plugin = document.getElementById("ZigPlugin");
                         
@@ -135,17 +88,19 @@
                         // Start updating the canvases every new kinect frame
                         plugin.addEventListener("NewFrame", updateKinectData);
                     }
-                    
+                     
                     
                     /**
                      Decode the latest depth image and update the touch controller 
                      accordingly
-                     */
+                     
                     function updateKinectData() {
-                        /* Take a snapshot from the Kinect depth video */
+                        // Take a snapshot from the Kinect depth video
                         KinectDecoder.decodeDepth(plugin.depthMap, depthData);
                         kinectTouchController.update(depthData);
                     }
+                     */
+                    
                     
                     /**
                      ...
@@ -185,7 +140,7 @@
     
     <body style="overflow:hidden; margin:0px; height:100%; width:100%" onload="init()">
         
-        <div id ="container" style="height:100%; width:100%;"> </div>
+        <div id ="klotskiContainer" style="height:100%; width:100%;"> </div>
         
         <div id="pluginContainer">
             <object id="ZigPlugin" type="application/x-zig" width="0" height="0">

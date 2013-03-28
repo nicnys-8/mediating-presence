@@ -6,13 +6,12 @@
 var MouseInterface = MouseInterface || {};
 var projector = new THREE.Projector();
 
-var container = document.getElementById("container");
-
 /**
  Returns the intersection point if an object is hit
  */
 MouseInterface.getMouseHit = function(objects, x, y) {
     
+    var container = document.getElementById("klotskiContainer");
     var x = ((x - container.offsetLeft) / container.offsetWidth) * 2 - 1;
     var y = -((y - container.offsetTop) / container.offsetHeight) * 2 + 1;
     
@@ -31,6 +30,8 @@ MouseInterface.getMouseHit = function(objects, x, y) {
  Returns the intersection point if an object is hit
  */
 MouseInterface.getMouse3D = function(x, y) {
+    
+    var container = document.getElementById("klotskiContainer");
     var x = ((x - container.offsetLeft) / container.offsetWidth) * 2 - 1;
     var y = -((y - container.offsetTop) / container.offsetHeight) * 2 + 1;
     var z = 0.8;
