@@ -1,0 +1,243 @@
+<html>
+    <head>
+        <title>Pitebros videoconference</title>
+        <script type="text/javascript" src="erizo.js"></script>
+        <script type="text/javascript" src="script.js"></script>
+        
+        <script type="text/javascript" src="Three.js"></script>
+        <script type="text/javascript" src="mouse-interface.js"></script>
+        <script type="text/javascript" src="klotski-level.js"></script>
+        <script type="text/javascript" src="klotski-blocks.js"></script>
+        <script type="text/javascript" src="particles.js"></script>
+        
+        <script type="text/javascript" src="zig.js"></script>
+        
+        <script type="text/javascript" src="kinect-decoder.js"></script>
+        <script type="text/javascript" src="image-handling.js"></script>
+        <script type="text/javascript" src="kinect-touch-controller.js"></script>
+        
+        <script type="text/javascript" src="geometry.js"></script>
+        
+        <script type="text/javascript">
+            // Camera constants
+            const VIEW_ANGLE = 45;
+            const NEAR = 0.01;
+            const FAR = 100;
+            
+            var SCREEN_WIDTH;
+            var SCREEN_HEIGHT;
+            var ASPECT;
+            
+            var container, scene, camera, renderer, controls;
+            var level;
+            
+            /**
+             Set up the scene
+             */
+            function initKlotski() {
+                console.log("Initializing Klotski...");
+                // Scene
+                scene = new THREE.Scene();
+                
+                // Level
+                blockTokens = [new KlotskiToken(0, 0, 2, 1),
+                               new KlotskiToken(2, 0, 2, 1),
+                               new KlotskiToken(0, 1, 2, 1),
+                               new KlotskiToken(0, 2, 2, 1),
+                               new KlotskiToken(2, 2, 2, 1),
+                               new KlotskiToken(0, 3, 1, 1),
+                               new KlotskiToken(1, 3, 1, 1),
+                               new KlotskiToken(0, 4, 1, 1),
+                               new KlotskiToken(1, 4, 1, 1),
+                               new KlotskiToken(2, 3, 2, 2, true) // Main block
+                               ];
+                
+                // Container in which the game is placed
+                container = document.getElementById("container");
+                container.style.backgroundColor = "black";
+                
+                SCREEN_WIDTH = container.offsetWidth;
+                SCREEN_HEIGHT = container.offsetHeight;
+                ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT;
+                
+                // Renderer
+                renderer = new THREE.WebGLRenderer({antialias: true});
+                renderer.setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
+                
+                // Camera
+                camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
+                scene.add(camera);
+                camera.position.set(2, 2.5, 12);
+                
+                camera.lookAt(new THREE.Vector3(2, 2.5, 0));
+                
+                level = new KlotskiLevel(blockTokens, blockMovedCallback);
+                scene.add(level);
+                
+                
+                
+                container.appendChild(renderer.domElement);
+                
+                window.onresize = function() {
+                    
+                    container = document.getElementById("container");
+                    
+                    SCREEN_WIDTH = container.offsetWidth;
+                    SCREEN_HEIGHT = container.offsetHeight;
+                    ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT;
+                    
+                    scene.remove(camera);
+                    
+                    camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
+                    camera.position.set(2, 2.5, 12);
+                    camera.lookAt(new THREE.Vector3(2, 2.5, 0));
+                    
+                    scene.add(camera);
+                    
+                    renderer.setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
+                }
+                
+                // Events -- Oy!!!! Make this work again later!
+                //THREEx.WindowResize(renderer, camera);
+                
+                // Start listening for mouse clicks
+                
+                document.addEventListener('mousedown', mouseDown, false);
+                document.addEventListener('mousemove', mouseMove, false);
+                document.addEventListener('mouseup', mouseUp, false);
+                
+                //initMouseEvents();
+                
+                // Kinect
+                initKinect();
+                
+                // Start the update loop
+                tick();
+            }
+            
+            
+            /**
+             Update loop
+             */
+            function tick() {
+                requestAnimationFrame(tick);
+                renderer.render(scene, camera)
+                level.tick();
+            }
+            
+            
+            /*---------------
+             ===| Kinect |===
+             --------------*/
+            const KINECT_DEPTH_WIDTH = 160;
+            const KINECT_DEPTH_HEIGHT = 120;
+            
+            var plugin;
+            var depthData = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT);
+            
+            
+            /**
+             Start retrieving and processing Kinect data
+             */
+            function initKinect() {
+                plugin = document.getElementById("ZigPlugin");
+                
+                var dJSON = localStorage.depthRef;
+                var TJSON = localStorage.transform;
+                
+                // If no transform data is found, return.
+                if (!dJSON || !TJSON) {
+                    alert("Kinect not calibrated! Motion controls won't work...");
+                    return;
+                }
+                
+                var depthRef = JSON.parse(dJSON);
+                var tData = JSON.parse(TJSON);
+                
+                var transform = new Geometry.Transform(tData[0], tData[1]);
+                kinectTouchController = new KinectTouchController(depthRef, transform);
+                
+                
+                // Start the video streams
+                plugin.requestStreams({updateDepth:true, updateImage:true});
+                // Start updating the canvases every new kinect frame
+                plugin.addEventListener("NewFrame", updateKinectData);
+            }
+            
+            
+            /**
+             Decode the latest depth image and update the touch controller
+             accordingly
+             */
+            function updateKinectData() {
+                /* Take a snapshot from the Kinect depth video */
+                KinectDecoder.decodeDepth(plugin.depthMap, depthData);
+                kinectTouchController.update(depthData);
+            }
+            
+            /**
+             ...
+            
+            function blockSnappedCallback(id, x, y) {
+                console.log("Snap! ID: " + id + " x: " + x + " y: " + y);
+            }
+             */
+            
+            
+            /*---------------------
+             ===| Mouse Events |===
+             --------------------*/
+            
+            /**
+             Called whenever the left mouse button is clicked
+             */
+            function mouseDown(event) {
+                // event.preventDefault()
+                // console.log("Clicked at (" + x + "), (" + y + ")");
+                
+                /*
+                 window.innerWidth;
+                 window.innerHeight;
+                 */
+                level.clickEvent(event.clientX, event.clientY);
+            }
+            
+            /**
+             Called whenever the mouse is moved
+             */
+            function mouseMove(event) {
+                
+                level.moveEvent(event.clientX, event.clientY);
+            }
+            
+            
+            /**
+             Called when the left mouse button is released
+             */
+            function mouseUp(event) {
+                // console.log("Released at (" + x + "), (" + y + ")");
+                level.releaseEvent();
+            }
+            
+            </script>
+
+
+    </head>
+    
+    <body style="overflow:hidden; margin:0px; height:100%; width:100%; position:absolute;">
+
+        <button id="button" onclick="buttonClicked()">Start Kinect</button>
+        
+        <div id="myVideo" style="display:none">
+        </div>
+        
+        <div id ="container" style="width:320px; height:240px; position:relative;"> </div>
+        
+        <div id="pluginContainer">
+            <object id="ZigPlugin" type="application/x-zig" width="0" height="0">
+                <param name="onload" value="zigPluginLoaded">
+                    </object>
+        </div>
+        
+    </body>
+</html>
