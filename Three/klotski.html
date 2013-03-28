@@ -76,11 +76,10 @@
 							renderer.setSize(container.offsetWidth, container.offsetHeight);
 						}
 						
-                        // Start listening for mouse clicks
-                        document.addEventListener('mousedown', mouseDown, false);
-                        document.addEventListener('mousemove', mouseMove, false);
-                        document.addEventListener('mouseup', mouseUp, false);
-                                                
+                        document.addEventListener('mousedown', onMouseDown, false);
+                        document.addEventListener('mousemove', onMouseMove, false);
+                        document.addEventListener('mouseup', onMouseUp, false);
+                        
                         // Kinect
                         initKinect();
                         
@@ -162,23 +161,23 @@
                     /**
                      Called whenever the left mouse button is clicked
                      */
-                    function mouseDown(event) {
-                        level.clickEvent(event.clientX, event.clientY);
+                    function onMouseDown(event) {
+                        level.onMouseDown(event.clientX, event.clientY);
                     }
                     
                     /**
                      Called whenever the mouse is moved
                      */
-                    function mouseMove(event) {
-                        level.moveEvent(event.clientX, event.clientY);
+                    function onMouseMove(event) {
+                        level.onMouseMove(event.clientX, event.clientY);
                     }
                     
                     
                     /**
                      Called when the left mouse button is released
                      */
-                    function mouseUp(event) {
-                        level.releaseEvent();
+                    function onMouseUp(event) {
+                        level.onMouseUp(event.clientX, event.clientY);
                     }
                     
                     </script>

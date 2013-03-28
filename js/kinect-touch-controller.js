@@ -140,6 +140,7 @@ KinectTouchController.prototype.detectLargestTouch = function() {
     return largestTouch;
 }
 
+
 /**
  Returns the largest Touch in the object's depth data
  */

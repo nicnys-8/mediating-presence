@@ -80,7 +80,7 @@ KlotskiLevel.prototype.externalBlockMove = function(id, x, y) {
 /**
  If a MovingBlock is clicked, make it controllable
  */
-KlotskiLevel.prototype.clickEvent = function(x, y) {
+KlotskiLevel.prototype.onMouseDown = function(x, y) {
     for (var i = 0; i < this.blocks.length; i++) {
         var blockHit = MouseInterface.getMouseHit(this.blocks, x, y);
         if (blockHit) {
@@ -99,7 +99,7 @@ KlotskiLevel.prototype.clickEvent = function(x, y) {
 /**
  If a block is active, move it
  */
-KlotskiLevel.prototype.moveEvent = function(x, y) {
+KlotskiLevel.prototype.onMouseMove = function(x, y) {
     var mouse3D = MouseInterface.getMouse3D(x, y);
     
     this.particleSystem.position.set(mouse3D.x, mouse3D.y, mouse3D.z);
@@ -122,7 +122,7 @@ KlotskiLevel.prototype.moveEvent = function(x, y) {
 /**
  When the user input is released, deactivate the active block
  */
-KlotskiLevel.prototype.releaseEvent = function(x, y) {
+KlotskiLevel.prototype.onMouseUp = function(x, y) {
     if (this.activeBlock) {
         this.activeBlock = null;
     }
