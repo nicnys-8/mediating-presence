@@ -29,18 +29,21 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
     /**
      Sets up the camera and renderer
      */
-    var resetRenderer = function() {
+    var setView = function() {
         
         var gameScreenWidth = container.offsetWidth;
         var gameScreenHeight = container.offsetHeight;
         var aspect = gameScreenWidth / gameScreenHeight;
         // If a camera already exists, remove it
-        if (camera) scene.remove(camera);
-        camera = new THREE.PerspectiveCamera(VIEW_ANGLE, aspect, NEAR, FAR);
+        if (camera) {
+            camera.aspect = aspect;
+            camera.updateProjectionMatrix();
+        } else {
+            camera = new THREE.PerspectiveCamera(VIEW_ANGLE, aspect, NEAR, FAR);
+            scene.add(camera);
+        }
         camera.position.set(2, 2.5, 12);
         camera.lookAt(new THREE.Vector3(2, 2.5, 0));
-        scene.add(camera);
-        mouseInterface = new MouseInterface(container, camera);
         
         // If a renderer does not already exist, create it
         if (!renderer) {
@@ -157,9 +160,11 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
     initLights();
     initParticles();
     
-    resetRenderer();
-    window.addEventListener("resize", resetRenderer, false);
+    setView();
+    window.addEventListener("resize", setView, false);
     clickOffset = new THREE.Vector3(0, 0, 0);
+    
+    mouseInterface = new MouseInterface(container, camera);
     
     /*---------------------
      ==| Game mechanics |==
