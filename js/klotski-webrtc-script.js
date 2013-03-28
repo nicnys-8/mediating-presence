@@ -31,7 +31,7 @@ function blockMovedCallback(id, x, y) {
 }
 
 /**
- When the winow loads, stuff starts to happen... subscribing to streams, adding listeners to
+ When the window loads, stuff starts to happen... subscribing to streams, adding listeners to
  the room, stuff like that... Good comment, this.
  */
 window.onload = function () {
