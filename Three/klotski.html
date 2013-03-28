@@ -7,8 +7,7 @@
                 
                 <script type="text/javascript" src="../js/lib/Three.js"></script>
                 <script type="text/javascript" src="../js/mouse-interface.js"></script>
-                <script type="text/javascript" src="../js/klotski-level.js"></script>
-                <script type="text/javascript" src="../js/klotski-levels.js"></script>
+                <script type="text/javascript" src="../js/klotski.js"></script>
                 <script type="text/javascript" src="../js/klotski-blocks.js"></script>
                 <script type="text/javascript" src="../js/particles.js"></script>
                 
@@ -21,86 +20,27 @@
                 <script type="text/javascript" src="../js/geometry.js"></script>
                 
                 <script>
-
-                    var level;
                     
-                    /**
-                     Set up the scene
-                     */
+                    var klotski;
+                    
                     function init() {
-                        /* Kinect
-                        initKinect(); */
                         
-                        // Create the level
-                        level = new KlotskiLevel(KlotskiLevels.level1, blockSnappedCallback);
+                        var container = document.getElementById("klotskiContainer");
+                        // Create the Klotski object
+                        klotski = new Klotski(
+                                                  Klotski.level1,
+                                                  blockSnappedCallback,
+                                                  container
+                                                  );
                         
                         // Start listening for mouse events
                         document.addEventListener('mousedown', onMouseDown, false);
                         document.addEventListener('mousemove', onMouseMove, false);
                         document.addEventListener('mouseup', onMouseUp, false);
+                        
                         // Start the update loop
-                        tick();
+                        klotski.tick();
                     }
-                    
-                    
-                    /**
-                     Update loop
-                     */
-                    function tick() {
-                        level.tick();
-                    }
-                    
-                    
-                    /*---------------
-                     ===| Kinect |===
-                     --------------*/
-                    const KINECT_DEPTH_WIDTH = 160;
-                    const KINECT_DEPTH_HEIGHT = 120;
-                    
-                    var plugin;
-                    var depthData = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT);
-                    
-                    
-                    /**
-                     Start retrieving and processing Kinect data
-                     
-                    function initKinect() {
-                        plugin = document.getElementById("ZigPlugin");
-                        
-                        var dJSON = localStorage.depthRef;
-                        var TJSON = localStorage.transform;
-                        
-                        // If no transform data is found, return.
-                        if (!dJSON || !TJSON) {
-                            alert("Kinect not calibrated! Motion controls won't work...");
-                            return;
-                        }
-                        
-                        var depthRef = JSON.parse(dJSON);
-                        var tData = JSON.parse(TJSON);
-                        
-                        var transform = new Geometry.Transform(tData[0], tData[1]);
-                        kinectTouchController = new KinectTouchController(depthRef, transform);
-                        
-                        
-                        // Start the video streams
-                        plugin.requestStreams({updateDepth:true, updateImage:true});
-                        // Start updating the canvases every new kinect frame
-                        plugin.addEventListener("NewFrame", updateKinectData);
-                    }
-                     
-                    
-                    /**
-                     Decode the latest depth image and update the touch controller 
-                     accordingly
-                     
-                    function updateKinectData() {
-                        // Take a snapshot from the Kinect depth video
-                        KinectDecoder.decodeDepth(plugin.depthMap, depthData);
-                        kinectTouchController.update(depthData);
-                    }
-                     */
-                    
                     
                     /**
                      ...
@@ -112,19 +52,18 @@
                     /*---------------------
                      ===| Mouse Events |===
                      --------------------*/
-                    
                     /**
                      Called whenever the left mouse button is clicked
                      */
                     function onMouseDown(event) {
-                        level.onMouseDown(event.clientX, event.clientY);
+                        klotski.onMouseDown(event.clientX, event.clientY);
                     }
                     
                     /**
                      Called whenever the mouse is moved
                      */
                     function onMouseMove(event) {
-                        level.onMouseMove(event.clientX, event.clientY);
+                        klotski.onMouseMove(event.clientX, event.clientY);
                     }
                     
                     
@@ -132,7 +71,7 @@
                      Called when the left mouse button is released
                      */
                     function onMouseUp(event) {
-                        level.onMouseUp(event.clientX, event.clientY);
+                        klotski.onMouseUp(event.clientX, event.clientY);
                     }
                     
                     </script>
