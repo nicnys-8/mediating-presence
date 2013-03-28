@@ -1,0 +1,305 @@
+
+<!-- :hover doesn't work with the doctype tag..?
+<!DOCTYPE html>
+-->
+
+<html>
+    <head>
+        
+        <title>Hello chat</title>
+		
+        <style type="text/css">
+			
+			* {
+				margin:0;
+				padding:0;
+			}
+			
+			html, body {
+				height:100%;
+				width:100%;
+			}
+			
+			body {
+				background:url('images/paper.jpg');
+				/*background:url('images/paper-tile.png');*/
+			}
+			
+			iframe {
+				display:none;
+				overflow:auto;
+				position:absolute;
+				width:100%;
+				height:100%;
+				left:-100%;
+			}
+			
+			#wrap {
+				position:absolute;
+				top:100px;
+				bottom:0px;
+				left:0px;
+				right:0px;
+			}
+			
+			#menu {
+				width:500px;
+				height:100px;
+				margin:0 auto 0 auto;
+				clear:both;
+			}
+			
+			#menu ul {
+				list-style:none;
+			}
+			#menu ul li {
+				display:inline;
+			}
+			
+			#sidebar-left {
+				position:absolute;
+				left:0px;
+				width:100px;
+				height:100%;
+				background-color:lightblue;
+				z-index:2;
+			}
+			#sidebar-right {
+				position:absolute;
+				right:0px;
+				width:100px;
+				height:100%;
+				background-color:lightblue;
+				z-index:2;
+			}
+			#content {
+				position:absolute;
+				left:0px; /*100px;*/
+				right:0px; /*100px;*/
+				height:100%;
+				z-index:1;
+			}
+			.linkbutton {
+				display:inline-block;
+				width:100px;
+				height:100px;
+				background-position:0 0;
+				background-size:400%;
+			}
+			
+			.linkbutton.selected,
+			.linkbutton.selected:hover {
+				background-position:66.6666666% 0;
+			}
+			.linkbutton.disabled,
+			.linkbutton.disabled:hover,
+			.linkbutton.disabled:active {
+				background-position:100% 0;
+			}
+			
+			.linkbutton:hover {
+				background-position:33.3333333% 0;
+			}
+			.linkbutton:active {
+				background-position:66.6666666% 0;
+			}
+			
+			#chatbutton {
+				background-image:url('images/chat-top.png');
+			}
+			
+			#sharebutton {
+				background-image:url('images/share-top.png');
+			}
+			
+			#playbutton {
+				background-image:url('images/play-top.png');
+			}
+			
+			#audiobutton {
+				background-image:url('images/audio-top.png');
+			}
+			
+			#videobutton {
+				background-image:url('images/video-top.png');
+			}
+			
+		</style>
+		
+		<script type="text/javascript" src="js/lib/jquery.js"></script>
+		
+		<script>
+			
+			var current;
+			var enableVideo = true;
+			var enableAudio = true;
+			
+			var buttonOrder = ["#chat", "#share", "#play"];
+			
+			function getTabController(iframe) {
+				return iframe.contentWindow.TabControl;
+			}
+			
+			function activateTab(iframe) {
+				
+				var tabController = iframe.contentWindow.TabControl;
+				
+				if (tabController && tabController.onActivate) {
+					tabController.onActivate();
+				} else {
+					console.warn("Failed to activate tab '#" + iframe.id + "', since it has no TabControl object. Please import the script tab-control.js!");
+				}
+			}
+			
+			function deactivateTab(iframe) {
+				
+				var tabController = iframe.contentWindow.TabControl;
+				
+				if (tabController && tabController.onDeactivate) {
+					tabController.onDeactivate();
+				} else {
+					console.warn("Failed to deactivate tab '#" + iframe.id + "', since it has no TabControl object. Please import the script tab-control.js!");
+				}
+			}
+			
+			function init() {
+				
+				current = "#chat";
+				
+				var hash = window.location.hash;
+				hash = hash.substring(0, hash.length - 1); // remove underscore
+				
+				if (buttonOrder.indexOf(hash) != -1) {
+					current = hash;
+				}
+				
+				var currentNode = $(current);
+				
+				currentNode.show();
+				currentNode.css("left", "0");
+				$(current + "button").addClass("selected");
+				
+				activateTab(currentNode.get(0));
+				
+				// $("iframe").each(function() {});
+			}
+			
+			function switchTo(next) {
+				
+				if (next == current) {
+					return;
+				}
+				
+				var currentNode = $(current);
+				var nextNode = $(next);
+				
+				// Choose animation direction depending on if the next tab is
+				// to the left or to the right of the current tab
+				var fromLeft = buttonOrder.indexOf(current) > buttonOrder.indexOf(next);
+				var startPos = fromLeft ? "-100%" : "100%";
+				
+				deactivateTab(currentNode.get(0));
+				currentNode.animate({
+									left:"-=" + startPos,
+									opacity:0.0,
+									}, 500, function() {
+										// Animation complete.
+										$(this).hide();
+									});
+
+				nextNode.show();
+				nextNode.css("left", startPos);
+				nextNode.css("opacity", 0.0);
+				nextNode.animate({
+								 left:"-=" + startPos,
+								 opacity:1.0,
+								 }, 500, function() {
+									activateTab(this);
+								 });
+				
+				$(current + "button").toggleClass("selected");
+				$(next +"button").toggleClass("selected");
+				
+				current = next;
+				document.location.hash = next + "_";
+			}
+			
+			function showChat() {
+				switchTo("#chat");
+			}
+			
+			function showShare() {
+				switchTo("#share");
+			}
+			
+			function showPlay() {
+				switchTo("#play");
+			}
+			
+			function toggleAudio() {
+				
+				var audiobutton = $("#audiobutton");
+				if (audiobutton.hasClass("disabled"))
+					return;
+				
+				audiobutton.css("background-image", enableAudio ? "url('images/noaudio-top.png')" : "url('images/audio-top.png')");
+
+				enableAudio = !enableAudio;
+			}
+			
+			function toggleVideo() {
+				
+				var videobutton = $("#videobutton");
+				if (videobutton.hasClass("disabled"))
+					return;
+				
+				videobutton.css("background-image", enableVideo ? "url('images/novideo-top.png')" : "url('images/video-top.png')");
+				
+				enableVideo = !enableVideo;
+			}
+			
+		</script>
+        
+    </head>
+	
+	<body onload="init();">
+		
+		<div id="menu"><!--
+			--><ul><!--
+				--><li><div class="linkbutton" id="chatbutton"
+					onclick="showChat();"></div></li><!--
+				--><li><div class="linkbutton" id="sharebutton"
+					onclick="showShare();"></div></li><!--
+				--><li><div class="linkbutton" id="playbutton"
+					onclick="showPlay();"></div></li><!--
+				--><li><div class="linkbutton" id="audiobutton"
+					onclick="toggleAudio();"></div></li><!--
+				--><li><div class="linkbutton disabled" id="videobutton"
+					onclick="toggleVideo();"></div></li><!--
+			--></ul><!--
+		--></div>
+		
+		<div id="wrap">
+			
+			<!--
+			<div id="sidebar-left">
+			</div>
+			-->
+			
+			<div id="content">
+				
+				<iframe id="chat" src="chat.html" seamless>GAH!</iframe>
+				<iframe id="share" src="share.html" seamless>GAH!</iframe>
+				<iframe id="play" src="Three/klotski.html" seamless>GAH!</iframe>
+				 
+			</div>
+			
+			<!--
+			<div id="sidebar-right">
+			</div>
+			-->
+		</div>
+    </body>
+	
+</html>
+
