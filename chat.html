@@ -53,13 +53,36 @@
 			}
 		</style>
 		
+		<script type="text/javascript" src="js/tab-control.js"></script>
 		<script type="text/javascript" src="js/mediaext.js"></script>
 		<script type="text/javascript" src="js/lib/jquery.js"></script>
 		
 		<script>
 		
-			function init() {
-				var video = MediaExt.getCameraAccess(640, 480, hej);
+			var timer = null;
+			
+			TabControl.onActivate = function() {
+				drawThumbs();
+			}
+			
+			TabControl.onDeactivate = function() {
+				clearTimeout(timer);
+			}
+			
+			TabControl.onStreamAdded = function(stream) {
+			}
+			
+			TabControl.onStreamRemoved = function(stream) {
+			}
+			
+			TabControl.onDataReceived = function(senderId, packet) {
+			}
+			
+			TabControl.onKinectProxyCreated = function(proxy) {
+			}
+			
+            TabControl.onLoad = function() {
+				var video = MediaExt.getCameraAccess(640, 480, function() {});
 				document.getElementById("content").appendChild(video);
 				
 				var canvas = document.getElementById("pink");
@@ -67,21 +90,23 @@
 				canvas.height = 120;
 			}
 			
-			function hej() {
+			function drawThumbs() {
 				
 				var canvas = document.getElementById("pink");
 				var ctx = canvas.getContext("2d");
 				
 				ctx.drawImage(video, 0, 0, 160, 120);
 				
-				setTimeout(hej, 50);
+				timer = setTimeout(drawThumbs, 50);
+				
+				console.log("gej");
 			}
 			
 		</script>
         
     </head>
 	
-	<body onload="init();">
+	<body>
 		
 		<div id="wrap">
 			

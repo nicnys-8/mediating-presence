@@ -1,0 +1,237 @@
+
+<!-- Partly based on example from http://learningwebgl.com/lessons/lesson02/index.html -->
+
+<html>
+    <head>
+        
+        <title>Point Cloud Rendering Test</title>
+        
+		<script type="text/javascript" src="js/tab-control.js"></script>
+        <script type="text/javascript" src="js/mediaext.js"></script>
+        <script type="text/javascript" src="js/lib/webgl-utils.js"></script>
+        <script type="text/javascript" src="js/lib/glMatrix-0.9.5.min.js"></script>
+        <script type="text/javascript" src="js/point-cloud-renderer.js"></script>
+		
+        <link rel="stylesheet" type="text/css" href="css/pb.css"/>
+        <link rel="stylesheet" type="text/css" href="css/pointcloud.css"/>
+        
+        <script type="text/javascript">
+            
+            PlyParse = {};
+            
+            // Simple .ply parser for ascii input with assumed line format x y z nx ny nz r g b
+            // (this is just a test, I will make this more dynamic and error tolerant)
+            PlyParse.parse = function(inputStr) {
+                
+                var split = inputStr.split("\n");
+                var index = 0;
+                var line = "";
+                
+                while (index < split.length && line !== "end_header") {
+                    line = split[index++];
+                }
+                
+                var pos = new Array((split.length - index) * 3);
+                var rgb = new Array((split.length - index) * 4);
+                
+                for (var i = index + 1; i < split.length; i++) {
+                    
+                    line = split[i];
+                    
+                    var values = line.split(" ");
+                    
+                    pos[i * 3 + 0] = parseFloat(values[0]);
+                    pos[i * 3 + 1] = parseFloat(values[1]);
+                    pos[i * 3 + 2] = parseFloat(values[2]);
+                    
+                    // parse normals
+                    
+                    rgb[i * 4 + 0] = parseFloat(values[6]) / 255.0;
+                    rgb[i * 4 + 1] = parseFloat(values[7]) / 255.0;
+                    rgb[i * 4 + 2] = parseFloat(values[8]) / 255.0;
+                    rgb[i * 4 + 3] = 1.0;
+                }
+                
+                return [pos, rgb];
+            };
+            </script>
+        
+        <script type="text/javascript">
+
+			const kWidth = 640, kHeight = 480;
+            var glCanvas, renderer;
+			
+			TabControl.onActivate = function() {
+				requestAnimFrame(drawScene);
+			}
+			
+			TabControl.onDeactivate = function() {
+				cancelAnimFrame(drawScene);
+			}
+			
+			TabControl.onStreamAdded = function(stream) {
+			}
+			
+			TabControl.onStreamRemoved = function(stream) {
+			}
+			
+			TabControl.onDataReceived = function(senderId, packet) {
+			}
+			
+			TabControl.onKinectProxyCreated = function(proxy) {
+			}
+			
+            TabControl.onLoad = function() {
+                
+                glCanvas = MediaExt.createCanvas(kWidth, kHeight);
+                glCanvas.style.display = "none";
+                glCanvas.style.margin = "20px auto";
+                document.getElementById("container").appendChild(glCanvas);
+				
+				renderer = new PointCloudRenderer(glCanvas);
+				renderer.setPosition([0.0, 0.0, -3.0]);
+                
+                // **********************
+                // Drag and drop with File API
+                var dropbox = document.getElementById("dropbox"),
+                dropboxContainer = document.getElementById("container"),
+				state = document.getElementById("status");
+                
+                if (typeof window.FileReader === "undefined") {
+                    state.className = "fail";
+                    state.innerHTML = "File API unavailable, change browser!!!! :)";
+                } else {
+                    state.className = "success";
+                }
+                
+                dropboxContainer.ondragenter = function () {
+                    dropbox.className = "hover";
+                    return false;
+                };
+                dropboxContainer.ondragleave = function () {
+                    dropbox.className = "";
+                    return false;
+                };
+                dropboxContainer.ondragover = function () {
+                    dropbox.className = "hover";
+                    return false;
+                };
+                dropboxContainer.ondragend = function () {
+                    return false;
+                };
+                dropboxContainer.ondrop = function (e) {
+                    
+                    dropbox.className = "";
+                    
+                    e.preventDefault();
+                    readFiles(e.dataTransfer.files);
+                    
+                    return false;
+                };
+                // **********************
+                
+                document.getElementById("fileSelect").addEventListener("change", function () { readFiles(this.files); }, false);
+            }
+            
+            function readFiles(files) {
+                
+                var file = files[0];
+                
+                var splitName = file.name.split(".");
+                if (splitName.length < 2 || splitName[1] !== "ply") {
+                    alert("I ONLY ACCEPT .ply FILES! ." + splitName[1] + " FILES ANGER ME! >:(");
+                    return;
+                }
+                // or maybe:
+                /*
+                 if (file.name.substring(file.name.length - 4) !== ".ply") {
+                 }
+                 */
+                
+                var progress = document.getElementById("percentBar");
+                var dropbox = document.getElementById("dropbox");
+                
+                var reader = new FileReader();
+                reader.onerror = errorHandler;
+                reader.onprogress = updateProgress;
+                reader.onabort = function(e) {
+                    alert("File read cancelled");
+                };
+                reader.onloadstart = function(e) {
+                    document.getElementById("progressBar").className = "loading";
+                };
+                reader.onload = function (event) {
+                    // Ensure that the progress bar displays 100% at the end.
+                    progress.style.width = "100%";
+                    progress.textContent = "100%";
+                    setTimeout("document.getElementById('progressBar').className='';", 2000);
+                    
+                    dropbox.style.display = "none";
+                    glCanvas.style.display = "block";
+                    
+                    var points = PlyParse.parse(event.target.result);
+                    renderer.bufferData(points[0], points[1]);
+                    // drawScene();
+                };
+                
+                console.log(file);
+                
+                // reader.readAsDataURL(file);
+                reader.readAsText(file);
+            }
+            
+            function updateProgress(evt) {
+                
+                var progress = document.getElementById("percentBar");
+                
+                // evt is an ProgressEvent.
+                if (evt.lengthComputable) {
+                    var percentLoaded = Math.round((evt.loaded / evt.total) * 100);
+                    // Increase the progress bar length.
+                    if (percentLoaded < 100) {
+                        progress.style.width = percentLoaded + "%";
+                        progress.textContent = percentLoaded + "%";
+                    }
+                }
+            }
+            
+            function errorHandler(evt) {
+                switch(evt.target.error.code) {
+                    case evt.target.error.NOT_FOUND_ERR:
+                    alert("File Not Found!");
+                    break;
+                    case evt.target.error.NOT_READABLE_ERR:
+                    alert("File is not readable");
+                    break;
+                    case evt.target.error.ABORT_ERR:
+                    break; // noop
+                    default:
+                    alert("An error occurred reading this file.");
+                };
+            }
+			
+			
+			function drawScene() {
+				requestAnimFrame(drawScene);
+				renderer.render();
+			}
+            
+            </script>
+        
+    </head>
+	
+	<body>
+        
+        <h1>Point Cloud Drag and Drop</h1>
+        <div id="container">
+            <div id="dropbox">
+                <p id="status">Drop a .ply file here!</p>
+                <div id="progressBar">
+                    <div id="percentBar">0%</div>
+                </div>
+            </div>
+        </div>
+        Drop a file above, or use this fine button here: <input type="file" id="fileSelect">
+            </body>
+    
+</html>
