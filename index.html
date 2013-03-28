@@ -147,7 +147,7 @@
 				if (tabController && tabController.onActivate) {
 					tabController.onActivate();
 				} else {
-					console.warn("Failed to activate tab '#" + iframe.id + "', since it has no TabControl object. Please import the script tab-control.js!");
+					console.warn("Failed to activate tab '#" + iframe.id + "', since it has no TabControl object. Please import the script 'tab-control.js'!");
 				}
 			}
 			
@@ -158,7 +158,7 @@
 				if (tabController && tabController.onDeactivate) {
 					tabController.onDeactivate();
 				} else {
-					console.warn("Failed to deactivate tab '#" + iframe.id + "', since it has no TabControl object. Please import the script tab-control.js!");
+					console.warn("Failed to deactivate tab '#" + iframe.id + "', since it has no TabControl object. Please import the script 'tab-control.js'!");
 				}
 			}
 			
@@ -179,9 +179,8 @@
 				currentNode.css("left", "0");
 				$(current + "button").addClass("selected");
 				
+				$("iframe").each(function() { deactivateTab(this); });
 				activateTab(currentNode.get(0));
-				
-				// $("iframe").each(function() {});
 			}
 			
 			function switchTo(next) {
