@@ -31,8 +31,9 @@ function blockMovedCallback(id, x, y) {
 }
 
 /**
- When the winow loads, stuff starts to happen... subscribing to streams, adding listeners to
- the room, stuff like that... Good comment, this.
+ When the winow loads, stuff starts to happen...
+ subscribing to streams, adding listeners to the
+ room, stuff like that... Good comment, this.
  */
 window.onload = function () {
     
@@ -42,7 +43,6 @@ window.onload = function () {
     localStream = Erizo.Stream({audio: true, video: true, data: true});
     
     var createToken = function(userName, role, callback) {
-        
         var req = new XMLHttpRequest();
         var url = serverUrl + 'createToken/';
         var body = {username: userName, role: role};
@@ -62,7 +62,6 @@ window.onload = function () {
                 room = Erizo.Room({token: token});
                 
                 localStream.addEventListener("access-accepted", function () {
-                                             
                                              /**
                                               Subscribe to current users' streams
                                               */

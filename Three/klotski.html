@@ -37,9 +37,15 @@
                     
                     TabControl.onDataReceived = function(senderId, packet) {
                         if (packet.dst == "klotski") {
-                            klotski.externalBlockMove(packet.id,
-                                                      packet.x,
-                                                      packet.y);
+                            if (packet.yourTurn == "klotski") {
+                            }
+                            
+                            if (packet.dst == "klotski") {
+                            }
+                            
+                            klotski.onReceivedMove(packet.id,
+                                                   packet.x,
+                                                   packet.y);
                         }
                     };
                     
