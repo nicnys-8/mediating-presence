@@ -4,7 +4,6 @@
         <title>Cube Game</title>
         <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-                
                 <script type="text/javascript" src="../js/tab-control.js"></script>
                 <script type="text/javascript" src="../js/lib/Three.js"></script>
                 <script type="text/javascript" src="../js/mouse-interface.js"></script>
@@ -16,7 +15,6 @@
                 <script type="text/javascript" src="../js/image-handling.js"></script>
                 <script type="text/javascript" src="../js/kinect-touch-controller.js"></script>
                 <script type="text/javascript" src="../js/geometry.js"></script>
-                
                 <script>
                     
                     var klotski;
@@ -35,13 +33,15 @@
                     TabControl.onStreamRemoved = function(stream) {
                     };
                     
-                    TabControl.onDataReceived = function(senderId, packet) {
-                        if (type == "yourMove") {
+                    TabControl.onMessageReceived = function(senderId, type, packet) {
+                        if (type == "yourTurn") {
                             klotski.hasTurn = true;
                         }
-                        
                         else if (type == "update") {
-                            klotski.onReceivedMove(data);
+                            klotski.onReceivedMove(packet);
+                        }
+                        else {
+                            console.log("Received unreadable message");
                         }
                     };
                     
@@ -78,9 +78,16 @@
                      Called when a Klotski block snaps to an even grid point
                      */
                     function blockSnapped(id, x, y) {
-                        var message = {dst:"klotski", id:id, x:x, y:y};
-                        message = JSON.stringify(message);
-                        TabControl.sendData(message);
+                        var data = {id:id, x:x, y:y};
+                        TabControl.sendData("klotski", "update", data);
+                    }
+                    
+                    /**
+                     ...
+                     */
+                    function endOfTurn() {
+                        klotski.hasTurn = false;
+                        TabControl.sendData("klotski", "yourTurn", {});
                     }
                     
                     /*---------------------
@@ -111,6 +118,7 @@
                 </head>
     
     <body style="overflow:hidden; margin:0px; height:100%; width:100%">
+        <input type="button" id="endTurnButton" onclick="endOfTurn()" value="End of turn" > </input>
         <div id ="klotskiContainer" style="height:100%; width:100%"> </div>
     </body>
 </html>

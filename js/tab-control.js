@@ -53,7 +53,7 @@ TabControl = function() {
 		onDeactivate : onDeactivate,
 		onStreamAdded : onStreamAdded,
 		onStreamRemoved : onStreamRemoved,
-		onDataReceived : onDataReceived,
+		onMessageReceived : onMessageReceived,
 		onKinectPluginProxyCreated : onKinectPluginProxyCreated,
 		setLocalStream : setLocalStream,
 		sendData : sendData,
