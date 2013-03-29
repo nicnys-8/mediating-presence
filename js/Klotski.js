@@ -16,12 +16,14 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
     var camera
     var renderer;
     var obstacles;
+    var externalMoves;
     var particleSystem;
     var blocks;
     var activeBlock;
     var floor;
     var mouseInterface;
     var clickOffset;
+    var hasTurn;
     
     /*-----------------------
      ===| Init functions |===
@@ -30,7 +32,6 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
      Sets up the camera and renderer
      */
     var setView = function() {
-        
         var gameScreenWidth = container.offsetWidth;
         var gameScreenHeight = container.offsetHeight;
         var aspect = gameScreenWidth / gameScreenHeight;
@@ -51,7 +52,7 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
             container.appendChild(renderer.domElement);
         }
         renderer.setSize(gameScreenWidth, gameScreenHeight);
-    }
+    };
     
     /**
      Add all blocks to the level
@@ -68,7 +69,7 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
             blocks.push(block);
             obstacles.push(block);
         }
-    }
+    };
     
     /**
      Adds the walls to the level
@@ -99,7 +100,7 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
         wall = new KlotskiWall(3, 5, 1, 1);
         scene.add(wall);
         obstacles.push(wall);
-    }
+    };
     
     /**
      Adds a floor object to the level
@@ -121,7 +122,7 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
         floor.position.set(2, 3, -0.1);
         scene.add(floor);
         floor = floor;
-    }
+    };
     
     /**
      Add lights to the level
@@ -135,7 +136,7 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
         // Ambient light
         var light = new THREE.AmbientLight(0x404040); // soft white light
         scene.add(light);
-    }
+    };
     
     /**
      Add particle effects to the level
@@ -143,18 +144,21 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
     var initParticles = function() {
         particleSystem = new TouchParticleSystem();
         scene.add(particleSystem);
-    }
+    };
     
     /*-----------------------
      ==| Constructor code |==
-     -----------------------*/    
+     -----------------------*/
     scene = new THREE.Scene();
     
     blocks = [];
     obstacles = [];
+    externalMoves = [];
     activeBlock = null;
-    initBlocks(blockTokens);
+    clickOffset = new THREE.Vector3(0, 0, 0);
+    hasTurn = false;
     
+    initBlocks(blockTokens);
     initWalls();
     initFloor();
     initLights();
@@ -162,7 +166,6 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
     
     setView();
     window.addEventListener("resize", setView, false);
-    clickOffset = new THREE.Vector3(0, 0, 0);
     
     mouseInterface = new MouseInterface(container, camera);
     
@@ -170,13 +173,9 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
      ==| Game mechanics |==
      --------------------*/
     /**
-     Update the game state
+     Move blocks toward their target positions
      */
-    var updateScene = function() {
-        // If the tab is active, render the current frame
-        if (this.shouldRender) {
-           renderer.render(scene, camera);
-        }
+    var localBlockUpdate = function() {
         var block;
         var snappedBefore;
         var snappedAfter;
@@ -188,6 +187,7 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
             block.stepTowardTarget();
             snappedAfter = block.isSnapped();
             
+            if (!hasTurn) continue;
             // If the block snapped to an even grid point, run the callback method
             if (!snappedBefore && snappedAfter) {
                 blockSnappedCallback(block.id,
@@ -195,20 +195,54 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
                                      block.position.y);
             }
         }
-        // Update particle system
-        particleSystem.update();
-    }
+    };
     
     /**
-     React when a block is moved by another player
+     Updates block movements based on an external message
      */
-    var externalBlockMove = function(id, x, y) {
-        for (var i = 0; i < blocks.length; i++) {
-            var block = blocks[i];
-            if (block.id != id) continue;
-            block.updateTargetPosition(x, y);
+    var remoteBlockUpdate = function() {
+        // Get the first item in the list
+        var move = externalMoves[0];
+        if (move) {
+            var block = blocks[move.id];
+            // Check if the block is at the
+            // specified position
+            if (block.position.x == move.x &&
+                block.position.y == move.y) {
+                // If so, remove that move from the list
+                externalMoves.shift();
+            } else {
+                // Else move the block toward that position
+                block.updateTargetPosition(move.x, move.y);
+                block.stepTowardTarget();
+            }
         }
-    }
+    };
+    
+    /**
+     React when a bloc update is received from another player
+     */
+    var onReceivedMove = function(id, x, y) {
+        var move = {id:id, x:x, y:y};
+        externalMoves.push(move);
+    };
+    
+    /**
+     Update the game state
+     */
+    var updateScene = function() {
+        // If the tab is active, render the current frame
+        if (this.shouldRender) {
+            renderer.render(scene, camera);
+        }
+        if (this.hasTurn) {
+            localBlockUpdate();
+        } else {
+            remoteBlockUpdate();
+        }
+        // Update particle system
+        particleSystem.update();
+    };
     
     /*-----------------------
      ==| Mouse input code |==
@@ -217,6 +251,7 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
      If a MovingBlock is clicked, make it controllable
      */
     var onMouseDown = function(x, y) {
+        if (!this.hasTurn) return;
         for (var i = 0; i < blocks.length; i++) {
             var blockHit = mouseInterface.getMouseHit(blocks, x, y);
             if (blockHit) {
@@ -228,7 +263,7 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
                 }
             }
         }
-    }
+    };
     
     /**
      If a block is active, move it
@@ -249,7 +284,7 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
              to the clicked point */
             activeBlock.updateTargetPosition(target.x ,target.y);
         }
-    }
+    };
     
     /**
      When the user input is released, deactivate the active block
@@ -258,7 +293,7 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
         if (activeBlock) {
             activeBlock = null;
         }
-    }
+    };
     
     /*-----------------------
      ==| Public functions |==
@@ -266,13 +301,14 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
     this.onMouseDown = onMouseDown;
     this.onMouseMove = onMouseMove;
     this.onMouseUp = onMouseUp;
-    
+    this.onReceivedMove = onReceivedMove;
     this.updateScene = updateScene;
     
     /*-----------------------
      ==| Public variables |==
      ----------------------*/
     this.shouldRender = true;
+    this.hasTurn = true;
 };
 
 /**

@@ -23,30 +23,35 @@
                     
                     TabControl.onActivate = function() {
                         klotski.shouldRender = true;
-                    }
+                    };
                     
                     TabControl.onDeactivate = function() {
                         klotski.shouldRender = false;
-                    }
+                    };
                     
                     TabControl.onStreamAdded = function(stream) {
-                    }
+                    };
                     
                     TabControl.onStreamRemoved = function(stream) {
-                    }
+                    };
                     
                     TabControl.onDataReceived = function(senderId, packet) {
-                    }
+                        if (packet.dst == "klotski") {
+                            klotski.externalBlockMove(packet.id,
+                                                      packet.x,
+                                                      packet.y);
+                        }
+                    };
                     
                     TabControl.onKinectProxyCreated = function(proxy) {
-                    }
+                    };
                     
                     TabControl.onLoad = function() {
                         var container = document.getElementById("klotskiContainer");
                         // Create the Klotski object
                         klotski = new Klotski(
                                               Klotski.level1,
-                                              blockSnappedCallback,
+                                              blockSnapped,
                                               container
                                               );
                         
@@ -70,8 +75,10 @@
                     /**
                      Called when a Klotski block snaps to an even grid point
                      */
-                    function blockSnappedCallback(id, x, y) {
-                        console.log("Snap! ID: " + id + " x: " + x + " y: " + y);
+                    function blockSnapped(id, x, y) {
+                        var message = {dst:"klotski", id:id, x:x, y:y};
+                        message = JSON.stringify(message);
+                        TabControl.sendData(message);
                     }
                     
                     /*---------------------
