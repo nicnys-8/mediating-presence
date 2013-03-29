@@ -36,16 +36,12 @@
                     };
                     
                     TabControl.onDataReceived = function(senderId, packet) {
-                        if (packet.dst == "klotski") {
-                            if (packet.yourTurn == "klotski") {
-                            }
-                            
-                            if (packet.dst == "klotski") {
-                            }
-                            
-                            klotski.onReceivedMove(packet.id,
-                                                   packet.x,
-                                                   packet.y);
+                        if (type == "yourMove") {
+                            klotski.hasTurn = true;
+                        }
+                        
+                        else if (type == "update") {
+                            klotski.onReceivedMove(data);
                         }
                     };
                     

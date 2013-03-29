@@ -220,10 +220,9 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
     };
     
     /**
-     React when a bloc update is received from another player
+     React when a block update is received from another player
      */
-    var onReceivedMove = function(id, x, y) {
-        var move = {id:id, x:x, y:y};
+    var onReceivedMove = function(move) {
         externalMoves.push(move);
     };
     
