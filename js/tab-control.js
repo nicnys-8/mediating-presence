@@ -27,7 +27,7 @@ TabControl = function() {
 		// Called when a WebRTC stream is removed
 	}
 	
-	var onDataReceived = function(senderId, packet) {
+	var onMessageReceived = function(senderId, type, packet) {
 		// Called when a data packet is received from a WebRTC stream
 	}
 	
