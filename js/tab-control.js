@@ -27,7 +27,7 @@ TabControl = function() {
 		// Called when a WebRTC stream is removed
 	}
 	
-	var onMessageReceived = function(senderId, type, packet) {
+	var onMessageReceived = function(senderId, type, data) {
 		// Called when a data packet is received from a WebRTC stream
 	}
 	
@@ -40,9 +40,18 @@ TabControl = function() {
 		localStream = stream;
 	}
 	
-	var sendData = function(data) {
+	var sendMessage = function(dst, type, data) {
 		if (localStream != null) {
-			localStream.sendData(data);
+			localStream.sendData({
+								 dst:dst,
+								 type:type,
+								 data:data,
+								 });
+		} else {
+			// TODO: queue the message and wait for a stream?
+			// Maybe add a timeout and discard messages from
+			// the queue after a while
+			console.warn("Trying to send message of type '" + type + "' to frame '" + dst +"', but no local stream is available.");
 		}
 	}
 	
@@ -56,7 +65,7 @@ TabControl = function() {
 		onMessageReceived : onMessageReceived,
 		onKinectPluginProxyCreated : onKinectPluginProxyCreated,
 		setLocalStream : setLocalStream,
-		sendData : sendData,
+		sendMessage : sendMessage,
 	};
 }();
 
