@@ -61,6 +61,10 @@ KinectPluginProxy = function() {
 		plugin.requestStreams({updateDepth:true, updateImage:true});
 		// Start updating the canvases every new kinect frame
 		plugin.addEventListener("NewFrame", onNewKinectData);
+		
+		if (TabControl) {
+			TabControl.onKinectInit(this);
+		}
 	}
 	
 	var onNewKinectData() {
@@ -70,6 +74,10 @@ KinectPluginProxy = function() {
 		
 		// Decode the depth data
 		KinectDecoder.decodeDepth(plugin.depthMap, depthData);
+		
+		if (TabControl) {
+			TabControl.onNewKinectData(videoData, depthData);
+		}
 		
 		for (var i = 0; i < listeners.length; i++) {
 			listeners[i](videoData, depthData);
