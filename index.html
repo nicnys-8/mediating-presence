@@ -151,7 +151,7 @@
 				// Important! This needs to happen after TabControl.onLoad
 				// TODO: Make sure it does! :)
 				
-				for (tabName in tabControllers) {
+				for (var tabName in tabControllers) {
 					if (tabControllers[tabName]) {
 						tabControllers[tabName].onKinectInit(proxy);
 					}
@@ -159,7 +159,7 @@
 			};
 			
 			TabControl.onNewKinectData = function(videoData, depthData) {
-				for (tabName in tabControllers) {
+				for (var tabName in tabControllers) {
 					if (tabControllers[tabName]) {
 						tabControllers[tabName].onNewKinectData(videoData, depthData);
 					}
@@ -316,7 +316,7 @@
 				
 				<iframe id="chat" src="chat.html" seamless>GAH!</iframe>
 				<iframe id="share" src="share.html" seamless>GAH!</iframe>
-				<iframe id="play" src="Three/klotski.html" seamless>GAH!</iframe>
+				<iframe id="play" src="klotski.html" seamless>GAH!</iframe>
 				 
 			</div>
 			
