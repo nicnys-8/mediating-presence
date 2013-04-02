@@ -49,7 +49,7 @@ KinectPluginProxy = function() {
 	var videoData;
 	var listeners = [];
 	
-	var initPlugin() {
+	var initPlugin = function() {
 		
 		var ctx = document.createElement("canvas").getContext("2d");
 		videoData = ctx.createImageData(RGB_DATA_WIDTH, RGB_DATA_HEIGHT);
@@ -57,6 +57,12 @@ KinectPluginProxy = function() {
 		depthData = new Array(DEPTH_DATA_WIDTH * DEPTH_DATA_HEIGHT);
 		
 		plugin = document.getElementById("ZigPlugin");
+		
+		if (!plugin) {
+			console.warn("Zigfu plugin not detected, did you forget to add the tag in your html?");
+			return;
+		}
+		
 		// Start the video streams
 		plugin.requestStreams({updateDepth:true, updateImage:true});
 		// Start updating the canvases every new kinect frame
@@ -67,7 +73,7 @@ KinectPluginProxy = function() {
 		}
 	}
 	
-	var onNewKinectData() {
+	var onNewKinectData = function() {
 		
 		// Decode the video data
 		KinectDecoder.decodeRGB(plugin.imageMap, videoData.data);
@@ -84,7 +90,7 @@ KinectPluginProxy = function() {
 		}
 	}
 	
-	var requestStreams(callback) {
+	var requestStreams = function(callback) {
 		listeners.push(callback);
 	}
 	
