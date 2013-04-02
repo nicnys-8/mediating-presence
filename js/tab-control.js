@@ -31,9 +31,14 @@ TabControl = function() {
 		// Called when a data packet is received from a WebRTC stream
 	}
 	
-	var onKinectPluginProxyCreated = function(proxy) {
+	var onKinectInit = function(proxy) {
 		// Called when the KinectPluginProxy is created.
 		// Add listeners for video and depth data here
+	}
+	
+	var onNewKinectData = function(videoData, depthData) {
+		// Called when a new frame of video is
+		// available from the Kinect
 	}
 	
 	var setLocalStream = function(stream) {
