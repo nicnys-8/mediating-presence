@@ -7,6 +7,13 @@ const VIEW_ANGLE = 45;
 const NEAR = 0.01;
 const FAR = 100;
 
+/**
+ Constructor of the Klotski object
+ @param blockTokens A representation of the level layout
+ @param blockSnappedCallback Method to be called when a block moves to
+ an even gridpoint
+ @param container The HTML element that in which the game will be displayed
+ */
 Klotski = function(blockTokens, blockSnappedCallback, container) {
     
     /*--------------------------
@@ -56,6 +63,7 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
     
     /**
      Add all blocks to the level
+     @param tokens An array containing tokens representing the level's layout
      */
     var initBlocks = function(tokens) {
         var token;
