@@ -27,15 +27,15 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
     var particleSystem;
     var blocks;
     var activeBlock;
-    var currentLevel;
+    var currentLevelIndex;
     var floor;
     var mouseInterface;
     var clickOffset;
     var hasTurn;
     
-    /*-----------------------
-     ===| Init functions |===
-     ----------------------*/
+    /*------------------------
+     ===| Setup functions |===
+     -----------------------*/
     /**
      Sets up the camera and renderer
      */
@@ -63,17 +63,40 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
     };
     
     /**
+     Empty the current level
+     */
+    var clearLevel = function() {
+        for (var i = 0; i < blocks.length; i++) {
+            var block = blocks[i];
+            scene.remove(block);
+            // Remove the block from the obstacle list
+            // All objects popped here should be blocks, not walls
+            var obj = obstacles.pop();
+            if (!obj instanceof MovingBlock) {
+                console.log("Invalid level! Problems will probably ensue.");
+            }
+        }
+        blocks = [];
+        activeBlock = null;
+    };
+    
+    /**
      Add all blocks to the level
      @param tokens An array containing tokens representing the level's layout
      */
-    var loadLevel = function(tokens) {
+    var loadcurrentLevel = function() {
+        var currentLevel = levels[currentLevelIndex];
         var token;
-        for (var i = 0; i < tokens.length; i++) {
-            token = tokens[i];
+        for (var i = 0; i < currentLevel.length; i++) {
+            token = currentLevel[i];
             var id = i;
-            var block = new MovingBlock(id, token.x, token.y, token.width, token.height, obstacles);
-            // Set the main block (this makes it blue and important and stuff...)
+            var block = new MovingBlock(id, token.x,
+                                        token.y,
+                                        token.width,
+                                        token.height,
+                                        obstacles);
             if (token.main) block.setMain();
+            if (currentLevelIndex == 1) continue;
             scene.add(block);
             blocks.push(block);
             obstacles.push(block);
@@ -176,13 +199,13 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
     clickOffset = new THREE.Vector3(0, 0, 0);
     hasTurn = false;
     
-    currentLevel = 0;
-    loadLevel(levels[currentLevel]);
     initWalls();
     initFloor();
     initLights();
     initParticles();
-    
+    currentLevelIndex = 0;
+    loadcurrentLevel();
+
     setView();
     window.addEventListener("resize", setView, false);
     
@@ -191,24 +214,6 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
     /*---------------------
      ==| Game mechanics |==
      --------------------*/
-    /**
-     Called when a level is cleared
-     */
-    var clearedLevel = function() {
-        for (var i = 0; i < blocks.length; i++) {
-            scene.remove(blocks[i]);
-        }
-        blocks = [];
-        activeBlock = null;
-        // Stop the current touch
-        onMouseUp();
-        
-        alert("You win!");
-        
-        currentLevel++;
-        loadLevel(levels[currentLevel]);
-    };
-    
     /**
      Move blocks toward their target positions
      */
@@ -228,7 +233,7 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
             if (block.main &&
                 block.position.x == 1 &&
                 block.position.y == 4) {
-                clearedLevel();
+                onWin();
             }
             
             if (!hasTurn) continue;
@@ -285,6 +290,17 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
         }
         // Update particle system
         particleSystem.update();
+    };
+    
+    /**
+     Called when the a level is finished
+     */
+    var onWin = function() {
+        // Stop the current touch
+        onMouseUp();
+        clearLevel();
+        currentLevelIndex++;
+        loadcurrentLevel();
     };
     
     /*-----------------------

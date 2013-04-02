@@ -63,7 +63,7 @@ Block.prototype.isSnapped = function() {
 KlotskiWall = function(column, row, width, height) {
     Block.call(this, column, row, width, height);
     // Set the texture
-    var texture = THREE.ImageUtils.loadTexture('../images/rock.png');
+    var texture = THREE.ImageUtils.loadTexture("../images/rock.png");
     this.material.map = texture;
     this.material.map.wrapS = THREE.RepeatWrapping;
     this.material.map.wrapT = THREE.RepeatWrapping;
@@ -159,12 +159,13 @@ MovingBlock.prototype.stepTowardTarget = function() {
  */
 MovingBlock.prototype.xStep = function(dx) {
     
-    var distance = Math.abs(this.position.x - this.targetX);
+    var distance = this.position.x - this.targetX;
     if (distance == 0) return;
     
+    var dir = -1 * Math.sign(distance);
+    distance = Math.abs(distance);
     // Make sure the block won't move past the target
     dx = Math.min(dx, distance);
-    var dir = ((this.position.x < this.targetX) ? 1 : -1); // ANVÄND SIGN!!!!!!
     
     // Translate by dx in the specified direction
     var xMovement = dir * dx;
@@ -187,13 +188,15 @@ MovingBlock.prototype.xStep = function(dx) {
  Move (at most) the specified distance toward the specified point along the z-axis
  */
 MovingBlock.prototype.yStep = function(dy) {
-    
-    var distance = Math.abs(this.position.y - this.targetY);
+    var distance = this.position.y - this.targetY;
     if (distance == 0) return;
+    
+    var dir = -1 * Math.sign(distance);
+    distance = Math.abs(distance);
     
     // Make sure the block won't move past the target
     dy = Math.min(dy, distance);
-    var dir = ((this.position.y < this.targetY) ? 1 : -1);
+     
     // Translate by dy in the specified direction
     var yMovement = dir * dy;
     this.translateY(yMovement);
