@@ -12,7 +12,7 @@ const FAR = 100;
  @param blockTokens A representation of the level layout
  @param blockSnappedCallback Method to be called when a block moves to
  an even gridpoint
- @param container The HTML element that in which the game will be displayed
+ @param container The HTML element in which the game will be displayed
  */
 Klotski = function(blockTokens, blockSnappedCallback, container) {
     
@@ -267,6 +267,7 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
      If a MovingBlock is clicked, make it controllable
      */
     var onMouseDown = function(x, y) {
+        particleSystem.active = true;
         if (!this.hasTurn) return;
         for (var i = 0; i < blocks.length; i++) {
             var blockHit = mouseInterface.getMouseHit(blocks, x, y);
@@ -286,8 +287,8 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
      */
     var onMouseMove = function(x, y) {
         var mouse3D = mouseInterface.getMouse3D(x, y);
-        particleSystem.position.set(mouse3D.x, mouse3D.y, mouse3D.z);
-        // particleSystem.setOrigin(mouse3D);
+        //particleSystem.position.set(mouse3D.x, mouse3D.y, mouse3D.z);
+        particleSystem.setOrigin(mouse3D.x, mouse3D.y, mouse3D.z);
         
         var hit = mouseInterface.getMouseHit([floor], x, y);
         if (!hit) return; // Return if the floor isn't hit
@@ -306,6 +307,7 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
      When the user input is released, deactivate the active block
      */
     var onMouseUp = function(x, y) {
+        particleSystem.active = false;
         if (activeBlock) {
             activeBlock = null;
         }
