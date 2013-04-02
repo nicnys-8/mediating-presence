@@ -127,6 +127,9 @@
 		</style>
 		
 		<script type="text/javascript" src="js/lib/jquery.js"></script>
+		<script type="text/javascript" src="js/tab-control.js"></script>
+		<script type="text/javascript" src="js/kinect-decoder.js"></script>
+		<script type="text/javascript" src="js/kinect-plugin-proxy-zigfu.js"></script>
 		
 		<script>
 			
@@ -134,53 +137,84 @@
 			var enableVideo = true;
 			var enableAudio = true;
 			
-			var buttonOrder = ["#chat", "#share", "#play"];
+			var tabOrder = [ "#chat", "#share", "#play" ];
+			var tabControllers = {};
 			
-			function getTabController(iframe) {
-				return iframe.contentWindow.TabControl;
-			}
-			
-			function activateTab(iframe) {
-				
-				var tabController = iframe.contentWindow.TabControl;
-				
-				if (tabController && tabController.onActivate) {
-					tabController.onActivate();
-				} else {
-					console.warn("Failed to activate tab '#" + iframe.id + "', since it has no TabControl object. Please import the script 'tab-control.js'!");
+			TabControl.onActivate = function() {}
+			TabControl.onDeactivate = function() {}
+			TabControl.onStreamAdded = function(stream) {}
+			TabControl.onStreamRemoved = function(stream) {}
+			TabControl.onMessageReceived = function(senderId, type, packet) {}
+
+			TabControl.onKinectInit = function(proxy) {
+				for (tabName in tabControllers) {
+					if (tabControllers[tabName]) {
+						tabControllers[tabName].onKinectInit(proxy);
+					}
 				}
 			}
 			
-			function deactivateTab(iframe) {
-				
-				var tabController = iframe.contentWindow.TabControl;
-				
-				if (tabController && tabController.onDeactivate) {
-					tabController.onDeactivate();
-				} else {
-					console.warn("Failed to deactivate tab '#" + iframe.id + "', since it has no TabControl object. Please import the script 'tab-control.js'!");
+			TabControl.onNewKinectData = function(videoData, depthData) {
+				for (tabName in tabControllers) {
+					if (tabControllers[tabName]) {
+						tabControllers[tabName].onNewKinectData(videoData, depthData);
+					}
 				}
 			}
 			
-			function init() {
+            TabControl.onLoad = function() {
 				
 				current = "#chat";
 				
 				var hash = window.location.hash;
 				hash = hash.substring(0, hash.length - 1); // remove underscore
 				
-				if (buttonOrder.indexOf(hash) != -1) {
+				if (tabOrder.indexOf(hash) != -1) {
 					current = hash;
 				}
 				
-				var currentNode = $(current);
+				var currentTab = $(current);
 				
-				currentNode.show();
-				currentNode.css("left", "0");
+				currentTab.show();
+				currentTab.css("left", "0");
 				$(current + "button").addClass("selected");
 				
-				$("iframe").each(function() { deactivateTab(this); });
-				activateTab(currentNode.get(0));
+				var tabs = $("iframe");
+				
+				tabs.each(function() {
+						  
+							var controller = this.contentWindow.TabControl;
+							tabControllers["#" + this.id] = controller;
+							
+							if (controller) {
+								controller.onDeactivate();
+								controller.onKinectPluginProxyCreated(KinectPluginProxy);
+							}
+						  });
+				
+				activateTab(current);
+			}
+			
+			function activateTab(tabName) {
+				
+				var tabController = tabControllers[tabName];
+				
+				if (tabController && tabController.onActivate) {
+					tabController.onActivate();
+				} else {
+					console.warn("Failed to activate tab '" + tabName + "', since it has no TabControl object. Please import the script 'tab-control.js'!");
+				}
+			}
+			
+			function deactivateTab(tabName) {
+				
+				var tabController = tabControllers[tabName] || tabControllers["#" + tabName];
+				
+				if (tabController && tabController.onDeactivate) {
+					tabController.onDeactivate();
+				} else {
+					console.warn("Failed to deactivate tab '" + tabName + "', since it has no TabControl object. Please import the script 'tab-control.js'!");
+				}
 			}
 			
 			function switchTo(next) {
@@ -189,16 +223,16 @@
 					return;
 				}
 				
-				var currentNode = $(current);
-				var nextNode = $(next);
+				var currentTab = $(current);
+				var nextTab = $(next);
 				
 				// Choose animation direction depending on if the next tab is
 				// to the left or to the right of the current tab
-				var fromLeft = buttonOrder.indexOf(current) > buttonOrder.indexOf(next);
+				var fromLeft = tabOrder.indexOf(current) > tabOrder.indexOf(next);
 				var startPos = fromLeft ? "-100%" : "100%";
 				
-				deactivateTab(currentNode.get(0));
-				currentNode.animate({
+				deactivateTab(current);
+				currentTab.animate({
 									left:"-=" + startPos,
 									opacity:0.0,
 									}, 500, function() {
@@ -206,33 +240,21 @@
 										$(this).hide();
 									});
 
-				nextNode.show();
-				nextNode.css("left", startPos);
-				nextNode.css("opacity", 0.0);
-				nextNode.animate({
+				nextTab.show();
+				nextTab.css("left", startPos);
+				nextTab.css("opacity", 0.0);
+				nextTab.animate({
 								 left:"-=" + startPos,
 								 opacity:1.0,
 								 }, 500, function() {
-									activateTab(this);
+									activateTab(this.id);
 								 });
 				
 				$(current + "button").toggleClass("selected");
 				$(next +"button").toggleClass("selected");
 				
 				current = next;
-				document.location.hash = next + "_";
-			}
-			
-			function showChat() {
-				switchTo("#chat");
-			}
-			
-			function showShare() {
-				switchTo("#share");
-			}
-			
-			function showPlay() {
-				switchTo("#play");
+				window.location.hash = next + "_";
 			}
 			
 			function toggleAudio() {
@@ -263,14 +285,14 @@
 	
 	<body onload="init();">
 		
-		<div id="menu"><!--
+		<div id="menu"><!-- These comments are only here to avoid whitespace between the divs :)
 			--><ul><!--
 				--><li><div class="linkbutton" id="chatbutton"
-					onclick="showChat();"></div></li><!--
+					onclick="switchTo('#chat');"></div></li><!--
 				--><li><div class="linkbutton" id="sharebutton"
-					onclick="showShare();"></div></li><!--
+					onclick="switchTo('#share');"></div></li><!--
 				--><li><div class="linkbutton" id="playbutton"
-					onclick="showPlay();"></div></li><!--
+					onclick="switchTo('#play');"></div></li><!--
 				--><li><div class="linkbutton" id="audiobutton"
 					onclick="toggleAudio();"></div></li><!--
 				--><li><div class="linkbutton disabled" id="videobutton"
