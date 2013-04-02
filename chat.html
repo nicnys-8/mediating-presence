@@ -13,44 +13,59 @@
 			* {
 				padding:0;
 				margin:0;
+				position:absolute;
 			}
+			
 			html, body {
 				height:100%;
 				width:100%;
-				text-align:center;
+			}
+			
+			#wrap {
+				width:100%;
+				height:100%;
 			}
 			
 			#sidebar-left {
-				position:absolute;
 				left:0px;
 				top:0px;
 				width:200px;
 				height:100%;
-				z-index:2;
 				background-color:lightblue;
 			}
+			
 			#sidebar-right {
-				position:absolute;
 				right:0px;
 				top:0px;
 				width:200px;
 				height:100%;
-				z-index:2;
 				background-color:lightblue;
 			}
-			#pink {
-				position:absolute;
-				top:20px;
-				left:20px;
+			
+			.video-thumb {
+				position:relative;
+				display:block;
+				margin:20px auto;
 				width:160px;
 				height:120px;
+				background-color:lightyellow;
 			}
 			
-			video {
-				padding:40px;
-				width:100%;
+			#content {
+				left:200px;
+				right:200px;
 				height:100%;
+				background-color:lightgreen;
 			}
+			
+			#large-video {
+				position:relative;
+				width:80%;
+				height:80%;
+				margin:10%;
+				background-color:pink;
+			}
+		
 		</style>
 		
 		<script type="text/javascript" src="js/tab-control.js"></script>
@@ -60,6 +75,10 @@
 		<script>
 		
 			var timer = null;
+			var streamIDs = [];
+			var streams = {};
+			var thumbs = {};
+			var currentStreamID = null; // current stream (get it? haha..)
 			
 			TabControl.onActivate = function() {
 				drawThumbs();
@@ -67,12 +86,67 @@
 			
 			TabControl.onDeactivate = function() {
 				clearTimeout(timer);
+				timer = null;
 			}
 			
 			TabControl.onStreamAdded = function(stream) {
+				
+				var streamID = stream.getID();
+				streams[streamID] = stream;
+				streamIDs.push(streamID);
+				
+				if (currentStreamID == null) {
+					currentStreamID = streamID;
+				}
+				
+				// Create a div to show a thumbnail of the video
+				var thumb = document.createElement("div");
+				thumb.className = "video-thumb";
+				thumb.onclick = function() {
+					currentStreamID = streamID;
+				}
+				thumbs[streamID] = thumb;
+				
+				document.getElementById("sidebar-left").appendChild(thumb);
+				
+				// Draw the video stream in the thumbnail div
+				if (stream.hasVideo()) {
+					stream.show(thumb);
+				} else {
+					// Show an image instead?
+					thumb.innerHTML = "<center><span style='width:160px; margin:50px auto;'>No video... :)</span></center>";
+				}
 			}
 			
 			TabControl.onStreamRemoved = function(stream) {
+
+				var streamID = stream.getID();
+				var thumb = thumbs[streamID];
+				var index = streamIDs.indexOf(streamID);
+				
+				// Remove the stream ID
+				if (index != -1) {
+					streamIDs.splice(index, 1);
+				}
+				
+				// Remove the stream
+				streams[streamID].hide();
+				delete streams[streamID];
+				
+				// Remove the thumbnail div
+				if (thumb) {
+					thumb.parentNode.removeChild(thumb);
+					delete thumbs[streamID];
+				}
+				
+				// Update which stream is shown in the middle
+				if (streamID == currentStreamID) {
+					if (streamIDs.length == 0) {
+						currentStreamID = null;
+					} else {
+						currentStreamID = streamIDs[index % streamIDs.length];
+					}
+				}
 			}
 			
 			TabControl.onMessageReceived = function(senderId, type, packet) {
@@ -85,24 +159,49 @@
 			}
 			
             TabControl.onLoad = function() {
-				var video = MediaExt.getCameraAccess(640, 480, function() {});
-				document.getElementById("content").appendChild(video);
+				var video = MediaExt.getCameraAccess(640, 480, function() {
+														TabControl.onStreamAdded({
+																				 getID:function() { return "hej"; },
+																				 hasVideo:function() { return false; },
+																				 });
+														TabControl.onStreamAdded({
+																				 getID:function() { return "hej2"; },
+																				 hasVideo:function() { return false; },
+																				 });
+													 });
 				
-				var canvas = document.getElementById("pink");
-				canvas.width = 160;
-				canvas.height = 120;
+				var onWidowResize = function() {
+					var canvas = document.getElementById("large-video");
+					canvas.width = canvas.offsetWidth;
+					canvas.height = canvas.offsetHeight;
+				}
+				
+				onWidowResize();
+				
+				window.addEventListener("resize", onWidowResize, false);
 			}
 			
 			function drawThumbs() {
 				
-				var canvas = document.getElementById("pink");
+				var canvas = document.getElementById("large-video");
 				var ctx = canvas.getContext("2d");
 				
-				ctx.drawImage(video, 0, 0, 160, 120);
+				ctx.drawImage(video, 0, 0, canvas.width, canvas.width * 0.75);
+				
+				/*
+				var imageData = streams[currentStreamID].getVideoFrame();
+				var bufferCanvas = document.createElement("canvas");
+				var bufferContext = bufferCanvas.getContext("2d");
+				if (bufferCanvas.width != imageData.width ||
+					bufferCanvas.height != imageData.height) {
+					bufferCanvas.width = imageData.width;
+					bufferCanvas.height = imageData.height;
+				}
+				bufferCtx.putImageData(imageData, 0, 0);
+				ctx.drawImage(bufferCanvas, 0, 0, canvas.width, canvas.width * 0.75);
+				*/
 				
 				timer = setTimeout(drawThumbs, 50);
-				
-				console.log("gej");
 			}
 			
 		</script>
@@ -113,15 +212,11 @@
 		
 		<div id="wrap">
 			
-			<div id="sidebar-left">
-				<canvas id="pink"></canvas>
-			</div>
+			<div id="sidebar-left"></div>
 			
-			<div id="content">
-			</div>
+			<div id="content"><canvas id="large-video"></canvas></div>
 			
-			<div id="sidebar-right">
-			</div>
+			<div id="sidebar-right"></div>
 			
 		</div>
     </body>
