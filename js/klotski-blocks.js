@@ -84,7 +84,7 @@ MovingBlock = function(id, column, row, width, height, obstacles) {
     this.targetX = this.position.x;
     this.targetY = this.position.y;
     
-    this.material.color.setRGB(1, 0.4 * Math.random(), 0.4 * Math.random());
+    this.material.color.setRGB(1, 0.3 * Math.random(), 0.3 * Math.random());
     this.obstacles = obstacles;
     this.main = false;
 };
@@ -98,7 +98,7 @@ MovingBlock.prototype = Object.create(Block.prototype);
  */
 MovingBlock.prototype.setMain = function() {
     this.main = true;
-    this.material.color.setRGB(0.4 * Math.random(), 0.4 * Math.random(), 1);
+    this.material.color.setRGB(0.3, 0.3, 1);
 }
 
 
