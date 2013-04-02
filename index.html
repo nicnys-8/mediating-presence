@@ -140,19 +140,23 @@
 			var tabOrder = [ "#chat", "#share", "#play" ];
 			var tabControllers = {};
 			
-			TabControl.onActivate = function() {}
-			TabControl.onDeactivate = function() {}
-			TabControl.onStreamAdded = function(stream) {}
-			TabControl.onStreamRemoved = function(stream) {}
-			TabControl.onMessageReceived = function(senderId, type, packet) {}
+			TabControl.onActivate = function() {};
+			TabControl.onDeactivate = function() {};
+			TabControl.onStreamAdded = function(stream) {};
+			TabControl.onStreamRemoved = function(stream) {};
+			TabControl.onMessageReceived = function(senderId, type, packet) {};
 
 			TabControl.onKinectInit = function(proxy) {
+
+				// Important! This needs to happen after TabControl.onLoad
+				// TODO: Make sure it does! :)
+				
 				for (tabName in tabControllers) {
 					if (tabControllers[tabName]) {
 						tabControllers[tabName].onKinectInit(proxy);
 					}
 				}
-			}
+			};
 			
 			TabControl.onNewKinectData = function(videoData, depthData) {
 				for (tabName in tabControllers) {
@@ -160,12 +164,13 @@
 						tabControllers[tabName].onNewKinectData(videoData, depthData);
 					}
 				}
-			}
+			};
 			
             TabControl.onLoad = function() {
 				
 				current = "#chat";
 				
+				// If a tab is specified in the url, make it the current tab
 				var hash = window.location.hash;
 				hash = hash.substring(0, hash.length - 1); // remove underscore
 				
@@ -182,22 +187,16 @@
 				var tabs = $("iframe");
 				
 				tabs.each(function() {
-						  
-							var controller = this.contentWindow.TabControl;
-							tabControllers["#" + this.id] = controller;
-							
-							if (controller) {
-								controller.onDeactivate();
-								controller.onKinectPluginProxyCreated(KinectPluginProxy);
-							}
+							tabControllers["#" + this.id] = this.contentWindow.TabControl;
+							deactivateTab(this.id);
 						  });
 				
 				activateTab(current);
-			}
+			};
 			
 			function activateTab(tabName) {
 				
-				var tabController = tabControllers[tabName];
+				var tabController = tabControllers[tabName] || tabControllers["#" + tabName];
 				
 				if (tabController && tabController.onActivate) {
 					tabController.onActivate();
@@ -217,7 +216,7 @@
 				}
 			}
 			
-			function switchTo(next) {
+			function switchToTab(next) {
 				
 				if (next == current) {
 					return;
@@ -283,16 +282,22 @@
         
     </head>
 	
-	<body onload="init();">
+	<body>
+		
+		<div id="pluginContainer">
+			<object id="ZigPlugin" type="application/x-zig" width="0" height="0">
+				<param name="onload" value="zigPluginLoaded">
+					</object>
+		</div>
 		
 		<div id="menu"><!-- These comments are only here to avoid whitespace between the divs :)
 			--><ul><!--
 				--><li><div class="linkbutton" id="chatbutton"
-					onclick="switchTo('#chat');"></div></li><!--
+					onclick="switchToTab('#chat');"></div></li><!--
 				--><li><div class="linkbutton" id="sharebutton"
-					onclick="switchTo('#share');"></div></li><!--
+					onclick="switchToTab('#share');"></div></li><!--
 				--><li><div class="linkbutton" id="playbutton"
-					onclick="switchTo('#play');"></div></li><!--
+					onclick="switchToTab('#play');"></div></li><!--
 				--><li><div class="linkbutton" id="audiobutton"
 					onclick="toggleAudio();"></div></li><!--
 				--><li><div class="linkbutton disabled" id="videobutton"
