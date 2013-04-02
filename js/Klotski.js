@@ -27,6 +27,7 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
     var particleSystem;
     var blocks;
     var activeBlock;
+    var currentLevel;
     var floor;
     var mouseInterface;
     var clickOffset;
@@ -65,7 +66,7 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
      Add all blocks to the level
      @param tokens An array containing tokens representing the level's layout
      */
-    var initBlocks = function(tokens) {
+    var loadLevel = function(tokens) {
         var token;
         for (var i = 0; i < tokens.length; i++) {
             token = tokens[i];
@@ -175,7 +176,8 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
     clickOffset = new THREE.Vector3(0, 0, 0);
     hasTurn = false;
     
-    initBlocks(blockTokens);
+    currentLevel = 0;
+    loadLevel(levels[currentLevel]);
     initWalls();
     initFloor();
     initLights();
@@ -190,6 +192,24 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
      ==| Game mechanics |==
      --------------------*/
     /**
+     Called when a level is cleared
+     */
+    var clearedLevel = function() {
+        for (var i = 0; i < blocks.length; i++) {
+            scene.remove(blocks[i]);
+        }
+        blocks = [];
+        activeBlock = null;
+        // Stop the current touch
+        onMouseUp();
+        
+        alert("You win!");
+        
+        currentLevel++;
+        loadLevel(levels[currentLevel]);
+    };
+    
+    /**
      Move blocks toward their target positions
      */
     var localBlockUpdate = function() {
@@ -203,6 +223,13 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
             // Move the block toward its target
             block.stepTowardTarget();
             snappedAfter = block.isSnapped();
+            
+            // Stupid code for winning the game
+            if (block.main &&
+                block.position.x == 1 &&
+                block.position.y == 4) {
+                clearedLevel();
+            }
             
             if (!hasTurn) continue;
             // If the block snapped to an even grid point, run the callback method
@@ -341,15 +368,31 @@ KlotskiToken = function(x, y, width, height, main) {
     if (main) this.main = main;
 }
 
-Klotski.level1 = [new KlotskiToken(0, 0, 2, 1),
-                  new KlotskiToken(2, 0, 2, 1),
-                  new KlotskiToken(0, 1, 2, 1),
-                  new KlotskiToken(0, 2, 2, 1),
-                  new KlotskiToken(2, 2, 2, 1),
-                  new KlotskiToken(0, 3, 1, 1),
-                  new KlotskiToken(1, 3, 1, 1),
-                  new KlotskiToken(0, 4, 1, 1),
-                  new KlotskiToken(1, 4, 1, 1),
-                  new KlotskiToken(2, 3, 2, 2, true) // Main block
-                  ];
+levels = [];
+
+var level1 = [new KlotskiToken(0, 0, 2, 1),
+              new KlotskiToken(2, 0, 2, 1),
+              new KlotskiToken(0, 1, 2, 1),
+              new KlotskiToken(0, 2, 2, 1),
+              new KlotskiToken(2, 2, 2, 1),
+              new KlotskiToken(0, 3, 1, 1),
+              new KlotskiToken(1, 3, 1, 1),
+              new KlotskiToken(0, 4, 1, 1),
+              new KlotskiToken(1, 4, 1, 1),
+              new KlotskiToken(2, 3, 2, 2, true) // Main block
+              ];
+levels.push(level1);
+
+var level2 = [new KlotskiToken(0, 0, 2, 1),
+              new KlotskiToken(2, 0, 2, 1),
+              new KlotskiToken(0, 1, 2, 1),
+              new KlotskiToken(0, 2, 2, 1),
+              new KlotskiToken(2, 2, 2, 1),
+              new KlotskiToken(0, 3, 1, 1),
+              new KlotskiToken(1, 3, 1, 1),
+              new KlotskiToken(0, 4, 1, 1, true), // Main block
+              new KlotskiToken(1, 4, 1, 1),
+              new KlotskiToken(2, 3, 2, 2) 
+              ];
+levels.push(level2);
 

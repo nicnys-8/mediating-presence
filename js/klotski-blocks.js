@@ -151,15 +151,6 @@ MovingBlock.prototype.updateTargetPosition = function(column, row) {
 MovingBlock.prototype.stepTowardTarget = function() {
     this.xStep(SPEED);
     this.yStep(SPEED);
-    
-    // Stupid code for winning the game
-    if (
-        this.main &&
-        this.position.x == 1 &&
-        this.position.y == 4) {
-        alert("You win!");
-        this.main = false;
-    }
 }
 
 
