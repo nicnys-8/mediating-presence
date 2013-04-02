@@ -1,4 +1,5 @@
 const SPEED = 0.1;
+const SMOOTHNESS = 6;
 
 /**
  Block constructor
@@ -10,7 +11,10 @@ Block = function(column, row, width, height) {
     this.height = height;
     
     this.material = new THREE.MeshPhongMaterial();
-    var geometry = new THREE.CubeGeometry(width, height, 1);
+    var geometry = new THREE.CubeGeometry(width, height, 1, SMOOTHNESS, SMOOTHNESS, SMOOTHNESS);
+        
+	var modifier = new THREE.SubdivisionModifier(2);
+	modifier.modify(geometry);
     
     this.mesh = new THREE.Mesh(geometry, this.material);
     // Move the mesh so that its corner is at the origin
@@ -261,6 +265,3 @@ Math.sign = function(x) {
     var sign = ((x < 0) ? -1 : 1);
     return sign;
 }
-
-
-

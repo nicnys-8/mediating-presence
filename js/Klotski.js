@@ -93,7 +93,7 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
         scene.add(wall);
         obstacles.push(wall);
         
-        wall = new KlotskiWall(0, -1, 4, 1);
+        wall = new KlotskiWall(-1, -1, 6, 1);
         scene.add(wall);
         obstacles.push(wall);
         
@@ -101,11 +101,11 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
         scene.add(wall);
         obstacles.push(wall);
         
-        wall = new KlotskiWall(0, 5, 1, 1);
+        wall = new KlotskiWall(-1, 5, 2, 1);
         scene.add(wall);
         obstacles.push(wall);
         
-        wall = new KlotskiWall(3, 5, 1, 1);
+        wall = new KlotskiWall(3, 5, 2, 1);
         scene.add(wall);
         obstacles.push(wall);
     };
