@@ -300,6 +300,7 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
         levelIndex++;
         loadLevel(levelIndex);
         alert("Level cleared! Time: " + timer.getTimeString());
+        timer.start();
     };
     
     /*-----------------------

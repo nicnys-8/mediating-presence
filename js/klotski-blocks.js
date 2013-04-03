@@ -25,7 +25,6 @@ Block = function(column, row, width, height) {
 
 Block.prototype = Object.create(THREE.Object3D.prototype);
 
-
 /**
  Move the block to the specified grid point
  */
@@ -233,8 +232,9 @@ MovingBlock.prototype.collides = function() {
     
     for (var i = 0; i < this.obstacles.length; i++) {
         obstacle = this.obstacles[i];
+        // Don't check for collisions with itself
         if (this == obstacle) continue;
-        
+        // Check if the block and the obstacle intersect
         if (!(this.position.x + this.width <=
               obstacle.position.x ||
               this.position.x >=
