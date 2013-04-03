@@ -133,7 +133,7 @@
 		
 		<script>
 			
-			var current;
+			var currentTabID;
 			var enableVideo = true;
 			var enableAudio = true;
 			
@@ -209,21 +209,21 @@
 			
             TabControl.onLoad = function() {
 				
-				current = "#chat";
+				currentTabID = "#chat";
 				
 				// If a tab is specified in the url, make it the current tab
 				var hash = window.location.hash;
 				hash = hash.substring(0, hash.length - 1); // remove underscore
 				
 				if (tabOrder.indexOf(hash) != -1) {
-					current = hash;
+					currentTabID = hash;
 				}
 				
-				var currentTab = $(current);
+				var currentTab = $(currentTabID);
 				
 				currentTab.show();
 				currentTab.css("left", "0");
-				$(current + "button").addClass("selected");
+				$(currentTabID + "button").addClass("selected");
 				
 				var tabs = $("iframe");
 				
@@ -232,7 +232,7 @@
 							deactivateTab(this.id);
 						  });
 				
-				activateTab(current);
+				activateTab(currentTabID);
 			};
 			
 			function activateTab(tabName) {
@@ -257,21 +257,21 @@
 				}
 			}
 			
-			function switchToTab(next) {
+			function switchToTab(nextTabID) {
 				
-				if (next == current) {
+				if (nextTabID == currentTabID) {
 					return;
 				}
 				
-				var currentTab = $(current);
-				var nextTab = $(next);
+				var currentTab = $(currentTabID);
+				var nextTab = $(nextTabID);
 				
 				// Choose animation direction depending on if the next tab is
 				// to the left or to the right of the current tab
-				var fromLeft = tabOrder.indexOf(current) > tabOrder.indexOf(next);
+				var fromLeft = tabOrder.indexOf(currentTabID) > tabOrder.indexOf(nextTabID);
 				var startPos = fromLeft ? "-100%" : "100%";
 				
-				deactivateTab(current);
+				deactivateTab(currentTabID);
 				currentTab.animate({
 									left:"-=" + startPos,
 									opacity:0.0,
@@ -290,11 +290,11 @@
 									activateTab(this.id);
 								 });
 				
-				$(current + "button").toggleClass("selected");
-				$(next +"button").toggleClass("selected");
+				$(currentTabID + "button").toggleClass("selected");
+				$(nextTabID +"button").toggleClass("selected");
 				
-				current = next;
-				window.location.hash = next + "_";
+				currentTabID = nextTabID;
+				window.location.hash = nextTabID + "_";
 			}
 			
 			function toggleAudio() {
