@@ -140,11 +140,52 @@
 			var tabOrder = [ "#chat", "#share", "#play" ];
 			var tabControllers = {};
 			
-			TabControl.onActivate = function() {};
-			TabControl.onDeactivate = function() {};
-			TabControl.onStreamAdded = function(stream) {};
-			TabControl.onStreamRemoved = function(stream) {};
-			TabControl.onMessageReceived = function(senderId, type, packet) {};
+			TabControl.onActivate = function() {
+			};
+			TabControl.onDeactivate = function() {
+			};
+			
+			TabControl.onStreamAdded = function(stream) {
+			
+				// Just propagate the message to the tabs
+				for (var tabName in tabControllers) {
+					if (tabControllers[tabName]) {
+						tabControllers[tabName].onStreamAdded(stream);
+					}
+				}
+			};
+			
+			TabControl.onStreamRemoved = function(stream) {
+				
+				// Just propagate the message to the tabs
+				for (var tabName in tabControllers) {
+					if (tabControllers[tabName]) {
+						tabControllers[tabName].onStreamRemoved(stream);
+					}
+				}
+			};
+			
+			TabControl.onMessageReceived = function(senderId, type, packet) {
+				
+				var destinationTab = packet.dst;
+				var messageType = packet.type;
+				
+				if (destinationTab == "all") {
+					
+					for (var tabName in tabControllers) {
+						if (tabControllers[tabName]) {
+							tabControllers[tabName].onMessageReceived(senderId, messageType, packet.data);
+						}
+					}
+					
+				} else {
+					
+					var tabController = tabControllers[destinationTab];
+					if (tabController) {
+						tabController.onMessageReceived(senderId, messageType, packet.data);
+					}
+				}
+			};
 
 			TabControl.onKinectInit = function(proxy) {
 
