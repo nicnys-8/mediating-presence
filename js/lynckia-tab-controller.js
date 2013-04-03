@@ -8,6 +8,19 @@ var localStream, room;
 var tabController;
 
 /**
+ Subscribe to current users' streams
+ */
+var subscribeToStreams = function (streams) {
+    for (var index in streams) {
+        var stream = streams[index];
+        if (localStream.getID() !== stream.getID()) {
+            room.subscribe(stream);
+            stream.addEventListener("stream-data", onDataReceived);
+        }
+    }
+};
+
+/**
  Handles received data packets from remote users
  */
 var onDataReceived = function(event) {
@@ -43,6 +56,7 @@ var accessRoom = function(token) {
     room = Erizo.Room({token: token});
     localStream.addEventListener("access-accepted", onRoomAccessGranted);
     localStream.init();
+    tabController.setLocalStream(localStream);
 }
 
 /**
@@ -50,19 +64,6 @@ var accessRoom = function(token) {
  Initiates listeners for handling future events
  */
 var onRoomAccessGranted = function() {
-    /**
-     Subscribe to current users' streams
-     */
-    var subscribeToStreams = function (streams) {
-        for (var index in streams) {
-            var stream = streams[index];
-            if (localStream.getID() !== stream.getID()) {
-                room.subscribe(stream);
-                stream.addEventListener("stream-data", onDataReceived);
-            }
-        }
-    };
-    
     room.addEventListener("room-connected", function (roomEvent) {
                           room.publish(localStream);
                           subscribeToStreams(roomEvent.streams);
@@ -82,14 +83,14 @@ var onRoomAccessGranted = function() {
                           tabController.onStreamRemoved(streamEvent.stream);
                           });
     room.connect();
-    // localStream.show("myVideo");
 };
 
 /**
- ...
+ Connect to a Lynckia room
  */
 initLynckia = function (tabController) {
     tabController = tabController;
     localStream = Erizo.Stream({audio: true, video: true, data: true});
     createToken("user", "role", accessRoom);
 };
+
