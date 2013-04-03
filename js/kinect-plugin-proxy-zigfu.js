@@ -1,18 +1,18 @@
 
 /**
-
+ 
  ***** KinectPluginProxy *****
  
- If this script is included in the html, the Kinect plugin is 
- loaded and initialized automatically. Should another plugin be 
+ If this script is included in the html, the Kinect plugin is
+ loaded and initialized automatically. Should another plugin be
  used, just update this script.
  Everthing else should work, as long as it exposes the following API:
  
  initPlugin()
-	called automatically in the top window to initialize the plugin
+ called automatically in the top window to initialize the plugin
  
  requestStreams(callback)
-	used for registering callbacks when new data is available
+ used for registering callbacks when new data is available
  
  Video resolution information, in pixels:
  RGB_DATA_WIDTH
@@ -31,23 +31,24 @@
  
  In the html:
  <div id="pluginContainer">
-	<object id="ZigPlugin" type="application/x-zig" width="0" height="0">
-		<param name="onload" value="zigPluginLoaded">
-	</object>
+ <object id="ZigPlugin" type="application/x-zig" width="0" height="0">
+ <param name="onload" value="zigPluginLoaded">
+ </object>
  </div>
  */
 
 KinectPluginProxy = function() {
 	
 	const	RGB_DATA_WIDTH = 160,
-			RGB_DATA_HEIGHT = 120,
-			DEPTH_DATA_WIDTH = 160,
-			DEPTH_DATA_HEIGHT = 120;
+    RGB_DATA_HEIGHT = 120,
+    DEPTH_DATA_WIDTH = 160,
+    DEPTH_DATA_HEIGHT = 120;
 	
 	var plugin;
 	var depthData;
 	var videoData;
 	var listeners = [];
+    var touchController;
 	
 	var initPlugin = function() {
 		
@@ -71,7 +72,7 @@ KinectPluginProxy = function() {
 		if (TabControl) {
 			TabControl.onKinectInit(this);
 		}
-	}
+	};
 	
 	var onNewKinectData = function() {
 		
@@ -88,16 +89,34 @@ KinectPluginProxy = function() {
 		for (var i = 0; i < listeners.length; i++) {
 			listeners[i](videoData, depthData);
 		}
-	}
+        
+        if (touchController) {
+            touchController.update(depthData);
+        }
+	};
 	
 	var requestStreams = function(callback) {
 		listeners.push(callback);
 	}
+    
+    var initTouchController = function() {
+        if (!localStorage.transform) {
+            console.log("No transform data stored");
+            return;
+        }
+        if (!localStorage.depthRef) {
+            console.log("No depth reference data stored");
+            return;
+        }
+        var transform = JSON.parse(localStorage.transform);
+        var depthRef; = JSON.parse(localStorage.depthRef);
+        touchController = new KinectTouchController(depthRef, transform);
+    };
 	
 	// Return public API
 	return {
-		
-		initPlugin			: initPlugin,
+        initPlugin			: initPlugin,
+    initTouchController: initTouchController,
 		requestStreams		: requestStreams,
 		
 		RGB_DATA_WIDTH		: RGB_DATA_WIDTH,
@@ -107,14 +126,13 @@ KinectPluginProxy = function() {
 	};
 }();
 
-
 /**
  Init the plugin proxy when window has loaded, if this is the
  top level window (not in an iframe).
  */
 if (window.self === window.top) {
 	window.addEventListener("load", function() {
-								KinectPluginProxy.initPlugin();
+                            KinectPluginProxy.initPlugin();
 							}, false);
 }
 
