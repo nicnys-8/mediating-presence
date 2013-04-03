@@ -27,6 +27,7 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
     var particleSystem;
     var blocks;
     var activeBlock;
+    var mainBlock;
     var levelIndex;
     var floor;
     var mouseInterface;
@@ -98,7 +99,10 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
                                         token.width,
                                         token.height,
                                         obstacles);
-            if (token.main) block.setMain();
+            if (token.main) {
+                block.setMain();
+                mainBlock = block;
+            }
             scene.add(block);
             blocks.push(block);
             obstacles.push(block);
@@ -223,14 +227,6 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
         // Update blocks
         for (var i = 0; i < blocks.length; i++) {
             block = blocks[i];
-            
-            // Stupid code for winning the game
-            if (block.main &&
-                block.position.x == 1.0 &&
-                block.position.y == 4.0) {
-                onWin();
-            }
-            
             snappedBefore = block.isSnapped();
             // Move the block toward its target
             block.stepTowardTarget();
@@ -281,11 +277,20 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
         if (this.shouldRender) {
             renderer.render(scene, camera);
         }
+        
+        // Stupid code for finishing a level
+        if (
+            mainBlock.position.x == 1 &&
+            mainBlock.position.y == 4) {
+            onWin();
+        }
+        
         if (this.hasTurn) {
             localBlockUpdate();
         } else {
             remoteBlockUpdate();
         }
+        
         // Update particle system
         particleSystem.update();
     };
@@ -299,9 +304,8 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
         clearLevel();
         levelIndex++;
         levelIndex = levelIndex % levels.length;
-        console.log("Level: " + levelIndex);
         loadLevel(levelIndex);
-        alert("Level cleared! Time: " + timer.getTimeString());
+        console.log("Level cleared! Time: " + timer.getTimeString());
         timer.start();
     };
     
@@ -429,6 +433,5 @@ var level3 = [new KlotskiToken(0, 4, 1, 1),
               new KlotskiToken(2, 0, 1, 1),
               new KlotskiToken(3, 0, 1, 1)
               ];
-              
 levels.push(level3);
 

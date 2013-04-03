@@ -4,6 +4,7 @@
         <title>Klotski</title>
         <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+                
                 <script type="text/javascript" src="js/tab-control.js"></script>
                 <script type="text/javascript" src="js/lib/three.js"></script>
                 <script type="text/javascript" src="js/mouse-interface.js"></script>
@@ -77,7 +78,6 @@
                      Called when a Klotski block snaps to an even grid point
                      */
                     function blockSnapped(id, x, y) {
-			console.log("sending crappo");
                         var data = {id:id, x:x, y:y};
                         TabControl.sendMessage("play", "update", data);
                     }
@@ -118,12 +118,13 @@
                 </head>
     
     <body style="overflow:hidden; margin:0px; height:100%; width:100%">
-        <input type="button" id="endTurnButton" onclick="endOfTurn()" value="End of turn" > </input>
-        
-        <div id="timer" style="width:50%; margin:0px">
-            Timer
+        <div style="text-align:center;">
+            <div id="timer" style="margin:2px">
+                Time passed: 00:00
+            </div>
+            <input type="button" id="endTurnButton" onclick="endOfTurn()" value="End of turn" style="margin:0px auto"> </input>
         </div>
-        
         <div id ="klotskiContainer" style="height:100%; width:100%"> </div>
+        
     </body>
 </html>
