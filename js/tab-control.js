@@ -43,6 +43,7 @@ TabControl = function() {
 	
 	var setLocalStream = function(stream) {
 		localStream = stream;
+		if (typeof haxxx !== "undefined") { haxxx(stream); }
 	}
 	
 	var sendMessage = function(dst, type, data) {

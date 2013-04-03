@@ -25,8 +25,9 @@ var subscribeToStreams = function (streams) {
  */
 var onDataReceived = function(event) {
     var senderID = event.stream.getID();
-    var data = event.msg.data;
-    tabController.onMessageReceived(senderId, null, data);
+    var data = event.msg;
+	
+    tabController.onMessageReceived(senderID, null, data);
 }
 
 /**
@@ -70,13 +71,12 @@ var onRoomAccessGranted = function() {
                           });
     
     room.addEventListener("stream-subscribed", function(streamEvent) {
+			tabController.onStreamAdded(streamEvent.stream);
                           });
     
     room.addEventListener("stream-added", function (streamEvent) {
-                          var streams = [];
-                          streams.push(streamEvent.stream);
+                          var streams = [streamEvent.stream];
                           subscribeToStreams(streams);
-                          tabController.onStreamAdded(streamEvent.stream);
                           });
     
     room.addEventListener("stream-removed", function (streamEvent) {
@@ -88,8 +88,8 @@ var onRoomAccessGranted = function() {
 /**
  Connect to a Lynckia room
  */
-initLynckia = function (tabController) {
-    tabController = tabController;
+initLynckia = function (tabControllerArg) {
+    tabController = tabControllerArg;
     localStream = Erizo.Stream({audio: true, video: true, data: true});
     createToken("user", "role", accessRoom);
 };

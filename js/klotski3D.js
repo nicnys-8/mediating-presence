@@ -233,8 +233,6 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
             // Move the block toward its target
             block.stepTowardTarget();
             snappedAfter = block.isSnapped();
-            
-            if (!hasTurn) continue;
             // If the block snapped to an even grid point, run the callback method
             if (!snappedBefore && snappedAfter) {
                 blockSnappedCallback(block.id,
@@ -399,16 +397,34 @@ var level1 = [new KlotskiToken(0, 0, 2, 1),
               ];
 levels.push(level1);
 
-var level2 = [new KlotskiToken(0, 0, 2, 1),
-              new KlotskiToken(2, 0, 2, 1),
-              new KlotskiToken(0, 1, 2, 1),
-              new KlotskiToken(0, 2, 2, 1),
-              new KlotskiToken(2, 2, 2, 1),
-              new KlotskiToken(0, 3, 1, 1),
-              new KlotskiToken(1, 3, 1, 1),
-              new KlotskiToken(0, 4, 1, 1, true), // Main block
-              new KlotskiToken(1, 4, 1, 1),
-              new KlotskiToken(2, 3, 2, 2) 
+var level2 = [new KlotskiToken(0, 0, 1, 2),
+              new KlotskiToken(1, 0, 1, 2),
+              new KlotskiToken(2, 0, 2, 2, true), // Main block
+              new KlotskiToken(1, 2, 1, 1),
+              new KlotskiToken(2, 2, 1, 1),
+              new KlotskiToken(0, 3, 2, 1),
+              new KlotskiToken(2, 3, 2, 1),
+              new KlotskiToken(0, 4, 2, 1),
+              new KlotskiToken(2, 4, 2, 1)
               ];
 levels.push(level2);
+
+var level3 = [new KlotskiToken(0, 0, 1, 1),
+              new KlotskiToken(1, 0, 1, 1),
+              new KlotskiToken(2, 0, 1, 1),
+              new KlotskiToken(3, 0, 1, 1),
+              new KlotskiToken(0, 1, 1, 1),
+              new KlotskiToken(1, 1, 1, 1),
+              new KlotskiToken(2, 1, 2, 2),
+              new KlotskiToken(0, 2, 1, 1),
+              new KlotskiToken(1, 2, 1, 1),
+              new KlotskiToken(0, 3, 1, 1),
+              new KlotskiToken(2, 3, 1, 1),
+              new KlotskiToken(3, 3, 1, 1),
+              new KlotskiToken(0, 4, 1, 1),
+              new KlotskiToken(2, 4, 1, 1),
+              new KlotskiToken(3, 4, 1, 1)
+              ];
+              
+levels.push(level3);
 

@@ -5,9 +5,9 @@
         <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
                 <script type="text/javascript" src="js/tab-control.js"></script>
-                <script type="text/javascript" src="js/lib/Three.js"></script>
+                <script type="text/javascript" src="js/lib/three.js"></script>
                 <script type="text/javascript" src="js/mouse-interface.js"></script>
-                <script type="text/javascript" src="js/klotski.js"></script>
+                <script type="text/javascript" src="js/klotski3D.js"></script>
                 <script type="text/javascript" src="js/klotski-blocks.js"></script>
                 <script type="text/javascript" src="js/particles.js"></script>
                 <script type="text/javascript" src="js/lib/zig.js"></script>
@@ -15,9 +15,9 @@
                 <script type="text/javascript" src="js/image-handling.js"></script>
                 <script type="text/javascript" src="js/kinect-touch-controller.js"></script>
                 <script type="text/javascript" src="js/geometry.js"></script>
-                <script type="text/javascript" src="js/subdivisionModifier.js"></script>
+                <script type="text/javascript" src="js/lib/subdivision-modifier.js"></script>
                 <script type="text/javascript" src="js/timer.js"></script>
-                <script type="text/javascript" src="js/lynckia-tab-controller.js"></script>
+                <script type="text/javascript" src="js/lynckia-client.js"></script>
                 <script>
                     
                     var klotski;
@@ -78,8 +78,9 @@
                      Called when a Klotski block snaps to an even grid point
                      */
                     function blockSnapped(id, x, y) {
+			console.log("sending crappo");
                         var data = {id:id, x:x, y:y};
-                        TabControl.sendData("klotski", "update", data);
+                        TabControl.sendMessage("play", "update", data);
                     }
                     
                     /**
@@ -87,7 +88,7 @@
                      */
                     function endOfTurn() {
                         klotski.hasTurn = false;
-                        TabControl.sendData("klotski", "yourTurn", {});
+                        TabControl.sendMessage("play", "yourTurn", {});
                     }
                     
                     /*---------------------

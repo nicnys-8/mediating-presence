@@ -130,7 +130,9 @@
 		<script type="text/javascript" src="js/tab-control.js"></script>
 		<script type="text/javascript" src="js/kinect-decoder.js"></script>
 		<script type="text/javascript" src="js/kinect-plugin-proxy-zigfu.js"></script>
-		
+		<script type="text/javascript" src="js/lib/erizo.js"></script>
+	    	<script type="text/javascript" src="js/lynckia-tab-controller.js"></script>
+
 		<script>
 			
 			var currentTabID;
@@ -145,6 +147,14 @@
 			TabControl.onDeactivate = function() {
 			};
 			
+			function haxxx(stream) {
+				for (var tabName in tabControllers) {
+					if (tabControllers[tabName]) {
+						tabControllers[tabName].setLocalStream(stream);
+					}
+				}
+			}
+
 			TabControl.onStreamAdded = function(stream) {
 			
 				// Just propagate the message to the tabs
@@ -167,22 +177,26 @@
 			
 			TabControl.onMessageReceived = function(senderId, type, packet) {
 				
+				console.log("Received messsage");
+				console.log(packet);
+
 				var destinationTab = packet.dst;
 				var messageType = packet.type;
-				
+				var data = packet.data;
+
 				if (destinationTab == "all") {
 					
 					for (var tabName in tabControllers) {
 						if (tabControllers[tabName]) {
-							tabControllers[tabName].onMessageReceived(senderId, messageType, packet.data);
+							tabControllers[tabName].onMessageReceived(senderId, messageType, data);
 						}
 					}
 					
 				} else {
 					
-					var tabController = tabControllers[destinationTab];
+					var tabController = tabControllers[destinationTab] || tabControllers["#" + destinationTab];
 					if (tabController) {
-						tabController.onMessageReceived(senderId, messageType, packet.data);
+						tabController.onMessageReceived(senderId, messageType, data);
 					}
 				}
 			};
@@ -209,6 +223,8 @@
 			
             TabControl.onLoad = function() {
 				
+				initLynckia(TabControl);
+
 				currentTabID = "#chat";
 				
 				// If a tab is specified in the url, make it the current tab
