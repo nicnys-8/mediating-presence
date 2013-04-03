@@ -41,9 +41,13 @@ TabControl = function() {
 		// available from the Kinect
 	}
 	
+	var onLocalStreamInit = function(stream) {
+		// Called when the local stream is set
+	}
+	
 	var setLocalStream = function(stream) {
 		localStream = stream;
-		if (typeof haxxx !== "undefined") { haxxx(stream); }
+		TabControl.onLocalStreamInit(stream);
 	}
 	
 	var sendMessage = function(dst, type, data) {
@@ -72,6 +76,7 @@ TabControl = function() {
 		onKinectInit : onKinectInit,
 		onNewKinectData : onNewKinectData,
 		setLocalStream : setLocalStream,
+		onLocalStreamInit : onLocalStreamInit,
 		sendMessage : sendMessage,
 	};
 }();

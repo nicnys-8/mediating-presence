@@ -131,7 +131,7 @@
 		<script type="text/javascript" src="js/kinect-decoder.js"></script>
 		<script type="text/javascript" src="js/kinect-plugin-proxy-zigfu.js"></script>
 		<script type="text/javascript" src="js/lib/erizo.js"></script>
-	    	<script type="text/javascript" src="js/lynckia-client.js"></script>
+		<script type="text/javascript" src="js/lynckia-client.js"></script>
 
 		<script>
 			
@@ -147,7 +147,7 @@
 			TabControl.onDeactivate = function() {
 			};
 			
-			function haxxx(stream) {
+			TabControl.onLocalStreamInit = function(stream) {
 				for (var tabName in tabControllers) {
 					if (tabControllers[tabName]) {
 						tabControllers[tabName].setLocalStream(stream);

@@ -80,6 +80,11 @@
 			var thumbs = {};
 			var currentStreamID = null; // current stream (get it? haha..)
 			
+			var myStream;
+			
+			var bufferCanvas;
+			var bufferContext;
+			
 			TabControl.onActivate = function() {
 				drawThumbs();
 			}
@@ -87,6 +92,11 @@
 			TabControl.onDeactivate = function() {
 				clearTimeout(timer);
 				timer = null;
+			}
+			
+			TabControl.onLocalStreamInit = function(stream) {
+				myStream = stream;
+				TabControl.onStreamAdded(stream);
 			}
 			
 			TabControl.onStreamAdded = function(stream) {
@@ -101,6 +111,7 @@
 				
 				// Create a div to show a thumbnail of the video
 				var thumb = document.createElement("div");
+				thumb.id = "thumb" + streamID;
 				thumb.className = "video-thumb";
 				thumb.onclick = function() {
 					currentStreamID = streamID;
@@ -159,6 +170,8 @@
 			}
 			
             TabControl.onLoad = function() {
+				/*
+				// For local testing:
 				var video = MediaExt.getCameraAccess(640, 480, function() {
 														TabControl.onStreamAdded({
 																				 getID:function() { return "hej"; },
@@ -169,6 +182,7 @@
 																				 hasVideo:function() { return false; },
 																				 });
 													 });
+				*/
 				
 				var onWidowResize = function() {
 					var canvas = document.getElementById("large-video");
@@ -177,29 +191,33 @@
 				}
 				
 				onWidowResize();
-				
+			
 				window.addEventListener("resize", onWidowResize, false);
+				
+				bufferCanvas = document.createElement("canvas");
+				bufferContext = bufferCanvas.getContext("2d");
 			}
 			
 			function drawThumbs() {
 				
-				var canvas = document.getElementById("large-video");
-				var ctx = canvas.getContext("2d");
+				if (currentStreamID) {
 				
-				ctx.drawImage(video, 0, 0, canvas.width, canvas.width * 0.75);
+					var canvas = document.getElementById("large-video");
+					var ctx = canvas.getContext("2d");
+					
+					// ctx.drawImage(video, 0, 0, canvas.width, canvas.width * 0.75);
 				
-				/*
-				var imageData = streams[currentStreamID].getVideoFrame();
-				var bufferCanvas = document.createElement("canvas");
-				var bufferContext = bufferCanvas.getContext("2d");
-				if (bufferCanvas.width != imageData.width ||
-					bufferCanvas.height != imageData.height) {
-					bufferCanvas.width = imageData.width;
-					bufferCanvas.height = imageData.height;
+					var imageData = streams[currentStreamID].getVideoFrame();
+				
+					if (bufferCanvas.width != imageData.width ||
+						bufferCanvas.height != imageData.height) {
+						bufferCanvas.width = imageData.width;
+						bufferCanvas.height = imageData.height;
+					}
+					bufferCtx.putImageData(imageData, 0, 0);
+				
+					ctx.drawImage(bufferCanvas, 0, 0, canvas.width, canvas.width * 0.75);
 				}
-				bufferCtx.putImageData(imageData, 0, 0);
-				ctx.drawImage(bufferCanvas, 0, 0, canvas.width, canvas.width * 0.75);
-				*/
 				
 				timer = setTimeout(drawThumbs, 50);
 			}
