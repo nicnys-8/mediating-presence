@@ -1,23 +1,44 @@
 const SPEED = 0.1;
 const SMOOTHNESS = 6;
+const MODIFIER_VALUE = 2;
+
+var geometry11;
+var geometry12;
+var geometry21;
+var geometry22;
+var geometriesInited = false;
 
 /**
  Block constructor
  */
 Block = function(column, row, width, height) {
     THREE.Object3D.call(this);
-        
+    
     this.width = width;
     this.height = height;
     
     this.material = new THREE.MeshPhongMaterial();
-    var geometry = new THREE.CubeGeometry(width, height, 1, SMOOTHNESS, SMOOTHNESS, SMOOTHNESS);
-        
-	var modifier = new THREE.SubdivisionModifier(2);
-	modifier.modify(geometry);
+    
+    if (!geometriesInited) initGeometries();
+    var geometry;
+    
+    // If the block is one of the standard shapes, get a shared
+    // geometry
+    if (width == 1 && height == 1) geometry = geometry11;
+    else if (width == 1 && height == 2) geometry = geometry12;
+    else if (width == 2 && height == 1) geometry = geometry21;
+    else if (width == 2 && height == 2) geometry = geometry22;
+    
+    // If the block is not one of the standard shapes, create a
+    // new geometry for it
+    else {
+        geometry = new THREE.CubeGeometry(width, height, 1, SMOOTHNESS, SMOOTHNESS, SMOOTHNESS);
+        var modifier = new THREE.SubdivisionModifier(MODIFIER_VALUE);
+        modifier.modify(geometry);
+    }
     
     this.mesh = new THREE.Mesh(geometry, this.material);
-    // Move the mesh so that its corner is at the origin
+    // Move the mesh so that its corner is at the block's origin
     this.mesh.position.set((width / 2), (height / 2), 0.5);
     this.add(this.mesh);
     this.snapToGridPoint(column, row);
@@ -195,7 +216,7 @@ MovingBlock.prototype.yStep = function(dy) {
     
     // Make sure the block won't move past the target
     dy = Math.min(dy, distance);
-     
+    
     // Translate by dy in the specified direction
     var yMovement = dir * dy;
     this.translateY(yMovement);
@@ -251,9 +272,25 @@ MovingBlock.prototype.collides = function() {
     return collides;
 }
 
+/**
+ Create the shared geometries
+ */
+var initGeometries = function() {
+    geometry11 = new THREE.CubeGeometry(1, 1, 1, SMOOTHNESS, SMOOTHNESS, SMOOTHNESS);
+    geometry12 = new THREE.CubeGeometry(1, 2, 1, SMOOTHNESS, SMOOTHNESS, SMOOTHNESS);
+    geometry21 = new THREE.CubeGeometry(2, 1, 1, SMOOTHNESS, SMOOTHNESS, SMOOTHNESS);
+    geometry22 = new THREE.CubeGeometry(2, 2, 1, SMOOTHNESS, SMOOTHNESS, SMOOTHNESS);
+    
+    var modifier = new THREE.SubdivisionModifier(MODIFIER_VALUE);
+    modifier.modify(geometry11);
+    modifier.modify(geometry12);
+    modifier.modify(geometry21);
+    modifier.modify(geometry22);
+    geometriesInited = true;
+}
 
 /**
- Helper function: Returns the sign of a number
+ Returns the sign of a number
  */
 Math.sign = function(x) {
     var sign = ((x < 0) ? -1 : 1);

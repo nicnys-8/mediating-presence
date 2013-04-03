@@ -52,8 +52,10 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
             camera = new THREE.PerspectiveCamera(VIEW_ANGLE, aspect, NEAR, FAR);
             scene.add(camera);
         }
-        camera.position.set(2, 2.5, 12);
-        camera.lookAt(new THREE.Vector3(2, 2.5, 0));
+        camera.position.set(2, 3.5, 13);
+        camera.lookAt(new THREE.Vector3(2, 3.5, 0));
+        // Rotate the camera to make y grow downwards
+        camera.rotation.z = Math.PI;
         
         // If a renderer does not already exist, create it
         if (!renderer) {
@@ -296,6 +298,8 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
         onMouseUp();
         clearLevel();
         levelIndex++;
+        levelIndex = levelIndex % levels.length;
+        console.log("Level: " + levelIndex);
         loadLevel(levelIndex);
         alert("Level cleared! Time: " + timer.getTimeString());
         timer.start();
@@ -397,33 +401,33 @@ var level1 = [new KlotskiToken(0, 0, 2, 1),
               ];
 levels.push(level1);
 
-var level2 = [new KlotskiToken(0, 0, 1, 2),
-              new KlotskiToken(1, 0, 1, 2),
-              new KlotskiToken(2, 0, 2, 2, true), // Main block
+var level2 = [new KlotskiToken(0, 3, 1, 2),
+              new KlotskiToken(1, 3, 1, 2),
+              new KlotskiToken(2, 3, 2, 2, true), // Main block
               new KlotskiToken(1, 2, 1, 1),
               new KlotskiToken(2, 2, 1, 1),
-              new KlotskiToken(0, 3, 2, 1),
-              new KlotskiToken(2, 3, 2, 1),
-              new KlotskiToken(0, 4, 2, 1),
-              new KlotskiToken(2, 4, 2, 1)
+              new KlotskiToken(0, 1, 2, 1),
+              new KlotskiToken(2, 1, 2, 1),
+              new KlotskiToken(0, 0, 2, 1),
+              new KlotskiToken(2, 0, 2, 1)
               ];
 levels.push(level2);
 
-var level3 = [new KlotskiToken(0, 0, 1, 1),
-              new KlotskiToken(1, 0, 1, 1),
-              new KlotskiToken(2, 0, 1, 1),
-              new KlotskiToken(3, 0, 1, 1),
-              new KlotskiToken(0, 1, 1, 1),
-              new KlotskiToken(1, 1, 1, 1),
-              new KlotskiToken(2, 1, 2, 2),
+var level3 = [new KlotskiToken(0, 4, 1, 1),
+              new KlotskiToken(1, 4, 1, 1),
+              new KlotskiToken(2, 4, 1, 1),
+              new KlotskiToken(3, 4, 1, 1),
+              new KlotskiToken(0, 3, 1, 1),
+              new KlotskiToken(1, 3, 1, 1),
+              new KlotskiToken(2, 2, 2, 2, true), // Main block
               new KlotskiToken(0, 2, 1, 1),
               new KlotskiToken(1, 2, 1, 1),
-              new KlotskiToken(0, 3, 1, 1),
-              new KlotskiToken(2, 3, 1, 1),
-              new KlotskiToken(3, 3, 1, 1),
-              new KlotskiToken(0, 4, 1, 1),
-              new KlotskiToken(2, 4, 1, 1),
-              new KlotskiToken(3, 4, 1, 1)
+              new KlotskiToken(0, 1, 1, 1),
+              new KlotskiToken(2, 1, 1, 1),
+              new KlotskiToken(3, 1, 1, 1),
+              new KlotskiToken(0, 0, 1, 1),
+              new KlotskiToken(2, 0, 1, 1),
+              new KlotskiToken(3, 0, 1, 1)
               ];
               
 levels.push(level3);
