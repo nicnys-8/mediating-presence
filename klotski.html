@@ -15,7 +15,8 @@
                 <script type="text/javascript" src="js/image-handling.js"></script>
                 <script type="text/javascript" src="js/kinect-touch-controller.js"></script>
                 <script type="text/javascript" src="js/geometry.js"></script>
-                <script type="text/javascript" src="js/SubdivisionModifier.js"></script>
+                <script type="text/javascript" src="js/subdivisionModifier.js"></script>
+                <script type="text/javascript" src="js/timer.js"></script>
                 <script>
                     
                     var klotski;
@@ -117,6 +118,11 @@
     
     <body style="overflow:hidden; margin:0px; height:100%; width:100%">
         <input type="button" id="endTurnButton" onclick="endOfTurn()" value="End of turn" > </input>
+        
+        <div id="timer" style="width:50%; margin:0px">
+            Timer
+        </div>
+        
         <div id ="klotskiContainer" style="height:100%; width:100%"> </div>
     </body>
 </html>
