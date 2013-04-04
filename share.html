@@ -22,11 +22,45 @@
             // Simple .ply parser for ascii input with assumed line format x y z nx ny nz r g b
             // (this is just a test, I will make this more dynamic and error tolerant)
             PlyParse.parse = function(inputStr) {
-                
+			
+				var chars = new Uint8Array(inputStr);	
+				var header = "";
+				var index = 0;
+				while (true) {
+					header += String.fromCharCode(chars[index++]);
+						
+					if (index > 10 && header.substring(index - 10) == "end_header")
+						break;
+				}
+				console.log(header);
+				
+				var floatBuf = inputStr.slice(index, index + 128260 * 6 * 4);
+				var floats = new Float32Array(floatBuf);
+				console.log(floats.length);
+				
+				var indexBuffer = inputStr.slice(index + 128260 * 6 * 4 + 1);
+				var indices = new Uint8Array(indexBuffer);
+				console.log(indices);
+				
+				var indexOut = new Array(/*antal faces x 3*/);
+				for (var i = 0; i < indices.length;) {
+					
+					var indexCount = indices[i++];
+					
+					if (indexCount != 3)
+						console.log("huu " + indexCount + " " + (i - 1));
+						
+					for (var j = 0; j < indexCount; j++) {
+						indexOut.push((indices[i + 0]) | (indices[i + 1] << 8) | (indices[i + 2] << 16) | indices[i + 3] << 24);
+						i += 4;
+					}
+				}
+				console.log(indexOut.length);
+				
                 var split = inputStr.split("\n");
                 var index = 0;
                 var line = "";
-                
+				
                 while (index < split.length && line !== "end_header") {
                     line = split[index++];
                 }
@@ -180,7 +214,8 @@
                 console.log(file);
                 
                 // reader.readAsDataURL(file);
-                reader.readAsText(file);
+                // reader.readAsText(file);
+				reader.readAsArrayBuffer(file);
             }
             
             function updateProgress(evt) {
