@@ -5,6 +5,8 @@
  */
 Timer = function(element) {
     
+    var intervalId;
+    
     // Private variables
     var element = element;
     var timer, sec, min;
@@ -16,7 +18,11 @@ Timer = function(element) {
         timer = 0;
         sec = 0;
         min = 0;
-        setInterval(updateTime, 1000);
+        intervalId = setInterval(updateTime, 1000);
+    };
+    
+    var stop = function() {
+        clearInterval(intervalId);
     };
     
     /**
@@ -45,5 +51,6 @@ Timer = function(element) {
     
     // Public methods
     this.start = start;
+    this.stop = stop;
     this.getTimeString = getTimeString;
 };

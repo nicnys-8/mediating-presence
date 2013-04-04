@@ -43,6 +43,9 @@
                         else if (type == "update") {
                             klotski.onReceivedMove(packet);
                         }
+                        else if (type == "nextLevel") {
+                            klotski.nextLevel(packet);
+                        }
                         else {
                             console.log("Received unreadable message");
                         }
@@ -54,6 +57,7 @@
                         klotski = new Klotski(
                                               Klotski.level1,
                                               blockSnapped,
+                                              finishedLevel,
                                               container
                                               );
                         
@@ -83,11 +87,42 @@
                     }
                     
                     /**
+                     Called when...
+                     @param finishTime A string representing the time it took to finish
+                     the level.
+                     */
+                    function finishedLevel(finishTime) {
+                        var levelDiv = document.getElementById("level");
+                        levelDiv.style.display = "none";
+                        
+                        var crap = document.getElementById("crap");
+                        crap.style.display = "block";
+
+                        var messageDiv = document.getElementById("message");
+                        messageDiv.innerHTML = "Level finished in: " + finishTime;
+
+                    }
+                    
+                    /**
                      ...
                      */
                     function endOfTurn() {
                         klotski.hasTurn = false;
                         TabControl.sendMessage("play", "yourTurn", {});
+                    }
+                    
+                    /**
+                     ...
+                     */
+                    function nextLevel() {
+                        var levelDiv = document.getElementById("level");
+                        levelDiv.style.display = "block";
+                        
+                        var crap = document.getElementById("crap");
+                        crap.style.display = "none";
+                    
+                        klotski.nextLevel();
+                    
                     }
                     
                     /*---------------------
@@ -118,13 +153,36 @@
                 </head>
     
     <body style="overflow:hidden; margin:0px; height:100%; width:100%">
-        <div style="text-align:center;">
+       
+        
+        
+        
+        
+        <div id ="level" style="text-align:center; height:100%; width:100%">
+            
             <div id="timer" style="margin:2px">
                 Time passed: 00:00
             </div>
+            
             <input type="button" id="endTurnButton" onclick="endOfTurn()" value="End of turn" style="margin:0px auto"> </input>
+            
+            <div id ="klotskiContainer" style="height:100%; width:100%"> </div>
+            
         </div>
-        <div id ="klotskiContainer" style="height:100%; width:100%"> </div>
+        
+        
+        
+        
+        <div id ="crap" style="text-align:center; height:100%; width:100%">
+            
+            <input type="button" id="nextLevelButton" onclick="nextLevel()" value="Next level" style="margin:0px auto"> </input>
+            
+            <div id="message" style="margin:2px">
+            </div>
+
+        </div>
+        
+        
         
     </body>
 </html>

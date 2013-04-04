@@ -12,9 +12,11 @@ const FAR = 100;
  @param blockTokens A representation of the level layout
  @param blockSnappedCallback Method to be called when a block moves to
  an even gridpoint
+ @param levelFinishedCallback Method to be called when a level is finished;
+ takes the a string representing the finish time as input
  @param container The HTML element in which the game will be displayed
  */
-Klotski = function(blockTokens, blockSnappedCallback, container) {
+Klotski = function(blockTokens, blockSnappedCallback, levelFinishedCallback, container) {
     
     /*--------------------------
      ===| Private variables |===
@@ -248,8 +250,8 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
         var move = externalMoves[0];
         if (move) {
             var block = blocks[move.id];
-            // Check if the block is at the
-            // specified position
+            // Check if the block is already
+            // at the specified position
             if (block.position.x == move.x &&
                 block.position.y == move.y) {
                 // If so, remove that move from the list
@@ -282,7 +284,9 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
         if (
             mainBlock.position.x == 1 &&
             mainBlock.position.y == 4) {
-            onWin();
+            var finishTime = timer.getTimeString();
+            timer.stop();
+            levelFinishedCallback(finishTime);
         }
         
         if (this.hasTurn) {
@@ -298,14 +302,13 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
     /**
      Called when the a level is finished
      */
-    var onWin = function() {
-        // Stop the current touch
-        onMouseUp();
+    var nextLevel = function() {
+        /* Stop the current touch
+        onMouseUp();*/
         clearLevel();
         levelIndex++;
         levelIndex = levelIndex % levels.length;
         loadLevel(levelIndex);
-        console.log("Level cleared! Time: " + timer.getTimeString());
         timer.start();
     };
     
@@ -370,6 +373,7 @@ Klotski = function(blockTokens, blockSnappedCallback, container) {
     this.onMouseUp = onMouseUp;
     this.onReceivedMove = onReceivedMove;
     this.updateScene = updateScene;
+    this.nextLevel = nextLevel;
     
     /*-----------------------
      ==| Public variables |==
