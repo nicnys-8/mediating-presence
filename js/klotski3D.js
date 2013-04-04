@@ -283,7 +283,7 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
             mainBlock.position.y == 4) {
             var finishTime = timer.getTimeString();
             timer.stop();
-            levelFinishedCallback(finishTime);
+            levelFinishedCallback(levelIndex, finishTime);
         }
         
         if (this.hasTurn) {

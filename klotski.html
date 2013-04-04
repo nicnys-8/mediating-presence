@@ -127,10 +127,11 @@
                      @param finishTime A string representing the time it took to finish
                      the level.
                      */
-                    function finishedLevel(finishTime) {
+                    function finishedLevel(levelIndex, finishTime) {
                         levelDiv.style.display = "none";
                         clearedDiv.style.display = "block";
-                        messageDiv.innerHTML = "Level finished in: " + finishTime;
+                        var levelNumber = levelIndex + 1;
+                        messageDiv.innerHTML = "Level " + levelNumber + " cleared! Finish time: " + finishTime;
 
                     }
                     
@@ -182,7 +183,8 @@
     <body style="overflow:hidden; margin:0px; height:100%; width:100%">
         
         <div id ="startScreen" style="text-align:center; height:100%; width:100%">
-            <input type="button" id="invitePlayer" onclick="invitePlayer()" value="Invite friend" style="margin:0px auto"> </input>
+            <h1>Welcome to Klotski!</h1>
+            <input type="button" id="invitePlayer" onclick="invitePlayer()" value="Invite friend" style="height:100%; margin:0px auto"> </input>
         </div>
         
         <div id ="game" style="text-align:center; height:100%; width:100%">
@@ -195,6 +197,7 @@
         </div>
         
         <div id ="levelCleared" style="text-align:center; height:100%; width:100%">
+            <h1>Well done!</h1>
             <div id="message" style="margin:2px"></div>
             <input type="button" id="nextLevelButton" onclick="nextLevel()" value="Next level" style="margin:0px auto"> </input>
         </div>
