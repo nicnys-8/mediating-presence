@@ -98,15 +98,10 @@ KlotskiWall.prototype = Object.create(Block.prototype);
  */
 MovingBlock = function(id, column, row, width, height, obstacles) {
     Block.call(this, column, row, width, height);
-    
     this.id = id;
-    
     this.targetX = this.position.x;
     this.targetY = this.position.y;
-    
-    this.material.color.setRGB(1, 0.3 * Math.random(), 0.3 * Math.random());
     this.obstacles = obstacles;
-    this.main = false;
 };
 
 MovingBlock.prototype = Object.create(Block.prototype);
@@ -115,10 +110,30 @@ MovingBlock.prototype = Object.create(Block.prototype);
 /**
  Make this the main block; the goal of the
  game is to get the main block to the goal.
- */
+
 MovingBlock.prototype.setMain = function() {
     this.main = true;
     this.material.color.setRGB(0.3, 0.3, 1);
+}; */
+
+/**
+ Sets the type of the Klotski block
+ @param type A string representing one of three types:
+ red: Can only be moved by the red player
+ blue: Can only be moved by the blue player
+ green: The main block, can be moved by both players.
+ */
+MovingBlock.prototype.setColor = function(color) {
+    this.color = color;
+    if (color == "red") {
+        this.material.color.setRGB(1.0, 0.1, 0.1);
+    }
+    else if (color == "blue") {
+        this.material.color.setRGB(0.1, 0.1, 1.0);
+    }
+    else if (color == "green") {
+        this.material.color.setRGB(0.1, 1.0, 0.1);
+    }
 }
 
 

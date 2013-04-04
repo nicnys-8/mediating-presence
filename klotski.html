@@ -75,9 +75,7 @@
                         turnButton = document.getElementById("turnButton");
                         
                         // Create the Klotski object
-                        klotski = new Klotski(
-                                              Klotski.level1,
-                                              blockSnapped,
+                        klotski = new Klotski(blockSnapped,
                                               finishedLevel,
                                               container
                                               );
@@ -96,6 +94,9 @@
                     }
                     
                     function startGame(hasTurn) {
+                        // Set the player's color
+                        klotski.playerColor = (hasTurn) ? "red" : "blue";
+                        console.log(klotski.playerColor);
                         // Start listening for mouse events
                         document.addEventListener('mousedown', onMouseDown, false);
                         document.addEventListener('mousemove', onMouseMove, false);

@@ -9,14 +9,13 @@ const FAR = 100;
 
 /**
  Constructor of the Klotski object
- @param blockTokens A representation of the level layout
  @param blockSnappedCallback Method to be called when a block moves to
  an even gridpoint
  @param levelFinishedCallback Method to be called when a level is finished;
  takes the a string representing the finish time as input
  @param container The HTML element in which the game will be displayed
  */
-Klotski = function(blockTokens, blockSnappedCallback, levelFinishedCallback, container) {
+Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
     
     /*--------------------------
      ===| Private variables |===
@@ -101,10 +100,8 @@ Klotski = function(blockTokens, blockSnappedCallback, levelFinishedCallback, con
                                         token.width,
                                         token.height,
                                         obstacles);
-            if (token.main) {
-                block.setMain();
-                mainBlock = block;
-            }
+            block.setColor(token.color);
+            if (token.color == "green") mainBlock = block;
             scene.add(block);
             blocks.push(block);
             obstacles.push(block);
@@ -324,10 +321,15 @@ Klotski = function(blockTokens, blockSnappedCallback, levelFinishedCallback, con
         for (var i = 0; i < blocks.length; i++) {
             var blockHit = mouseInterface.getMouseHit(blocks, x, y);
             if (blockHit) {
-                activeBlock = blockHit.object.parent;
+                // Select the block if it is the right color
+                var block = blockHit.object.parent;
+                if (this.playerColor != block.color &&
+                    block.color != "green") continue;
+                activeBlock = block;
+                
+                // Get the offset between hitpoint and the block
                 floorHit = mouseInterface.getMouseHit([floor], x, y);
                 if (floorHit) {
-                    // Get the offset between hitpoint and the block
                     clickOffset.subVectors(floorHit.point, activeBlock.position);
                 }
             }
@@ -378,6 +380,7 @@ Klotski = function(blockTokens, blockSnappedCallback, levelFinishedCallback, con
     /*-----------------------
      ==| Public variables |==
      ----------------------*/
+    this.playerColor;
     this.shouldRender = true;
     this.hasTurn = true;
 };
@@ -386,38 +389,38 @@ Klotski = function(blockTokens, blockSnappedCallback, levelFinishedCallback, con
  A token representing a Klotski block
  -used for creating levels
  */
-KlotskiToken = function(x, y, width, height, main) {
+KlotskiToken = function(x, y, width, height, color) {
     this.x = x;
     this.y = y;
     this.width = width;
     this.height = height;
-    if (main) this.main = main;
+    this.color = color;
 }
 
 levels = [];
 
-var level1 = [new KlotskiToken(0, 0, 2, 1),
-              new KlotskiToken(2, 0, 2, 1),
-              new KlotskiToken(0, 1, 2, 1),
-              new KlotskiToken(0, 2, 2, 1),
-              new KlotskiToken(2, 2, 2, 1),
-              new KlotskiToken(0, 3, 1, 1),
-              new KlotskiToken(1, 3, 1, 1),
-              new KlotskiToken(0, 4, 1, 1),
-              new KlotskiToken(1, 4, 1, 1),
-              new KlotskiToken(2, 3, 2, 2, true) // Main block
+var level1 = [new KlotskiToken(0, 0, 2, 1, "blue"),
+              new KlotskiToken(2, 0, 2, 1, "blue"),
+              new KlotskiToken(0, 1, 2, 1, "red"),
+              new KlotskiToken(0, 2, 2, 1, "red"),
+              new KlotskiToken(2, 2, 2, 1, "blue"),
+              new KlotskiToken(0, 3, 1, 1, "blue"),
+              new KlotskiToken(1, 3, 1, 1, "red"),
+              new KlotskiToken(0, 4, 1, 1, "blue"),
+              new KlotskiToken(1, 4, 1, 1, "red"),
+              new KlotskiToken(2, 3, 2, 2, "green") // Main block
               ];
 levels.push(level1);
 
-var level2 = [new KlotskiToken(0, 3, 1, 2),
-              new KlotskiToken(1, 3, 1, 2),
-              new KlotskiToken(2, 3, 2, 2, true), // Main block
-              new KlotskiToken(1, 2, 1, 1),
-              new KlotskiToken(2, 2, 1, 1),
-              new KlotskiToken(0, 1, 2, 1),
-              new KlotskiToken(2, 1, 2, 1),
-              new KlotskiToken(0, 0, 2, 1),
-              new KlotskiToken(2, 0, 2, 1)
+var level2 = [new KlotskiToken(0, 3, 1, 2, "blue"),
+              new KlotskiToken(1, 3, 1, 2, "red"),
+              new KlotskiToken(2, 3, 2, 2, "green"), // Main block
+              new KlotskiToken(1, 2, 1, 1, "red"),
+              new KlotskiToken(2, 2, 1, 1, "red"),
+              new KlotskiToken(0, 1, 2, 1, "blue"),
+              new KlotskiToken(2, 1, 2, 1, "blue"),
+              new KlotskiToken(0, 0, 2, 1, "red"),
+              new KlotskiToken(2, 0, 2, 1, "blue")
               ];
 levels.push(level2);
 
