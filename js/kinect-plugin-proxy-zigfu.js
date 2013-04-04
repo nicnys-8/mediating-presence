@@ -108,7 +108,9 @@ KinectPluginProxy = function() {
             console.log("No depth reference data stored");
             return;
         }
-        var transform = JSON.parse(localStorage.transform);
+        
+        var transformData = JSON.parse(localStorage.transform);
+        var transform = new Geometry.Transform(transformData[0], transformData[1]);
         var depthRef = JSON.parse(localStorage.depthRef);
         touchController = new KinectTouchController(depthRef, transform);
     };
