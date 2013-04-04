@@ -109,7 +109,7 @@ KinectPluginProxy = function() {
             return;
         }
         var transform = JSON.parse(localStorage.transform);
-        var depthRef; = JSON.parse(localStorage.depthRef);
+        var depthRef = JSON.parse(localStorage.depthRef);
         touchController = new KinectTouchController(depthRef, transform);
     };
 	
