@@ -25,18 +25,19 @@
                     
                     var klotski;
                     var startDiv;
-                    var levelDiv;
+                    var gameDiv;
                     var clearedDiv;
-                    var messageDiv;
-                    var container;
+                    var clearedMessageDiv;
+                    var waitMessageDiv;
+                    var klotskiContainer;
                     var turnButton;
                     
                     TabControl.onActivate = function() {
-                        klotski.shouldRender = true;
+                        if (klotski) klotski.shouldRender = true;
                     };
                     
                     TabControl.onDeactivate = function() {
-                        klotski.shouldRender = false;
+                        if (klotski) klotski.shouldRender = false;
                     };
                     
                     TabControl.onStreamAdded = function(stream) {
@@ -49,7 +50,7 @@
                         if (type == "gameStart") {
                             // Display the game screen
                             startDiv.style.display = "none";
-                            levelDiv.style.display = "block";
+                            gameDiv.style.display = "block";
                             startGame(packet.yourTurn);
                         }
                         else if (type == "yourTurn") {
@@ -69,21 +70,16 @@
                     
                     TabControl.onLoad = function() {
                         // Store the DOM elements for use later
-                        levelDiv = document.getElementById("game");
+                        gameDiv = document.getElementById("game");
                         clearedDiv = document.getElementById("levelCleared");
-                        messageDiv = document.getElementById("message");
-                        container = document.getElementById("klotskiContainer");
+                        clearedMessageDiv = document.getElementById("clearedMessage");
+                        waitMessageDiv = document.getElementById("waitMessage");
+                        klotskiContainer = document.getElementById("klotskiContainer");
                         startDiv = document.getElementById("startScreen");
                         turnButton = document.getElementById("turnButton");
                         
-                        levelDiv.style.display = "none";
+                        gameDiv.style.display = "none";
                         clearedDiv.style.display = "none";
-                        
-                        // Create the Klotski object
-                        klotski = new Klotski(blockSnapped,
-                                              finishedLevel,
-                                              container
-                                              );
                     }
                     
                     /**
@@ -91,14 +87,19 @@
                      */
                     function invitePlayer() {
                         /* TODO: Replace with some kind of invitation:
-                         
+                         waitMessageDiv.style.display = "block";
                          */
                         startDiv.style.display = "none";
-                        levelDiv.style.display = "block";
+                        gameDiv.style.display = "block";
                         startGame(true);
                     }
                     
                     function startGame(hasTurn) {
+                        // Create the Klotski object
+                        klotski = new Klotski(blockSnapped,
+                                              finishedLevel,
+                                              klotskiContainer
+                                              );
                         // Set the player's color
                         var playerColor = (hasTurn) ? "red" : "blue";
                         klotski.startGame(playerColor);
@@ -106,6 +107,7 @@
                         document.addEventListener('mousedown', onMouseDown, false);
                         document.addEventListener('mousemove', onMouseMove, false);
                         document.addEventListener('mouseup', onMouseUp, false);
+                        window.ondragstart = function() { return false; } 
                         // Start the update loop
                         turnButton.disabled = !hasTurn;
                         tick();
@@ -133,17 +135,17 @@
                      the level.
                      */
                     function finishedLevel(levelIndex, finishTime) {
-                        levelDiv.style.display = "none";
+                        gameDiv.style.display = "none";
                         clearedDiv.style.display = "block";
                         var levelNumber = levelIndex + 1;
-                        messageDiv.innerHTML = "Level " + levelNumber + " cleared! Finish time: " + finishTime;
+                        clearedMessageDiv.innerHTML = "Level " + levelNumber + " cleared! Finish time: " + finishTime;
                     }
                     
                     /**
                      Start the next level
                      */
                     function nextLevel() {
-                        levelDiv.style.display = "block";
+                        gameDiv.style.display = "block";
                         clearedDiv.style.display = "none";
                         klotski.nextLevel();
                         // Tell the other player to start the next level as well
@@ -167,6 +169,7 @@
                      */
                     function onMouseDown(event) {
                         klotski.onMouseDown(event.clientX, event.clientY);
+                        event.preventDefault();
                     }
                     
                     /**
@@ -191,28 +194,37 @@
         <div id ="startScreen" style="text-align:center">
             <h1>Welcome to Klotski!</h1>
             <div style="width:50%; margin:0 auto">
-            The goal of the game is to get the <span style="color:#00DD00">green</span> block to the bottom of the
-            level. You can only move some of the blocks, so you'll need help
-            from a friend to finish the levels!
+                The goal of the game is to get the
+                <span style="color:#00DD00">green</span> block to the bottom of the
+                level. You can only move some of the blocks, so you'll need help
+                from a friend to finish the levels!
             </div>
-            
             <button id="invitePlayer" onclick="invitePlayer()">
                 Invite friend
             </button>
+            <div id="waitMessage" style="display:none">
+                Waiting for other user to response
+            </div>
         </div>
         
         <div id ="game" style="text-align:center; height:100%; width:100%">
             <div id="timer">
                 Time passed: 00:00
             </div>
-            <button type="button" id="turnButton" onclick="giveUpTurn()">Give up turn</button>
+            <button type="button" id="turnButton" onclick="giveUpTurn()">
+                Give up turn
+            </button>
             <div id ="klotskiContainer" style="height:100%; width:100%"> </div>
         </div>
         
         <div id ="levelCleared" style="text-align:center; height:100%; width:100%">
-            <h1>Well done!</h1>
-            <div id="message"></div>
-            <button type="button" id="nextLevelButton" onclick="nextLevel()">Next level</button>
+            <h1>
+                Well done!
+            </h1>
+            <div id="clearedMessage"></div>
+            <button type="button" id="nextLevelButton" onclick="nextLevel()">
+                Next level
+            </button>
         </div>
         
         

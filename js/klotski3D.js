@@ -151,10 +151,13 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
      Adds a floor object to the level
      */
     var initFloor = function() {
+        
         var floorMaterial = new THREE.MeshLambertMaterial({map: THREE.ImageUtils.loadTexture('../images/grass.png')});
         
         floorMaterial.map.wrapS = floorMaterial.map.wrapT = THREE.RepeatWrapping;
         floorMaterial.map.repeat.set(3, 3);
+        
+        //var floorMaterial = new THREE.MeshPhongMaterial();
         
         var floorGeometry = new THREE.PlaneGeometry(10, 10, 10, 10);
         floor = new THREE.Mesh(floorGeometry, floorMaterial);
@@ -431,21 +434,21 @@ var level2 = [new KlotskiToken(0, 3, 1, 2, "blue"),
               ];
 levels.push(level2);
 
-var level3 = [new KlotskiToken(0, 4, 1, 1),
-              new KlotskiToken(1, 4, 1, 1),
-              new KlotskiToken(2, 4, 1, 1),
-              new KlotskiToken(3, 4, 1, 1),
-              new KlotskiToken(0, 3, 1, 1),
-              new KlotskiToken(1, 3, 1, 1),
-              new KlotskiToken(2, 2, 2, 2, true), // Main block
-              new KlotskiToken(0, 2, 1, 1),
-              new KlotskiToken(1, 2, 1, 1),
-              new KlotskiToken(0, 1, 1, 1),
-              new KlotskiToken(2, 1, 1, 1),
-              new KlotskiToken(3, 1, 1, 1),
-              new KlotskiToken(0, 0, 1, 1),
-              new KlotskiToken(2, 0, 1, 1),
-              new KlotskiToken(3, 0, 1, 1)
+var level3 = [new KlotskiToken(0, 4, 1, 1, "red"),
+              new KlotskiToken(1, 4, 1, 1), "red",
+              new KlotskiToken(2, 4, 1, 1, "red"),
+              new KlotskiToken(3, 4, 1, 1, "red"),
+              new KlotskiToken(0, 3, 1, 1, "red"),
+              new KlotskiToken(1, 3, 1, 1, "red"),
+              new KlotskiToken(2, 2, 2, 2, "green"), // Main block
+              new KlotskiToken(0, 2, 1, 1, "red"),
+              new KlotskiToken(1, 2, 1, 1, "red"),
+              new KlotskiToken(0, 1, 1, 1, "red"),
+              new KlotskiToken(2, 1, 1, 1, "red"),
+              new KlotskiToken(3, 1, 1, 1, "red"),
+              new KlotskiToken(0, 0, 1, 1, "red"),
+              new KlotskiToken(2, 0, 1, 1, "red"),
+              new KlotskiToken(3, 0, 1, 1, "red")
               ];
 levels.push(level3);
 
