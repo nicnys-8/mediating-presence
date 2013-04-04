@@ -18,15 +18,18 @@
                 <script type="text/javascript" src="js/geometry.js"></script>
                 <script type="text/javascript" src="js/lib/subdivision-modifier.js"></script>
                 <script type="text/javascript" src="js/timer.js"></script>
+                
+                <link rel="stylesheet" type="text/css" href="css/pb.css"/>
+                
                 <script>
                     
                     var klotski;
                     var startDiv;
-                    var levelDiv;                    
+                    var levelDiv;
                     var clearedDiv;
                     var messageDiv;
                     var container;
-                    var turnButton;                    
+                    var turnButton;
                     
                     TabControl.onActivate = function() {
                         klotski.shouldRender = true;
@@ -48,7 +51,6 @@
                             startDiv.style.display = "none";
                             levelDiv.style.display = "block";
                             startGame(packet.yourTurn);
-                            tick();
                         }
                         else if (type == "yourTurn") {
                             klotski.hasTurn = true;
@@ -67,12 +69,15 @@
                     
                     TabControl.onLoad = function() {
                         // Store the DOM elements for use later
-                        levelDiv = document.getElementById("game");                        
-                        clearedDiv = document.getElementById("levelCleared");                        
+                        levelDiv = document.getElementById("game");
+                        clearedDiv = document.getElementById("levelCleared");
                         messageDiv = document.getElementById("message");
                         container = document.getElementById("klotskiContainer");
                         startDiv = document.getElementById("startScreen");
                         turnButton = document.getElementById("turnButton");
+                        
+                        levelDiv.style.display = "none";
+                        clearedDiv.style.display = "none";
                         
                         // Create the Klotski object
                         klotski = new Klotski(blockSnapped,
@@ -86,8 +91,8 @@
                      */
                     function invitePlayer() {
                         /* TODO: Replace with some kind of invitation:
-                        
-                        */
+                         
+                         */
                         startDiv.style.display = "none";
                         levelDiv.style.display = "block";
                         startGame(true);
@@ -95,8 +100,8 @@
                     
                     function startGame(hasTurn) {
                         // Set the player's color
-                        klotski.playerColor = (hasTurn) ? "red" : "blue";
-                        console.log(klotski.playerColor);
+                        var playerColor = (hasTurn) ? "red" : "blue";
+                        klotski.startGame(playerColor);
                         // Start listening for mouse events
                         document.addEventListener('mousedown', onMouseDown, false);
                         document.addEventListener('mousemove', onMouseMove, false);
@@ -132,7 +137,6 @@
                         clearedDiv.style.display = "block";
                         var levelNumber = levelIndex + 1;
                         messageDiv.innerHTML = "Level " + levelNumber + " cleared! Finish time: " + finishTime;
-
                     }
                     
                     /**
@@ -142,6 +146,8 @@
                         levelDiv.style.display = "block";
                         clearedDiv.style.display = "none";
                         klotski.nextLevel();
+                        // Tell the other player to start the next level as well
+                        TabControl.sendMessage("play", "nextLevel", {});
                     }
                     
                     /**
@@ -180,26 +186,33 @@
                     </script>
                 </head>
     
-    <body style="overflow:hidden; margin:0px; height:100%; width:100%">
+    <body style="overflow:hidden; height:100%; width:100%">
         
-        <div id ="startScreen" style="text-align:center; height:100%; width:100%">
+        <div id ="startScreen" style="text-align:center">
             <h1>Welcome to Klotski!</h1>
-            <input type="button" id="invitePlayer" onclick="invitePlayer()" value="Invite friend" style="height:100%; margin:0px auto"> </input>
+            <div style="width:50%; margin:0 auto">
+            The goal of the game is to get the <span style="color:#00DD00">green</span> block to the bottom of the
+            level. You can only move some of the blocks, so you'll need help
+            from a friend to finish the levels!
+            </div>
+            
+            <button id="invitePlayer" onclick="invitePlayer()">
+                Invite friend
+            </button>
         </div>
         
         <div id ="game" style="text-align:center; height:100%; width:100%">
-            <div id="timer" style="margin:2px">
+            <div id="timer">
                 Time passed: 00:00
             </div>
-            <input type="button" id="turnButton" onclick="giveUpTurn()" value="Give up turn" style="margin:0px auto"> </input>
-            
+            <button type="button" id="turnButton" onclick="giveUpTurn()">Give up turn</button>
             <div id ="klotskiContainer" style="height:100%; width:100%"> </div>
         </div>
         
         <div id ="levelCleared" style="text-align:center; height:100%; width:100%">
             <h1>Well done!</h1>
-            <div id="message" style="margin:2px"></div>
-            <input type="button" id="nextLevelButton" onclick="nextLevel()" value="Next level" style="margin:0px auto"> </input>
+            <div id="message"></div>
+            <button type="button" id="nextLevelButton" onclick="nextLevel()">Next level</button>
         </div>
         
         

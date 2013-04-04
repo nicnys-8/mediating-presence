@@ -194,7 +194,6 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
     activeBlock = null;
     clickOffset = new THREE.Vector3(0, 0, 0);
     hasTurn = false;
-    levelIndex = 0;
     
     initWalls();
     initFloor();
@@ -204,18 +203,25 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
     scene.add(particleSystem);
     
     timer = new Timer(document.getElementById("timer"));
-    timer.start();
-    
-    loadLevel(levelIndex);
-
     setView();
     window.addEventListener("resize", setView, false);
-    
     mouseInterface = new MouseInterface(container, camera);
     
     /*---------------------
      ==| Game mechanics |==
      --------------------*/
+    /**
+     Starts the game from the first level
+     */
+    var startGame = function(color) {
+        this.playerColor = color;
+        levelIndex = 0;
+        loadLevel(levelIndex);
+        timer.start();
+        // Set the view correctly
+        setView();
+    };
+    
     /**
      Move blocks toward their target positions
      */
@@ -374,6 +380,7 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
     this.onMouseMove = onMouseMove;
     this.onMouseUp = onMouseUp;
     this.onReceivedMove = onReceivedMove;
+    this.startGame = startGame;
     this.updateScene = updateScene;
     this.nextLevel = nextLevel;
     
