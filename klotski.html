@@ -21,6 +21,12 @@
                 <script>
                     
                     var klotski;
+                    var startDiv;
+                    var levelDiv;                    
+                    var clearedDiv;
+                    var messageDiv;
+                    var container;
+                    var turnButton;                    
                     
                     TabControl.onActivate = function() {
                         klotski.shouldRender = true;
@@ -37,14 +43,22 @@
                     };
                     
                     TabControl.onMessageReceived = function(senderId, type, packet) {
-                        if (type == "yourTurn") {
+                        if (type == "gameStart") {
+                            // Display the game screen
+                            startDiv.style.display = "none";
+                            levelDiv.style.display = "block";
+                            startGame(packet.yourTurn);
+                            tick();
+                        }
+                        else if (type == "yourTurn") {
                             klotski.hasTurn = true;
+                            turnButton.disabled = false;
                         }
                         else if (type == "update") {
                             klotski.onReceivedMove(packet);
                         }
                         else if (type == "nextLevel") {
-                            klotski.nextLevel(packet);
+                            klotski.nextLevel();
                         }
                         else {
                             console.log("Received unreadable message");
@@ -52,7 +66,14 @@
                     };
                     
                     TabControl.onLoad = function() {
-                        var container = document.getElementById("klotskiContainer");
+                        // Store the DOM elements for use later
+                        levelDiv = document.getElementById("game");                        
+                        clearedDiv = document.getElementById("levelCleared");                        
+                        messageDiv = document.getElementById("message");
+                        container = document.getElementById("klotskiContainer");
+                        startDiv = document.getElementById("startScreen");
+                        turnButton = document.getElementById("turnButton");
+                        
                         // Create the Klotski object
                         klotski = new Klotski(
                                               Klotski.level1,
@@ -60,18 +81,32 @@
                                               finishedLevel,
                                               container
                                               );
+                    }
+                    
+                    /**
+                     Sends a game invitation to another player
+                     */
+                    function invitePlayer() {
+                        /* TODO: Replace with some kind of invitation:
                         
+                        */
+                        startDiv.style.display = "none";
+                        levelDiv.style.display = "block";
+                        startGame(true);
+                    }
+                    
+                    function startGame(hasTurn) {
                         // Start listening for mouse events
                         document.addEventListener('mousedown', onMouseDown, false);
                         document.addEventListener('mousemove', onMouseMove, false);
                         document.addEventListener('mouseup', onMouseUp, false);
-                        
                         // Start the update loop
+                        turnButton.disabled = !hasTurn;
                         tick();
                     }
                     
                     /**
-                     The update loop of the tab
+                     Update loop for running the game
                      */
                     function tick() {
                         requestAnimationFrame(tick);
@@ -87,42 +122,33 @@
                     }
                     
                     /**
-                     Called when...
+                     Called when a level is finished
                      @param finishTime A string representing the time it took to finish
                      the level.
                      */
                     function finishedLevel(finishTime) {
-                        var levelDiv = document.getElementById("level");
                         levelDiv.style.display = "none";
-                        
-                        var crap = document.getElementById("crap");
-                        crap.style.display = "block";
-
-                        var messageDiv = document.getElementById("message");
+                        clearedDiv.style.display = "block";
                         messageDiv.innerHTML = "Level finished in: " + finishTime;
 
                     }
                     
                     /**
-                     ...
+                     Start the next level
                      */
-                    function endOfTurn() {
-                        klotski.hasTurn = false;
-                        TabControl.sendMessage("play", "yourTurn", {});
+                    function nextLevel() {
+                        levelDiv.style.display = "block";
+                        clearedDiv.style.display = "none";
+                        klotski.nextLevel();
                     }
                     
                     /**
-                     ...
+                     Give up control of the game to your opponent
                      */
-                    function nextLevel() {
-                        var levelDiv = document.getElementById("level");
-                        levelDiv.style.display = "block";
-                        
-                        var crap = document.getElementById("crap");
-                        crap.style.display = "none";
-                    
-                        klotski.nextLevel();
-                    
+                    function giveUpTurn() {
+                        klotski.hasTurn = false;
+                        turnButton.disabled = true;
+                        TabControl.sendMessage("play", "yourTurn", {});
                     }
                     
                     /*---------------------
@@ -153,33 +179,23 @@
                 </head>
     
     <body style="overflow:hidden; margin:0px; height:100%; width:100%">
-       
         
+        <div id ="startScreen" style="text-align:center; height:100%; width:100%">
+            <input type="button" id="invitePlayer" onclick="invitePlayer()" value="Invite friend" style="margin:0px auto"> </input>
+        </div>
         
-        
-        
-        <div id ="level" style="text-align:center; height:100%; width:100%">
-            
+        <div id ="game" style="text-align:center; height:100%; width:100%">
             <div id="timer" style="margin:2px">
                 Time passed: 00:00
             </div>
-            
-            <input type="button" id="endTurnButton" onclick="endOfTurn()" value="End of turn" style="margin:0px auto"> </input>
+            <input type="button" id="turnButton" onclick="giveUpTurn()" value="Give up turn" style="margin:0px auto"> </input>
             
             <div id ="klotskiContainer" style="height:100%; width:100%"> </div>
-            
         </div>
         
-        
-        
-        
-        <div id ="crap" style="text-align:center; height:100%; width:100%">
-            
+        <div id ="levelCleared" style="text-align:center; height:100%; width:100%">
+            <div id="message" style="margin:2px"></div>
             <input type="button" id="nextLevelButton" onclick="nextLevel()" value="Next level" style="margin:0px auto"> </input>
-            
-            <div id="message" style="margin:2px">
-            </div>
-
         </div>
         
         
