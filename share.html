@@ -146,7 +146,13 @@
 					numFaces = 0,
 					format;
 				
+				console.log(header);
+				
 				var lines = header.split("\n");
+				
+				for (var i in lines) {
+					lines[i] = lines[i].trim();
+				}
 				
 				// Check for magic word at start of file!
 				if (lines[0] != "ply") {
