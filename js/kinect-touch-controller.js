@@ -5,7 +5,8 @@
 
 // Constants
 const MIN_TOUCHES = 3;
-const TOUCH_LIFE_TIME = 5;
+const TOUCH_LIFE_TIME = 2;
+const CLICK_THRESHOLD = 5;
 //******
 // width and height should be gotten from somewhere else!1
 const KINECT_DEPTH_WIDTH = 160;
@@ -21,8 +22,9 @@ const KINECT_PIXELS = KINECT_DEPTH_HEIGHT * KINECT_DEPTH_WIDTH;
 Touch = function(size, x, y, left, top, width, height) {
     this.size = size;
     this.point = {x: Math.round(x), y: Math.round(y)};
-    this.lifeTime = TOUCH_LIFE_TIME;
+    this.timeToLive = TOUCH_LIFE_TIME;
     this.bounds = {x: left, y: top, width: width, height: height};
+    this.age = 0;
 }
 
 
@@ -88,9 +90,10 @@ KinectTouchController.prototype.updateTouch = function() {
      -----------------------------*/
     if (!newTouch) {
         if (this.touch) {
-            this.touch.lifeTime--;
-            if (this.touch.lifeTime <= 0) {
-                this.simulateMouseEvent(this.touch.point, "mouseup");
+            this.touch.timeToLive--;
+            if (this.touch.timeToLive <= 0) {
+                var event = (this.touch.age > CLICK_THRESHOLD) ? "mouseup" : "click";
+                this.simulateMouseEvent(this.touch.point, event);
                 this.touch = null;
             }
         }
@@ -106,6 +109,8 @@ KinectTouchController.prototype.updateTouch = function() {
     
     // If a live touch exists:
     if (this.touch) {
+        newTouch.age = this.touch.age;
+        newTouch.age++;
         // Check if it has moved
         if (this.touch.point.x != newTouch.point.x ||
             this.touch.point.y != newTouch.point.y)
@@ -115,7 +120,6 @@ KinectTouchController.prototype.updateTouch = function() {
     }
     // If no live touch exists:
     else {
-        //this.simulateMouseEvent(newTouch.point, "click");
         this.simulateMouseEvent(newTouch.point, "mousedown");
     }
     // Set the object's touch to the new one
@@ -245,18 +249,29 @@ KinectTouchController.prototype.getTouchAtPoint = function(x, y) {
  */
 KinectTouchController.prototype.simulateMouseEvent = function(touchPoint, eventType) {
     var element = document.elementFromPoint(touchPoint.x, touchPoint.y);
-    var doc = element.contentDocument;
     var elementX = $(element).offset().left;
     var elementY = $(element).offset().top;
     var event = document.createEvent("MouseEvents");
+    
+    // Decide the target that will dispatch the event;
+    // it can be either an iFrame or the main element
+    var target;
+    if (element.tagName == "IFRAME") {
+        target = element.contentDocument;
+    } else {
+        target = element;
+        // If outside of iFrame, simulate click
+        //if (eventType == "mousedown") eventType = "click";
+    }
+    
     event.initMouseEvent(eventType, true, true,
-                         window, 0, 0, 0, touchPoint.x - elementX,
+                         window, 0, 0, 0,
+                         touchPoint.x - elementX,
                          touchPoint.y - elementY,
                          false, false, false,
                          false, 0, null);
-    doc.dispatchEvent(event);
+    target.dispatchEvent(event);
 };
-
 
 
 

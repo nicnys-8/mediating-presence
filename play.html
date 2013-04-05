@@ -13,6 +13,8 @@
                 <script type="text/javascript" src="js/particles.js"></script>
                 <script type="text/javascript" src="js/lib/zig.js"></script>
                 
+                <script type="text/javascript" src="js/lib/jquery.js"></script>
+                
                 <script type="text/javascript" src="js/kinect-decoder.js"></script>
                 <script type="text/javascript" src="js/image-handling.js"></script>
                 <script type="text/javascript" src="js/kinect-touch-controller.js"></script>
@@ -32,6 +34,7 @@
                     var waitMessageDiv;
                     var klotskiContainer;
                     var turnButton;
+                    var inviteButton;
                     
                     TabControl.onActivate = function() {
                         if (klotski) klotski.shouldRender = true;
@@ -78,9 +81,16 @@
                         klotskiContainer = document.getElementById("klotskiContainer");
                         startDiv = document.getElementById("startScreen");
                         turnButton = document.getElementById("turnButton");
+                        inviteButton = document.getElementById("inviteButton");
                         
                         gameDiv.style.display = "none";
                         clearedDiv.style.display = "none";
+                        
+                        document.addEventListener('mousedown', onMouseDown, false);
+                        document.addEventListener('mousemove', onMouseMove, false);
+                        document.addEventListener('mouseup', onMouseUp, false);
+                        
+                        window.ondragstart = function() { return false; }
                     }
                     
                     /**
@@ -106,11 +116,7 @@
                         klotski.startGame(playerColor);
                         // Start listening for mouse events
                         
-                        document.addEventListener('mousedown', onMouseDown, false);
-                        document.addEventListener('mousemove', onMouseMove, false);
-                        document.addEventListener('mouseup', onMouseUp, false);
-                         
-                         window.ondragstart = function() { return false; }
+
                         // Start the update loop
                         turnButton.disabled = !hasTurn;
                         tick();
@@ -171,31 +177,29 @@
                      Called whenever the left mouse button is clicked
                      */
                     onMouseDown = function(event) {
-                        /*
-                        console.log("Mousedown");
-                        console.log("x: " + event.clientX,
-                                    "y: " + event.clientY);
-                         */
-                        console.log("Dispatched x: " + event.clientX + ", y: " + event.clientY);
-                        console.log("");
-                        
-                        klotski.onMouseDown(event.clientX, event.clientY);
+                        if (klotski) klotski.onMouseDown(event.clientX, event.clientY);
                         event.preventDefault();
-                    }
+                        
+                        //TODO: Remove this ugly code:
+                        var element = document.elementFromPoint(event.clientX, event.clientY);
+                        if (element.id == "inviteButton") invitePlayer();
+                        if (element.id == "nextLevelButton") nextLevel();
+                        if (element.id == "turnButton") giveUpTurn();
+                    };
                     
                     /**
                      Called whenever the mouse is moved
                      */
                     onMouseMove = function(event) {
-                        klotski.onMouseMove(event.clientX, event.clientY);
-                    }
+                        if (klotski) klotski.onMouseMove(event.clientX, event.clientY);
+                    };
                     
                     /**
                      Called when the left mouse button is released
                      */
                     onMouseUp = function(event) {
-                        klotski.onMouseUp(event.clientX, event.clientY);
-                    }
+                        if (klotski) klotski.onMouseUp(event.clientX, event.clientY);
+                    };
                     
                     </script>
                 </head>
@@ -209,7 +213,7 @@
                 level. You can only move some of the blocks, so you'll need help
                 from a friend to finish the levels!
             </div>
-            <button id="invitePlayer" onclick="invitePlayer()">
+            <button id="inviteButton" onclick="invitePlayer()">
                 Invite friend
             </button>
             <div id="waitMessage" style="display:none">
