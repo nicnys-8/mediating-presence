@@ -8,7 +8,10 @@
         
         <title>Hello chat</title>
 		
-        <style type="text/css">
+		<!--
+		<link rel="stylesheet" type="text/css" href="css/pb.css"/>
+		 -->
+		<style type="text/css">
 			
 			* {
 				margin:0;
@@ -124,7 +127,59 @@
 				background-image:url('images/video-top.png');
 			}
 			
+			#blanket {
+				background-color:rgba(0, 0, 0, 0.5);
+				/* *background:none;*/
+				position:absolute;
+				z-index: 9001;
+				top:0px;
+				left:0px;
+				width:100%;
+				height:100%;
+				overflow:hidden;
+				
+				/* Start of animation */
+				opacity:0.0;
+				display:none;
+			}
+			
+			#popupDiv {
+				font-family:monospace;
+				font-size:150%;
+				position:relative;
+				/*background:url(pop-back.jpg) no-repeat;*/
+				background-color:white;
+				width:480px;
+				height:320px;
+				border:5px solid #000;
+				top:50%;
+				margin:-160px auto;
+				z-index: 9002;
+				text-align:center;
+				
+				/* Start of animation */
+				top:100%;
+				display:none;
+			}
+			
+			#popupDiv .popup-content {
+				display:none;
+				position:absolute;
+				width:60%;
+				height:60%;
+				top:20%;
+				left:20%;
+			}
+			
+			#popupDiv button {
+				font-size:100%;
+				padding:0.5em;
+				margin:1em 0.25em;
+				
+			}
+			
 		</style>
+		
 		<script type="text/javascript" src="js/lib/jquery.js"></script>
         <script type="text/javascript" src="js/lib/sylvester.js"></script>
         <script type="text/javascript" src="js/geometry.js"></script>
@@ -183,11 +238,27 @@
 				console.log("Received messsage");
 				console.log(packet);
 
-				var destinationTab = packet.dst;
+				var destination = packet.dst;
 				var messageType = packet.type;
 				var data = packet.data;
 
-				if (destinationTab == "all") {
+				if (destination == "index") {
+					
+					switch (messageType) {
+						
+						case "invite":
+							// Invitation to Klotski game
+							handleKlotskiInvite(senderId, data);
+						
+						case "share":
+							// Someone wants to share a 3D model
+							handleShared3DModel(senderId, data);
+						
+						default:
+							break;
+					}
+					
+				} if (destination == "all") {
 					
 					for (var tabName in tabControllers) {
 						if (tabControllers[tabName]) {
@@ -197,7 +268,7 @@
 					
 				} else {
 					
-					var tabController = tabControllers[destinationTab] || tabControllers["#" + destinationTab];
+					var tabController = tabControllers[destination] || tabControllers["#" + destination];
 					if (tabController) {
 						tabController.onMessageReceived(senderId, messageType, data);
 					}
@@ -252,6 +323,9 @@
 						  });
 				
 				activateTab(currentTabID);
+				
+				handleKlotskiInvite();
+				
 			};
 			
 			function activateTab(tabName) {
@@ -337,7 +411,78 @@
 				
 				enableVideo = !enableVideo;
 			}
+		
+			/*
+			 crappy shrink animation of popup:
+			 $('#popupDiv').animate({
+			 width:0,
+			 height:0,
+			 marginTop:0,
+			 fontSize:0,
+			 }, 200, function() {
+			 // Animation complete.
+			 $(this).hide();
+			 });
+			 */
 			
+			function handleKlotskiInvite(senderId, data) {
+				$("#sharePopup").hide();
+				$("#klotskiPopup").show();
+				showPopup();
+			}
+			function acceptKlotskiInvite() {
+				hidePopup();
+				switchToTab("#play");
+
+				TabControl.sendMessage("play", "inviteAccepted", { turn : false });
+				// Send a fake message to self to start the local klotski game as well
+				tabControllers["#play"].onMessageReceived(null, "inviteAccepted", {turn : true });
+			}
+			
+			function declineKlotskiInvite() {
+				hidePopup();
+				TabControl.sendMessage("play", "inviteDeclined", {});
+			}
+			
+			function handleShared3DModel(senderId, data) {
+				$("#klotskiPopup").hide();
+				$("#sharePopup").show();
+				showPopup();
+			}
+			
+			function acceptShared3DModel() {
+				hidePopup();
+				switchToTab("#share");
+				
+				TabControl.sendMessage("share", "inviteAccepted", { turn : false });
+				// Send a fake message to self to start the local klotski game as well
+				tabControllers["#share"].onMessageReceived(null, "inviteAccepted", {turn : true });
+			}
+			
+			function declineShared3DModel() {
+				hidePopup();
+				TabControl.sendMessage("share", "inviteDeclined", {});
+			}
+			
+			function showPopup() {
+				
+				var popup = $("#popupDiv");
+				var blanket = $("#blanket");
+				
+				popup.show();
+				popup.animate({ top:"50%", /* opacity:1.0, */}, 500, function() {});
+				blanket.show();
+				blanket.animate({ opacity:1.0, }, 500, function() {});
+			}
+			
+			function hidePopup() {
+				var popup = $("#popupDiv");
+				var blanket = $("#blanket");
+				popup.animate({ top:"100%", /* opacity:0.0, */},
+							  500, function() { $(this).hide(); });
+				blanket.animate({ opacity:0.0, },
+								500, function() { $(this).hide(); });
+			}
 		</script>
         
     </head>
@@ -349,7 +494,28 @@
 				<param name="onload" value="zigPluginLoaded">
 					</object>
 		</div>
-		
+			
+		<div id="blanket">
+			<div id="popupDiv">
+				
+				<div id="klotskiPopup" class="popup-content">
+					<img style="display:float; width:90px; height:75px;" src="images/play-icon.png"></img>
+					You have been invited to play a game of Klotski!
+					<br>
+					<button onclick="acceptKlotskiInvite();">Accept</button>
+					<button onclick="declineKlotskiInvite();">Decline</button>
+				</div>
+				
+				<div id="sharePopup" class="popup-content">
+					<img style="display:float; width:90px; height:75px;" src="images/share-icon.png"></img>
+					Someone wants to share a 3D model with you!
+					<br>
+					<button onclick="acceptShared3DModel();">Accept</button>
+					<button onclick="declineShared3DModel();">Decline</button>
+				</div>
+				
+			</div>
+		</div>
 		<div id="menu"><!-- These comments are only here to avoid whitespace between the divs :)
 			--><ul><!--
 				--><li><div class="linkbutton" id="chatbutton"
@@ -385,6 +551,7 @@
 			</div>
 			-->
 		</div>
+			
     </body>
 	
 </html>
