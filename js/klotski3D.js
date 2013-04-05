@@ -218,7 +218,7 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
      */
     var startGame = function(hasTurn) {
         this.hasTurn = hasTurn;
-        this.playerColor = (hasTurn) ? "red" : "blue";
+        this.playerColor = (hasTurn) ? "red" : 'blue';
         levelIndex = 0;
         loadLevel(levelIndex);
         timer.start();
