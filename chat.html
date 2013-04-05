@@ -1,7 +1,7 @@
 
 <!-- :hover doesn't work with the doctype tag..?
-<!DOCTYPE html>
--->
+ <!DOCTYPE html>
+ -->
 
 <html>
     <head>
@@ -9,7 +9,7 @@
         <title>Menu?</title>
 		
         <style type="text/css">
-
+			
 			* {
 				padding:0;
 				margin:0;
@@ -65,15 +65,15 @@
 				margin:10%;
 				background-color:pink;
 			}
-		
-		</style>
+			
+			</style>
 		
 		<script type="text/javascript" src="js/tab-control.js"></script>
 		<script type="text/javascript" src="js/mediaext.js"></script>
 		<script type="text/javascript" src="js/lib/jquery.js"></script>
 		
 		<script>
-		
+			
 			var timer = null;
 			var streamIDs = [];
 			var streams = {};
@@ -95,22 +95,21 @@
 			}
 			
 			TabControl.onLocalStreamInit = function(stream) {
+				console.log("chat::LocalStreamInit");
 				myStream = stream;
-				TabControl.onStreamAdded(stream);
-			}
-			
-			TabControl.onStreamAdded = function(stream) {
 				
-				var streamID = stream.getID();
+				var streamID = "myStream";
 				streams[streamID] = stream;
 				streamIDs.push(streamID);
 				
-				if (currentStreamID == null) {
+				if (!currentStreamID) {
 					currentStreamID = streamID;
 				}
 				
 				// Create a div to show a thumbnail of the video
-				var thumb = document.createElement("div");
+				var thumb = document.createElement("canvas");
+				thumb.width = 160;
+				thumb.height = 120;
 				thumb.id = "thumb" + streamID;
 				thumb.className = "video-thumb";
 				thumb.onclick = function() {
@@ -122,7 +121,39 @@
 				
 				// Draw the video stream in the thumbnail div
 				if (stream.hasVideo()) {
-					stream.show(thumb);
+					// stream.show(thumb.id);
+				} else {
+					// Show an image instead?
+					thumb.innerHTML = "<center><span style='width:160px; margin:50px auto;'>No video... :)</span></center>";
+				}
+			}
+			
+			TabControl.onStreamAdded = function(stream) {
+				
+				var streamID = stream.getID();
+				streams[streamID] = stream;
+				streamIDs.push(streamID);
+				
+				if (!currentStreamID) {
+					currentStreamID = streamID;
+				}
+				
+				// Create a div to show a thumbnail of the video
+				var thumb = document.createElement("canvas");
+				thumb.width = 160;
+				thumb.height = 120;
+				thumb.id = "thumb" + streamID;
+				thumb.className = "video-thumb";
+				thumb.onclick = function() {
+					currentStreamID = streamID;
+				}
+				thumbs[streamID] = thumb;
+				
+				document.getElementById("sidebar-left").appendChild(thumb);
+				
+				// Draw the video stream in the thumbnail div
+				if (stream.hasVideo()) {
+					// stream.show(thumb.id);
 				} else {
 					// Show an image instead?
 					thumb.innerHTML = "<center><span style='width:160px; margin:50px auto;'>No video... :)</span></center>";
@@ -130,7 +161,7 @@
 			}
 			
 			TabControl.onStreamRemoved = function(stream) {
-
+				
 				var streamID = stream.getID();
 				var thumb = thumbs[streamID];
 				var index = streamIDs.indexOf(streamID);
@@ -171,18 +202,20 @@
 			
             TabControl.onLoad = function() {
 				/*
-				// For local testing:
-				var video = MediaExt.getCameraAccess(640, 480, function() {
-														TabControl.onStreamAdded({
-																				 getID:function() { return "hej"; },
-																				 hasVideo:function() { return false; },
-																				 });
-														TabControl.onStreamAdded({
-																				 getID:function() { return "hej2"; },
-																				 hasVideo:function() { return false; },
-																				 });
-													 });
-				*/
+				 // For local testing:
+				 var video = MediaExt.getCameraAccess(640, 480, function() {
+				 TabControl.onStreamAdded({
+				 getID:function() { return "hej"; },
+				 hasVideo:function() { return false; },
+				 });
+				 TabControl.onStreamAdded({
+				 getID:function() { return "hej2"; },
+				 hasVideo:function() { return false; },
+				 });
+				 });
+				 */
+				
+				console.log("chat::Load");
 				
 				var onWidowResize = function() {
 					var canvas = document.getElementById("large-video");
@@ -191,7 +224,7 @@
 				}
 				
 				onWidowResize();
-			
+				
 				window.addEventListener("resize", onWidowResize, false);
 				
 				bufferCanvas = document.createElement("canvas");
@@ -200,29 +233,46 @@
 			
 			function drawThumbs() {
 				
-				if (currentStreamID) {
+				for (var streamID in thumbs) {
+					var canvas = thumbs[streamID];
+					var ctx = canvas.getContext("2d");
+					var imageData = streams[streamID].getVideoFrame();
+					
+					if (imageData) {
+						if (bufferCanvas.width != imageData.width ||
+						    bufferCanvas.height != imageData.height) {
+							bufferCanvas.width = imageData.width;
+							bufferCanvas.height = imageData.height;
+						}
+						bufferContext.putImageData(imageData, 0, 0);
+						ctx.drawImage(bufferCanvas, 0, 0, canvas.width, canvas.height);
+					}
+				}
 				
+				if (currentStreamID) {
+					
 					var canvas = document.getElementById("large-video");
 					var ctx = canvas.getContext("2d");
 					
 					// ctx.drawImage(video, 0, 0, canvas.width, canvas.width * 0.75);
-				
+					
 					var imageData = streams[currentStreamID].getVideoFrame();
-				
-					if (bufferCanvas.width != imageData.width ||
-						bufferCanvas.height != imageData.height) {
-						bufferCanvas.width = imageData.width;
-						bufferCanvas.height = imageData.height;
+					
+					if (imageData) {
+						if (bufferCanvas.width != imageData.width ||
+							bufferCanvas.height != imageData.height) {
+							bufferCanvas.width = imageData.width;
+							bufferCanvas.height = imageData.height;
+						}
+						bufferContext.putImageData(imageData, 0, 0);
+						ctx.drawImage(bufferCanvas, 0, 0, canvas.width, canvas.width * 0.75);
 					}
-					bufferCtx.putImageData(imageData, 0, 0);
-				
-					ctx.drawImage(bufferCanvas, 0, 0, canvas.width, canvas.width * 0.75);
 				}
 				
-				timer = setTimeout(drawThumbs, 50);
+				timer = setTimeout(drawThumbs, 100);
 			}
 			
-		</script>
+			</script>
         
     </head>
 	
