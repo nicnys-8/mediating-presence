@@ -256,14 +256,14 @@ KinectTouchController.prototype.simulateMouseEvent = function(touchPoint, eventT
     // Decide the target that will dispatch the event;
     // it can be either an iFrame or the main element
     var target;
+
     if (element.tagName == "IFRAME") {
         target = element.contentDocument;
     } else {
         target = element;
         // If outside of iFrame, simulate click
-        //if (eventType == "mousedown") eventType = "click";
     }
-    
+
     event.initMouseEvent(eventType, true, true,
                          window, 0, 0, 0,
                          touchPoint.x - elementX,

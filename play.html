@@ -51,15 +51,14 @@
                     };
                     
                     TabControl.onMessageReceived = function(senderId, type, packet) {
-                        if (type == "gameStart") {
-                            // Display the game screen
+                        if (type == "inviteAccepted") {
                             startDiv.style.display = "none";
                             gameDiv.style.display = "block";
-                            startGame(packet.yourTurn);
+                            startGame(packet.turn);
                         }
-                        else if (type == "yourTurn") {
-                            klotski.hasTurn = true;
-                            turnButton.disabled = false;
+                        else if (type == "inviteDeclined") {
+                            alert("Invite declined!");
+                            inviteButton.disabled = false;
                         }
                         else if (type == "update") {
                             klotski.onReceivedMove(packet);
@@ -97,12 +96,8 @@
                      Sends a game invitation to another player
                      */
                     function invitePlayer() {
-                        /* TODO: Replace with some kind of invitation:
-                         waitMessageDiv.style.display = "block";
-                         */
-                        startDiv.style.display = "none";
-                        gameDiv.style.display = "block";
-                        startGame(true);
+                        inviteButton.disabled = true;
+                        TabControl.sendMessage("index", "invite", {});
                     }
                     
                     function startGame(hasTurn) {
@@ -181,10 +176,12 @@
                         event.preventDefault();
                         
                         //TODO: Remove this ugly code:
+                        
                         var element = document.elementFromPoint(event.clientX, event.clientY);
                         if (element.id == "inviteButton") invitePlayer();
                         if (element.id == "nextLevelButton") nextLevel();
                         if (element.id == "turnButton") giveUpTurn();
+                        
                     };
                     
                     /**
@@ -213,7 +210,7 @@
                 level. You can only move some of the blocks, so you'll need help
                 from a friend to finish the levels!
             </div>
-            <button id="inviteButton" onclick="invitePlayer()">
+            <button id="inviteButton" onclick="invitePlayer()" style="width:20%; height:60px">
                 Invite friend
             </button>
             <div id="waitMessage" style="display:none">
@@ -237,7 +234,7 @@
                 Well done!
             </h1>
             <div id="clearedMessage"></div>
-            <button type="button" id="nextLevelButton" onclick="nextLevel()">
+            <button type="button" id="nextLevelButton" onclick="nextLevel()" style="width:20%; height:60px">
                 Next level
             </button>
         </div>

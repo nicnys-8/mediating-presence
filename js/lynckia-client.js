@@ -57,7 +57,6 @@ var accessRoom = function(token) {
     room = Erizo.Room({token: token});
     localStream.addEventListener("access-accepted", onRoomAccessGranted);
     localStream.init();
-    tabController.setLocalStream(localStream);
 }
 
 /**
@@ -65,13 +64,16 @@ var accessRoom = function(token) {
  Initiates listeners for handling future events
  */
 var onRoomAccessGranted = function() {
-    room.addEventListener("room-connected", function (roomEvent) {
+    
+	
+    
+    room.addEventListener("room-connected", function (roomEvent) {tabController.setLocalStream(localStream);
                           room.publish(localStream);
                           subscribeToStreams(roomEvent.streams);
                           });
     
     room.addEventListener("stream-subscribed", function(streamEvent) {
-			tabController.onStreamAdded(streamEvent.stream);
+                          tabController.onStreamAdded(streamEvent.stream);
                           });
     
     room.addEventListener("stream-added", function (streamEvent) {
@@ -93,4 +95,3 @@ initLynckia = function (tabControllerArg) {
     localStream = Erizo.Stream({audio: true, video: true, data: true});
     createToken("user", "role", accessRoom);
 };
-
