@@ -72,6 +72,7 @@ KinectPluginProxy = function() {
 		if (TabControl) {
 			TabControl.onKinectInit(this);
 		}
+        initTouchController();
 	};
 	
 	var onNewKinectData = function() {
@@ -108,7 +109,6 @@ KinectPluginProxy = function() {
             console.log("No depth reference data stored");
             return;
         }
-        
         var transformData = JSON.parse(localStorage.transform);
         var transform = new Geometry.Transform(transformData[0], transformData[1]);
         var depthRef = JSON.parse(localStorage.depthRef);

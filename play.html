@@ -12,6 +12,7 @@
                 <script type="text/javascript" src="js/klotski-blocks.js"></script>
                 <script type="text/javascript" src="js/particles.js"></script>
                 <script type="text/javascript" src="js/lib/zig.js"></script>
+                
                 <script type="text/javascript" src="js/kinect-decoder.js"></script>
                 <script type="text/javascript" src="js/image-handling.js"></script>
                 <script type="text/javascript" src="js/kinect-touch-controller.js"></script>
@@ -104,10 +105,12 @@
                         var playerColor = (hasTurn) ? "red" : "blue";
                         klotski.startGame(playerColor);
                         // Start listening for mouse events
+                        
                         document.addEventListener('mousedown', onMouseDown, false);
                         document.addEventListener('mousemove', onMouseMove, false);
                         document.addEventListener('mouseup', onMouseUp, false);
-                        window.ondragstart = function() { return false; } 
+                         
+                         window.ondragstart = function() { return false; }
                         // Start the update loop
                         turnButton.disabled = !hasTurn;
                         tick();
@@ -167,7 +170,15 @@
                     /**
                      Called whenever the left mouse button is clicked
                      */
-                    function onMouseDown(event) {
+                    onMouseDown = function(event) {
+                        /*
+                        console.log("Mousedown");
+                        console.log("x: " + event.clientX,
+                                    "y: " + event.clientY);
+                         */
+                        console.log("Dispatched x: " + event.clientX + ", y: " + event.clientY);
+                        console.log("");
+                        
                         klotski.onMouseDown(event.clientX, event.clientY);
                         event.preventDefault();
                     }
@@ -175,14 +186,14 @@
                     /**
                      Called whenever the mouse is moved
                      */
-                    function onMouseMove(event) {
+                    onMouseMove = function(event) {
                         klotski.onMouseMove(event.clientX, event.clientY);
                     }
                     
                     /**
                      Called when the left mouse button is released
                      */
-                    function onMouseUp(event) {
+                    onMouseUp = function(event) {
                         klotski.onMouseUp(event.clientX, event.clientY);
                     }
                     
@@ -190,7 +201,6 @@
                 </head>
     
     <body style="overflow:hidden; height:100%; width:100%">
-        
         <div id ="startScreen" style="text-align:center">
             <h1>Welcome to Klotski!</h1>
             <div style="width:50%; margin:0 auto">
@@ -214,7 +224,8 @@
             <button type="button" id="turnButton" onclick="giveUpTurn()">
                 Give up turn
             </button>
-            <div id ="klotskiContainer" style="height:100%; width:100%"> </div>
+            <div id ="klotskiContainer" style="height:100%; width:100%; margin:10px auto">
+            </div>
         </div>
         
         <div id ="levelCleared" style="text-align:center; height:100%; width:100%">
