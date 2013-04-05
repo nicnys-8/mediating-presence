@@ -14,7 +14,6 @@
                 <script type="text/javascript" src="js/lib/zig.js"></script>
                 
                 <script type="text/javascript" src="js/lib/jquery.js"></script>
-                <!--> jquery is unecessary, I think... <-->
                 <script type="text/javascript" src="js/kinect-decoder.js"></script>
                 <script type="text/javascript" src="js/image-handling.js"></script>
                 <script type="text/javascript" src="js/kinect-touch-controller.js"></script>
@@ -66,6 +65,10 @@
                         else if (type == "nextLevel") {
                             klotski.nextLevel();
                         }
+                        else if (type == "yourTurn") {
+                            klotski.hasTurn = true;
+                            turnButton.disabled = false;
+                        }
                         else {
                             console.log("Received unreadable message");
                         }
@@ -106,9 +109,7 @@
                                               finishedLevel,
                                               klotskiContainer
                                               );
-                        // Set the player's color
-                        var playerColor = (hasTurn) ? "red" : "blue";
-                        klotski.startGame(playerColor);
+                        klotski.startGame(hasTurn);
                         // Start listening for mouse events
                         
 
