@@ -268,11 +268,11 @@
 						case "invite":
 							// Invitation to Klotski game
 							handleKlotskiInvite(senderId, data);
-						
+							break;
 						case "share":
 							// Someone wants to share a 3D model
 							handleShared3DModel(senderId, data);
-						
+							break;
 						default:
 							break;
 					}
@@ -343,7 +343,7 @@
 				
 				activateTab(currentTabID);
 				
-				handleKlotskiInvite();
+				// handleKlotskiInvite();
 				
 			};
 			
