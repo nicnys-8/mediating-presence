@@ -14,7 +14,7 @@
                 <script type="text/javascript" src="js/lib/zig.js"></script>
                 
                 <script type="text/javascript" src="js/lib/jquery.js"></script>
-                
+                <!--> jquery is unecessary, I think... <-->
                 <script type="text/javascript" src="js/kinect-decoder.js"></script>
                 <script type="text/javascript" src="js/image-handling.js"></script>
                 <script type="text/javascript" src="js/kinect-touch-controller.js"></script>
@@ -146,14 +146,22 @@
                     }
                     
                     /**
+                     Executed when the nextLevelButton is clicked
+                     */
+                    function nextLevelClicked() {
+                        // Tell the other player to start the next level
+                        TabControl.sendMessage("play", "nextLevel", {});
+                        // Start the next level
+                        klotski.nextLevel();
+                    }
+                    
+                    /**
                      Start the next level
                      */
                     function nextLevel() {
                         gameDiv.style.display = "block";
                         clearedDiv.style.display = "none";
                         klotski.nextLevel();
-                        // Tell the other player to start the next level as well
-                        TabControl.sendMessage("play", "nextLevel", {});
                     }
                     
                     /**
@@ -179,7 +187,7 @@
                         
                         var element = document.elementFromPoint(event.clientX, event.clientY);
                         if (element.id == "inviteButton") invitePlayer();
-                        if (element.id == "nextLevelButton") nextLevel();
+                        if (element.id == "nextLevelButton") nextLevelClicked();
                         if (element.id == "turnButton") giveUpTurn();
                         
                     };
@@ -234,7 +242,7 @@
                 Well done!
             </h1>
             <div id="clearedMessage"></div>
-            <button type="button" id="nextLevelButton" onclick="nextLevel()" style="width:20%; height:60px">
+            <button type="button" id="nextLevelButton" onclick="nextLevelClicked()" style="width:20%; height:60px">
                 Next level
             </button>
         </div>
