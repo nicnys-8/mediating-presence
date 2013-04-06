@@ -36,6 +36,10 @@
                     var inviteButton;
                     var turnInfo;
                     var playerColorSpan;
+                    var reserved; // Tells us whether the local player is free to join a new game
+                    
+                    var streamIds;
+                    var friendId;
                     
                     TabControl.onActivate = function() {
                         if (klotski) klotski.shouldRender = true;
@@ -46,22 +50,41 @@
                     };
                     
                     TabControl.onStreamAdded = function(stream) {
+                        // Add the stream ID to the list
+                        streamIds.push(stream.getID());
+                        // If the player is not currently
+                        if (!reserved) {
+                            inviteButton.disabled = false;
+                        }
                     };
                     
                     TabControl.onStreamRemoved = function(stream) {
+                        // Remove the stream ID from the list
+                        for (var i = 0; i < streamIds.length; i++) {
+                            if (streamIds[i] == stream.getID()) {
+                                streamIds.splice(i,1);
+                                reserved = false;
+                                friendId = null;
+                            }
+                        }
                     };
                     
                     TabControl.onMessageReceived = function(senderId, type, packet) {
                         if (type == "inviteAccepted") {
+                            // Store the ID of the other user's stream
+                            // (it might already be stored, but what the hey)
+                            friendId = senderId;
+                            reserved = true;
+                            // Display the game and game messages
                             startDiv.style.display = "none";
                             gameDiv.style.display = "block";
-                            
                             turnInfo.innerHTML = (packet.turn) ? "Your turn" : "Friend's turn";
                             startGame(packet.turn);
                         }
                         else if (type == "inviteDeclined") {
                             alert("Invite declined!");
                             inviteButton.disabled = false;
+                            reserved = false;
                         }
                         else if (type == "update") {
                             klotski.onReceivedMove(packet);
@@ -106,8 +129,8 @@
                      Sends a game invitation to another player
                      */
                     function invitePlayer() {
-                         inviteButton.disabled = true;
-                         TabControl.sendMessage("index", "invite", {});
+                        inviteButton.disabled = true;
+                        TabControl.sendMessage("index", "invite", {});
                     }
                     
                     function startGame(hasTurn) {

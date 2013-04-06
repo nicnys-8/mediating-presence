@@ -101,6 +101,8 @@ KinectPluginProxy = function() {
 	}
     
     var initTouchController = function() {
+        
+        // Set up mandatory parameters for the touch controller constructor
         if (!localStorage.transform) {
             console.log("No transform data stored");
             return;
@@ -109,10 +111,23 @@ KinectPluginProxy = function() {
             console.log("No depth reference data stored");
             return;
         }
+        
+        // Set up optional parameters for the touch controller constructor
+        var touchDistance = null;
+        var interval = null;
+        
+        if (localStorage.touchDistance) {
+            touchDistance = JSON.parse(localStorage.touchDistance);
+        }
+        
+        if (localStorage.interval) {
+            interval = JSON.parse(localStorage.interval);
+        }
         var transformData = JSON.parse(localStorage.transform);
         var transform = new Geometry.Transform(transformData[0], transformData[1]);
         var depthRef = JSON.parse(localStorage.depthRef);
-        touchController = new KinectTouchController(depthRef, transform);
+        
+        touchController = new KinectTouchController(depthRef, transform, touchDistance, interval);
     };
 	
 	// Return public API

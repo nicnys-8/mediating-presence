@@ -7,6 +7,8 @@
 const MIN_TOUCHES = 3;
 const TOUCH_LIFE_TIME = 2;
 const CLICK_THRESHOLD = 5;
+const DEFAULT_TOUCH_DISTANCE = 10;
+const DEFAULT_INTERVAL = 10;
 //******
 // width and height should be gotten from somewhere else!1
 const KINECT_DEPTH_WIDTH = 160;
@@ -31,12 +33,17 @@ Touch = function(size, x, y, left, top, width, height) {
 /**
  KinectTouchController constructor
  @param depthRef reference image used for depth thresholding
+ @param transform An object used for coordinate conversion
+ @parm touchDistance, interval Optional parameters used to set depth threshold values
  */
-KinectTouchController = function(depthRef, transform) {
+KinectTouchController = function(depthRef, transform, touchDistance, interval) {
     this.depthRef = depthRef;
     this.touch = null;
     this.touchData = new Array(KINECT_PIXELS);
     this.transform = transform;
+    
+    this.touchDistance = (touchDistance) ? touchDistance : DEFAULT_TOUCH_DISTANCE;
+    this.interval = (interval) ? interval : DEFAULT_INTERVAL;
     
     // Create the buffer used for finding touches
     this.buffer = new Array(KINECT_PIXELS);
@@ -70,7 +77,7 @@ KinectTouchController.prototype.updateTouchData = function(depthData) {
             if (p.x >= 0 && p.y >= 0 && p.x <= window.innerWidth && p.y <= window.innerHeight) {
                 // A touch occurs at a certain depth threshold
                 // (to be determined/calculated) :)
-                if (distance > 10 && distance < 20) {
+                if (distance > touchDistance && distance < touchDistance + interval) {
                     this.touchData[index] = 1;
                 }
             }
@@ -80,11 +87,10 @@ KinectTouchController.prototype.updateTouchData = function(depthData) {
 
 
 /**
- ...
+ Simulate mouse events based on the touch data
  */
 KinectTouchController.prototype.updateTouch = function() {
     var newTouch = this.detectLargestTouch();
-    
     /*------------------------------
      == If no new touch is found: ==
      -----------------------------*/
@@ -103,7 +109,6 @@ KinectTouchController.prototype.updateTouch = function() {
      == If a new touch is found: ==
      ----------------------------*/
     newTouch.point = this.transform.transformPoint(newTouch.point);
-    
     //HAXX:
     newTouch.point.x = newTouch.point.x * 0.85;
     

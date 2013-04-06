@@ -326,7 +326,10 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
      If a MovingBlock is clicked, make it controllable
      */
     var onMouseDown = function(x, y) {
+        var mouse3D = mouseInterface.getMouse3D(x, y);
+        particleSystem.setOrigin(mouse3D.x, mouse3D.y, mouse3D.z);
         particleSystem.active = true;
+        
         if (!this.hasTurn) return;
         for (var i = 0; i < blocks.length; i++) {
             var blockHit = mouseInterface.getMouseHit(blocks, x, y);

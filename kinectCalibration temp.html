@@ -50,9 +50,7 @@
         <script type="text/javascript" src="../js/lib/zig.js"></script>
         <script type="text/javascript" src="../js/kinect-decoder.js"></script>
         <script type="text/javascript" src="../js/image-handling.js"></script>
-        <script type="text/javascript" src="../js/cookies.js"></script>
 		
-        
         <script>
             
             // The Kinect related constants may be fetchable from the plugin?
@@ -68,6 +66,9 @@
             
             var calibrationSteps = [];
             var calibrationIndex = 0;
+            
+            var touchDistance = 10;
+            var interval = 10;
             
 			CalibrationPoint = function(color, position) {
 				this.browserX = 0;
@@ -288,13 +289,13 @@
                             
                             /*
                              //Check if local storage is supported
-                            function supports_html5_storage() {
-                                try {
-                                    return 'localStorage' in window && window['localStorage'] !== null;
-                                } catch (e) {
-                                    return false;
-                                }
-                            }*/
+                             function supports_html5_storage() {
+                             try {
+                             return 'localStorage' in window && window['localStorage'] !== null;
+                             } catch (e) {
+                             return false;
+                             }
+                             }*/
                             
                             // Store depth reference image
                             localStorage.depthRef = JSON.stringify(depthRef);
@@ -524,17 +525,19 @@
                                 
                                 // A touch occurs between 5 and 15 millimeters
                                 // TODO: refine thresholds
-                                if (distance > 5 && distance < 15) {
+                                if (distance > touchDistance && distance < (touchDistance + interval)) {
                                     
                                     // Transform the point to browser coordinates
                                     var p = transform.transformPoint({x:x, y:y});
                                     if (p.x >= 0 && p.y >= 0 && p.x <= window.innerWidth && p.y <= window.innerHeight) {
                                         
+                                        /*
                                         this.ctx.beginPath();
                                         this.ctx.arc(p.x, p.y, 10, 0, 2 * Math.PI, false);
                                         this.ctx.fillStyle = "yellow";
                                         this.ctx.closePath();
                                         this.ctx.fill();
+                                        */
                                         
                                         this.ctx.beginPath();
                                         this.ctx.arc(p.x * 0.85, p.y, 10, 0, 2 * Math.PI, false);
@@ -617,6 +620,15 @@
 				ctx.stroke();
 			}
             
+            var storeThresholdValues = function() {
+                localStorage.touchDistance = JSON.stringify(touchDistance);
+                localStorage.interval = JSON.stringify(interval);
+                console.log("Parsing:");
+                console.log(JSON.parse(localStorage.touchDistance));
+                console.log("Parsing:");
+                console.log(JSON.parse(localStorage.interval));
+            }
+            
             </script>
     </head>
     
@@ -657,16 +669,24 @@
                 </span>
 				<button id="retakeImageButton">Retake Image</button>
 				<button id="undoButton" disabled=true>Undo</button>
-				<button id="doneButton" disabled=true">Done</button>
-                    </div>
-                    
-                    <div class="fullPage" id="stepFour">
-                    <canvas class="fullPage" id="drawCanvas"></canvas>
-                    </div>
-                    
-                    </center>
-                    
-                    </body>
-                    
-                    
-                    </html>
+				<button id="doneButton" disabled=true>Done</button>
+            </div>
+            
+            <div class="fullPage" id="stepFour">
+                <canvas class="fullPage" id="drawCanvas"></canvas>
+                <div style="">
+                    <span>Touch distance:</span>
+                    <input type="range" onchange="touchDistance = this.value" id="distanceSlider" value="20" min="0" max="30" />
+                    <span>Touch interval: </span>
+                    <input type="range" onchange="interval = this.value; console.log(this.value)" id="intervalSlider" value="10" min="0" max="30" />
+                    <button onclick="storeThresholdValues()">Save current setup</button>
+                </div>
+                
+            </div>
+            
+        </center>
+        
+    </body>
+    
+    
+</html>
