@@ -54,7 +54,7 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
             camera = new THREE.PerspectiveCamera(VIEW_ANGLE, aspect, NEAR, FAR);
             scene.add(camera);
         }
-        camera.position.set(2, 3.5, 13);
+        camera.position.set(2, 5, 13);
         camera.lookAt(new THREE.Vector3(2, 3.5, 0));
         // Rotate the camera to make y grow downwards
         camera.rotation.z = Math.PI;

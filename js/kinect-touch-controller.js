@@ -6,7 +6,7 @@
 // Constants
 const MIN_TOUCHES = 3;
 const TOUCH_LIFE_TIME = 2;
-const CLICK_THRESHOLD = 5;
+const CLICK_THRESHOLD = 3;
 //******
 // width and height should be gotten from somewhere else!1
 const KINECT_DEPTH_WIDTH = 160;
@@ -21,10 +21,11 @@ const KINECT_PIXELS = KINECT_DEPTH_HEIGHT * KINECT_DEPTH_WIDTH;
  */
 Touch = function(size, x, y, left, top, width, height) {
     this.size = size;
-    this.point = {x: Math.round(x), y: Math.round(y)};
+    this.point = {x: x, y: y};
     this.timeToLive = TOUCH_LIFE_TIME;
     this.bounds = {x: left, y: top, width: width, height: height};
     this.age = 0;
+    
 }
 
 
@@ -63,7 +64,6 @@ KinectTouchController.prototype.update = function(depthData) {
 KinectTouchController.prototype.updateTouchData = function(depthData) {
     // Empty the touch data
     ImageHandling.fillWithValue(this.touchData, 0);
-    
     for (var y = 0, index = 0; y < KINECT_DEPTH_HEIGHT; y++) {
         for (var x = 0; x < KINECT_DEPTH_WIDTH; x++, index++) {
             var z = depthData[index];
@@ -72,8 +72,6 @@ KinectTouchController.prototype.updateTouchData = function(depthData) {
             // Compute the difference compared to the reference image
             var distance = this.depthRef[index] - z;
             var p = this.transform.transformPoint({x:x, y:y});
-            p.x = p.x * this.xScale;
-
             if (p.x >= 0 && p.y >= 0 && p.x <= window.innerWidth && p.y <= window.innerHeight) {
                 // A touch occurs at a certain depth threshold
                 // (to be determined/calculated) :)
@@ -97,8 +95,9 @@ KinectTouchController.prototype.updateTouch = function() {
         if (this.touch) {
             this.touch.timeToLive--;
             if (this.touch.timeToLive <= 0) {
-                var event = (this.touch.age > CLICK_THRESHOLD) ? "mouseup" : "click";
-                this.simulateMouseEvent(this.touch.point, event);
+                //var event = (this.touch.age > CLICK_THRESHOLD) ? "mouseup" : "click";
+                //this.simulateMouseEvent(this.touch.point, event);
+                this.simulateMouseEvent(this.touch.point, "mouseup");
                 this.touch = null;
             }
         }
@@ -250,9 +249,10 @@ KinectTouchController.prototype.getTouchAtPoint = function(x, y) {
  @param eventType A string specifying the type of event.
  */
 KinectTouchController.prototype.simulateMouseEvent = function(touchPoint, eventType) {
+    // Adjust x-value according to the calibration data
+    touchPoint.x = touchPoint.x * this.xScale;
+    
     var element = document.elementFromPoint(touchPoint.x, touchPoint.y);
-    var elementX = $(element).offset().left;
-    var elementY = $(element).offset().top;
     var event = document.createEvent("MouseEvents");
     
     // Decide the target that will dispatch the event;
@@ -260,16 +260,20 @@ KinectTouchController.prototype.simulateMouseEvent = function(touchPoint, eventT
     var target;
 
     if (element.tagName == "IFRAME") {
+        var elementX = $(element).offset().left;
+        var elementY = $(element).offset().top;
+        
+        touchPoint.x = touchPoint.x - elementX;
+        touchPoint.y = touchPoint.y - elementY;
         target = element.contentDocument;
+        
     } else {
         target = element;
-        // If outside of iFrame, simulate click
     }
-
     event.initMouseEvent(eventType, true, true,
                          window, 0, 0, 0,
-                         touchPoint.x - elementX,
-                         touchPoint.y - elementY,
+                         touchPoint.x,
+                         touchPoint.y,
                          false, false, false,
                          false, 0, null);
     target.dispatchEvent(event);

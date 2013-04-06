@@ -527,19 +527,12 @@
                                 if (distance > touchDistance && distance < (touchDistance + interval)) {
                                     // Transform the point to browser coordinates
                                     var p = transform.transformPoint({x:x, y:y});
+                                    p.x = p.x * xScale;
                                     if (p.x >= 0 && p.y >= 0 && p.x <= window.innerWidth && p.y <= window.innerHeight) {
                                         
-                                        /*
-                                         this.ctx.beginPath();
-                                         this.ctx.arc(p.x, p.y, 10, 0, 2 * Math.PI, false);
-                                         this.ctx.fillStyle = "yellow";
-                                         this.ctx.closePath();
-                                         this.ctx.fill();
-                                         */
-                                        
                                         this.ctx.beginPath();
-                                        this.ctx.arc(p.x * xScale, p.y, 10, 0, 2 * Math.PI, false);
-                                        this.ctx.fillStyle = "blue";
+                                        this.ctx.arc(p.x, p.y, 10, 0, 2 * Math.PI, false);
+                                        this.ctx.fillStyle = "yellow";
                                         this.ctx.closePath();
                                         this.ctx.fill();
                                     }
@@ -627,6 +620,12 @@
                     xScale: xScale
                 };
                 localStorage.transformData = JSON.stringify(transformData);
+                console.log("Stored data:");
+                console.log("Vectors: " + vectors);
+                console.log("depthRef: " + depthRef);
+                console.log("touchDistance: " + touchDistance);
+                console.log("interval: " + interval);
+                console.log("xScale: " + xScale);
             }
             
             </script>
@@ -676,12 +675,12 @@
                 <canvas class="fullPage" id="drawCanvas" style="position:absolute; top:0; left:0"></canvas>
                 <div style="background-color:white; position:absolute; top:0; left:0; wdith:100%">
                     <span>Touch distance:</span>
-                    <input type="range" id="distanceSlider" value="10" min="0" max="30" />
+                    <input type="range" id="distanceSlider" value="24" min="0" max="30" />
                     <span>Touch interval: </span>
-                    <input type="range" id="intervalSlider" value="10" min="0" max="30" />
+                    <input type="range" id="intervalSlider" value="7" min="0" max="30" />
                     <span>x scale::</span>
                     <span>x scale::</span>
-                    <input type="range" id="xScaleSlider" onchange="console.log(this.value)" value="0.85" min="0.0" max="1.0" step="0.01" />
+                    <input type="range" id="xScaleSlider" value="0.85" min="0.7" max="1.0" step="0.01" />
                     <button onclick="storeThresholdValues()">Save current setup</button>
                 </div>
                 

@@ -71,8 +71,6 @@
                     
                     TabControl.onMessageReceived = function(senderId, type, packet) {
                         if (type == "inviteAccepted") {
-                            console.log("Test message length: " + packet.length);
-                            console.log("Value at index 12345: " + packet.test[12345]);
                             // Store the ID of the other user's stream
                             // (it might already be stored, but what the hey)
                             friendId = senderId;
@@ -112,7 +110,7 @@
                         startDiv = document.getElementById("startScreen");
                         turnButton = document.getElementById("turnButton");
                         inviteButton = document.getElementById("inviteButton");
-                        inviteButton.disabled = true;
+                        //inviteButton.disabled = true;
                         
                         turnInfo = document.getElementById("turnInfo");
                         playerColorSpan = document.getElementById("playerColorSpan");
@@ -131,12 +129,15 @@
                      Sends a game invitation to another player
                      */
                     function invitePlayer() {
+                        /*
                         inviteButton.disabled = true;
-                        var test = [];
-                        for (var i = 0; i < 200000; i++) {
-                            test.push(i);
-                        }
-                        TabControl.sendMessage("index", "invite", {test:test});
+                        TabControl.sendMessage("index", "invite", {});
+                         */
+                        startDiv.style.display = "none";
+                        gameDiv.style.display = "block";
+                        turnInfo.innerHTML = (true) ? "Your turn" : "Friend's turn";
+                        startGame(true);
+                        
                     }
                     
                     function startGame(hasTurn) {

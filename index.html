@@ -298,7 +298,6 @@
 
 				// Important! This needs to happen after TabControl.onLoad
 				// TODO: Make sure it does! :)
-				
 				for (var tabName in tabControllers) {
 					if (tabControllers[tabName]) {
 						tabControllers[tabName].onKinectInit(proxy);
@@ -306,6 +305,7 @@
 				}
 			};
 			
+            var first = true;
 			TabControl.onNewKinectData = function(videoData, depthData) {
 				for (var tabName in tabControllers) {
 					if (tabControllers[tabName]) {
@@ -316,6 +316,10 @@
 			
             TabControl.onLoad = function() {
 				
+                document.addEventListener('mousedown', function(event){
+                                          console.log(event.clientX, event.clientY);
+                                          }, false);
+                
 				initLynckia(TabControl);
 
 				currentTabID = "#chat";
@@ -538,15 +542,15 @@
 		<div id="menu"><!-- These comments are only here to avoid whitespace between the divs :)
 			--><ul><!--
 				--><li><div class="linkbutton" id="chatbutton"
-					onclick="switchToTab('#chat');"></div></li><!--
+					onmousedown="switchToTab('#chat');"></div></li><!--
 				--><li><div class="linkbutton" id="sharebutton"
-					onclick="switchToTab('#share');"></div></li><!--
+					onmousedown="switchToTab('#share');"></div></li><!--
 				--><li><div class="linkbutton" id="playbutton"
-					onclick="switchToTab('#play');"></div></li><!--
+					onmousedown="switchToTab('#play');"></div></li><!--
 				--><li><div class="linkbutton" id="audiobutton"
-					onclick="toggleAudio();"></div></li><!--
+					onmousedown="toggleAudio();"></div></li><!--
 				--><li><div class="linkbutton disabled" id="videobutton"
-					onclick="toggleVideo();"></div></li><!--
+					onmousedown="toggleVideo();"></div></li><!--
 			--></ul><!--
 		--></div>
 		
