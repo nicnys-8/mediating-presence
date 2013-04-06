@@ -393,7 +393,8 @@
 				var maxIndex = Math.pow(2, 16);
 				
 				for (var i = 0; i < count; i++) {
-					var line = splitData[i];
+					var line = splitData[startIndex + i];
+					
 					var indexCount = parseInt(line[0]);
 					if (indexCount == 3) {
 						
@@ -731,6 +732,18 @@
                 // reader.readAsText(file);
 				reader.readAsArrayBuffer(file);
             }
+			
+			function downloadFile(url, success) {
+				var req = new XMLHttpRequest();
+				req.open('GET', url, true);
+				req.responseType = "arraybuffer";
+				req.onreadystatechange = function () {
+					if (xhr.readyState == 4) {
+						if (success) success(xhr.response);
+					}
+				};
+				req.send(null);
+			}
             
             function updateProgress(evt) {
                 
