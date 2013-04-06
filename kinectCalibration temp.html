@@ -435,7 +435,7 @@
                             // Store transform
                             //localStorage.transform = JSON.stringify(tData);
                             
-                            transform = new Geometry.Transform(tData[0], tData[1]);
+                            transform = new Geometry.Transform(vectors[0], vectors[1]);
 							this.isDone = true;
 						} catch (err) {
 							alert("Unable to do the math... And I'm a computer! Did you put any of the calibration points on top of each other? Try again, please!");

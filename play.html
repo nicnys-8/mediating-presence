@@ -38,7 +38,7 @@
                     var playerColorSpan;
                     var reserved; // Tells us whether the local player is free to join a new game
                     
-                    var streamIds;
+                    var streamIds = [];
                     var friendId;
                     
                     TabControl.onActivate = function() {
@@ -60,11 +60,14 @@
                     
                     TabControl.onStreamRemoved = function(stream) {
                         // Remove the stream ID from the list
+                        var id = stream.getID();
+                        if (id == friendId) {
+                            reserved = false;
+                            friendId = null;
+                        }
                         for (var i = 0; i < streamIds.length; i++) {
-                            if (streamIds[i] == stream.getID()) {
+                            if (id == streamIds[i]) {
                                 streamIds.splice(i,1);
-                                reserved = false;
-                                friendId = null;
                             }
                         }
                     };

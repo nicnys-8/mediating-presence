@@ -72,6 +72,8 @@ KinectTouchController.prototype.updateTouchData = function(depthData) {
             // Compute the difference compared to the reference image
             var distance = this.depthRef[index] - z;
             var p = this.transform.transformPoint({x:x, y:y});
+            p.x = p.x * this.xScale;
+
             if (p.x >= 0 && p.y >= 0 && p.x <= window.innerWidth && p.y <= window.innerHeight) {
                 // A touch occurs at a certain depth threshold
                 // (to be determined/calculated) :)
@@ -82,7 +84,6 @@ KinectTouchController.prototype.updateTouchData = function(depthData) {
         }
     }
 }
-
 
 /**
  Simulate mouse events based on the touch data
@@ -107,7 +108,6 @@ KinectTouchController.prototype.updateTouch = function() {
      == If a new touch is found: ==
      ----------------------------*/
     newTouch.point = this.transform.transformPoint(newTouch.point);
-    newTouch.point.x = newTouch.point.x * this.xScale;
     
     // If a live touch exists:
     if (this.touch) {
