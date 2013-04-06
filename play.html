@@ -52,17 +52,14 @@
                     TabControl.onStreamAdded = function(stream) {
                         // Add the stream ID to the list
                         streamIds.push(stream.getID());
-                        // If the player is not currently
-                        if (!reserved) {
-                            inviteButton.disabled = false;
-                        }
+                        // If the player isn't already playing a game, make it possible to invite the newcomer
+                        inviteButton.disabled = false;
                     };
                     
                     TabControl.onStreamRemoved = function(stream) {
                         // Remove the stream ID from the list
                         var id = stream.getID();
                         if (id == friendId) {
-                            reserved = false;
                             friendId = null;
                         }
                         for (var i = 0; i < streamIds.length; i++) {
@@ -74,10 +71,11 @@
                     
                     TabControl.onMessageReceived = function(senderId, type, packet) {
                         if (type == "inviteAccepted") {
+                            console.log("Test message length: " + packet.length);
+                            console.log("Value at index 12345: " + packet.test[12345]);
                             // Store the ID of the other user's stream
                             // (it might already be stored, but what the hey)
                             friendId = senderId;
-                            reserved = true;
                             // Display the game and game messages
                             startDiv.style.display = "none";
                             gameDiv.style.display = "block";
@@ -87,7 +85,6 @@
                         else if (type == "inviteDeclined") {
                             alert("Invite declined!");
                             inviteButton.disabled = false;
-                            reserved = false;
                         }
                         else if (type == "update") {
                             klotski.onReceivedMove(packet);
@@ -115,6 +112,8 @@
                         startDiv = document.getElementById("startScreen");
                         turnButton = document.getElementById("turnButton");
                         inviteButton = document.getElementById("inviteButton");
+                        inviteButton.disabled = true;
+                        
                         turnInfo = document.getElementById("turnInfo");
                         playerColorSpan = document.getElementById("playerColorSpan");
                         
@@ -133,7 +132,11 @@
                      */
                     function invitePlayer() {
                         inviteButton.disabled = true;
-                        TabControl.sendMessage("index", "invite", {});
+                        var test = [];
+                        for (var i = 0; i < 200000; i++) {
+                            test.push(i);
+                        }
+                        TabControl.sendMessage("index", "invite", {test:test});
                     }
                     
                     function startGame(hasTurn) {
