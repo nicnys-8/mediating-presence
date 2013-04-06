@@ -7,8 +7,6 @@
 const MIN_TOUCHES = 3;
 const TOUCH_LIFE_TIME = 2;
 const CLICK_THRESHOLD = 5;
-const DEFAULT_TOUCH_DISTANCE = 10;
-const DEFAULT_INTERVAL = 10;
 //******
 // width and height should be gotten from somewhere else!1
 const KINECT_DEPTH_WIDTH = 160;
@@ -36,17 +34,17 @@ Touch = function(size, x, y, left, top, width, height) {
  @param transform An object used for coordinate conversion
  @parm touchDistance, interval Optional parameters used to set depth threshold values
  */
-KinectTouchController = function(depthRef, transform, touchDistance, interval) {
-    this.depthRef = depthRef;
+KinectTouchController = function(transformData) {
+    this.depthRef = transformData.depthRef;
+    this.transform = new Geometry.Transform(transformData.vectors[0],
+                                            transformData.vectors[1]);
+    this.touchDistance = transformData.touchDistance;
+    this.interval = transformData.interval;
+    this.xScale = transformData.xScale;
+    
     this.touch = null;
     this.touchData = new Array(KINECT_PIXELS);
-    this.transform = transform;
-    
-    this.touchDistance = (touchDistance) ? touchDistance : DEFAULT_TOUCH_DISTANCE;
-    this.interval = (interval) ? interval : DEFAULT_INTERVAL;
-    
-    // Create the buffer used for finding touches
-    this.buffer = new Array(KINECT_PIXELS);
+    this.buffer = new Array(KINECT_PIXELS); // buffer used for finding touches
 }
 
 
@@ -109,8 +107,7 @@ KinectTouchController.prototype.updateTouch = function() {
      == If a new touch is found: ==
      ----------------------------*/
     newTouch.point = this.transform.transformPoint(newTouch.point);
-    //HAXX:
-    newTouch.point.x = newTouch.point.x * 0.85;
+    newTouch.point.x = newTouch.point.x * this.xScale;
     
     // If a live touch exists:
     if (this.touch) {
