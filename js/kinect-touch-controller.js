@@ -77,7 +77,7 @@ KinectTouchController.prototype.updateTouchData = function(depthData) {
             if (p.x >= 0 && p.y >= 0 && p.x <= window.innerWidth && p.y <= window.innerHeight) {
                 // A touch occurs at a certain depth threshold
                 // (to be determined/calculated) :)
-                if (distance > touchDistance && distance < touchDistance + interval) {
+                if (distance > this.touchDistance && distance < this.touchDistance + this.interval) {
                     this.touchData[index] = 1;
                 }
             }
