@@ -830,17 +830,20 @@
 					if (!model.faces) {
 						// No faces means it's a point cloud
 						if (model.colors) {
-							renderer = new PointCloudRenderer(new Float32Array(model.pos),
-															  new Float32Array(model.colors));
+							renderer = new PointCloudRenderer(glCanvas);
+							renderer.bufferData(new Float32Array(model.pos),
+												new Float32Array(model.colors));
 						}
 					} else {
 						if (model.normals) {
-							renderer = new PhongRenderer(new Float32Array(model.pos),
-														 new Float32Array(model.normals),
-														 new Uint16Array(model.faces));
+							renderer = new PhongRenderer(glCanvas);
+							renderer.bufferData(new Float32Array(model.pos),
+												new Float32Array(model.normals),
+												new Uint16Array(model.faces));
 						} else if (model.colors) {
-							renderer = new MeshRenderer(new Float32Array(model.pos),
-														new Float32Array(model.colors));
+							renderer = new MeshRenderer(glCanvas);
+							renderer.bufferData(new Float32Array(model.pos),
+												new Float32Array(model.colors));
 						}
 					}
 				}
