@@ -588,14 +588,32 @@
         <script type="text/javascript">
 
 			const kWidth = 640, kHeight = 480;
-            var glCanvas, renderer;
+            
+			var glCanvas,
+				renderer = null,
+				model = null;
+			
+			var shareButton,
+				clearButton;
+			
+			var sendRotTimer = null;
+			var resumeSend = false;
 			
 			TabControl.onActivate = function() {
 				requestAnimFrame(drawScene);
+				
+				if (resumeSend) {
+					sendRotation();
+				}
 			}
 			
 			TabControl.onDeactivate = function() {
 				cancelAnimFrame(drawScene);
+				if (sendRotTimer) {
+					clearTimeout(sendRotTimer);
+					resumeSend = true;
+					sendRotTimer = null;
+				}
 			}
 			
 			TabControl.onStreamAdded = function(stream) {
@@ -605,6 +623,17 @@
 			}
 			
 			TabControl.onMessageReceived = function(senderId, type, packet) {
+				if (type == "inviteAccepted") {
+					onShareAccepted();
+				} else if (type == "inviteDeclined") {
+					onShareDeclined();
+				} else if (type == "model") {
+					loadJSONModel(packet);
+				} else if (type == "rotation") {
+					if (renderer) {
+						renderer.updataModelRotation(packet);
+					}
+				}
 			}
 			
 			TabControl.onKinectInit = function(proxy) {
@@ -619,6 +648,9 @@
                 glCanvas.style.display = "none";
                 glCanvas.style.margin = "20px auto";
                 document.getElementById("container").appendChild(glCanvas);
+				
+				shareButton = document.getElementById("shareButton");
+				clearButton = document.getElementById("clearButton");
 				
                 // **********************
                 // Drag and drop with File API
@@ -698,21 +730,18 @@
                     dropbox.style.display = "none";
                     glCanvas.style.display = "block";
                     
-                    var model = PlyParse.parse(event.target.result);
-					console.log(model);
+					try {
+						model = PlyParse.parse(event.target.result);
+						console.log(model);
+					} catch (error) {
+						alert("Error parsing model. " + error);
+						return;
+					}
 					
 					var rendererConstructor = model.renderer;
 					if (rendererConstructor) {
 						
 						renderer = new rendererConstructor(glCanvas);
-						
-						if (rendererConstructor == PhongRenderer) {
-							renderer.bufferData(model.pos, model.normals, model.faces);
-						} else if (rendererConstructor == MeshRenderer) {
-							renderer.bufferData(model.pos, model.colors, model.faces);
-						} else if (rendererConstructor == PointCloudRenderer) {
-							renderer.bufferData(model.pos, model.colors);
-						}
 						
 						if (model.pos) {
 							
@@ -740,16 +769,18 @@
 							renderer.setCenterOfRotation([cx, cy, cz]);
 							renderer.setPosition([0, 0, -(maxX - minX) / Math.atan(22.5 * Math.PI / 180)]);
 						}
+						
+						if (rendererConstructor == PhongRenderer) {
+							renderer.bufferData(model.pos, model.normals, model.faces);
+						} else if (rendererConstructor == MeshRenderer) {
+							renderer.bufferData(model.pos, model.colors, model.faces);
+						} else if (rendererConstructor == PointCloudRenderer) {
+							renderer.bufferData(model.pos, model.colors);
+						}
+						
+						clearButton.disabled = false;
+						shareButton.disabled = false;
 					}
-					
-					// renderer.setPosition([0.0, 0.0, -1000]);
-					/*
-					renderer.setCenterOfRotation([-80, 60, 1000]);
-					renderer.setPosition([0, 0, -1000]);
-					*/
-					
-					// renderer.bufferData(model[0], model[1]);
-                    
 					// drawScene();
                 };
                 
@@ -759,6 +790,62 @@
                 // reader.readAsText(file);
 				reader.readAsArrayBuffer(file);
             }
+			
+			function serializeModel(model) {
+				
+				var pos = model.pos ? new Array(model.pos.length) : [];
+				var normals = model.normals ? new Array(model.normals.length) : [];
+				var faces = model.faces ? new Array(model.faces.length) : [];
+				var colors = model.colors ? new Array(model.colors.length) : [];
+				
+				for (var i = 0, len = pos.length; i < len; i++) {
+					pos[i] = model.pos[i];
+				}
+				for (var i = 0, len = normals.length; i < len; i++) {
+					normals[i] = model.normals[i];
+				}
+				for (var i = 0, len = faces.length; i < len; i++) {
+					faces[i] = model.faces[i];
+				}
+				for (var i = 0, len = colors.length; i < len; i++) {
+					colors[i] = model.colors[i];
+				}
+				return {pos:pos,
+						normals:normals,
+						faces:faces,
+						colors:colors,};
+			}
+			
+			function loadJSONModel(model) {
+				
+				if (rendererConstructor == PhongRenderer) {
+					renderer.bufferData(model.pos, model.normals, model.faces);
+				} else if (rendererConstructor == MeshRenderer) {
+					renderer.bufferData(model.pos, model.colors, model.faces);
+				} else if (rendererConstructor == PointCloudRenderer) {
+					renderer.bufferData(model.pos, model.colors);
+				}
+				
+				// Select renderer
+				if (model.pos) {
+					if (!model.faces) {
+						// No faces means it's a point cloud
+						if (model.colors) {
+							renderer = new PointCloudRenderer(new Float32Array(model.pos),
+															  new Float32Array(model.colors));
+						}
+					} else {
+						if (model.normals) {
+							renderer = new PhongRenderer(new Float32Array(model.pos),
+														 new Float32Array(model.normals),
+														 new Uint16Array(model.faces));
+						} else if (model.colors) {
+							renderer = new MeshRenderer(new Float32Array(model.pos),
+														new Float32Array(model.colors));
+						}
+					}
+				}
+			}
 			
 			function downloadFile(url, success) {
 				var req = new XMLHttpRequest();
@@ -810,6 +897,50 @@
 				}
 			}
             
+			function sendShareInvite() {
+				TabControl.sendMessage("index", "share", {});
+				shareButton.disabled = true;
+			}
+			
+			function onShareAccepted() {
+				if (model) {
+					TabControl.sendMessage("share", "model", serializeModel(model));
+					// Start sending rotation updates after a while
+					setTimeout(sendRotation, 2000);
+				}
+			}
+			
+			function onShareDeclined() {
+				
+				// TODO: display message
+				
+				clearTimeout(sendRotTimer);
+				sendRotTimer = null;
+				shareButton.disabled = false;
+			}
+			
+			function sendRotation() {
+				if (renderer) {
+					TabControl.sendMessage("share", "rotate", renderer.getRotationMatrix);
+					setTimeout(sendRotation, 100);
+				}
+			}
+			
+			function clearGLCanvas() {
+				
+				// Remove the renderer
+				renderer = null;
+				
+				// Setting width and height clears the canvas
+				glCanvas.width = glCanvas.width;
+				glCanvas.height = glCanvas.height;
+				
+				dropbox.style.display = "block";
+				glCanvas.style.display = "none";
+				
+				clearButton.disabled = true;
+			}
+			
             </script>
         
     </head>
@@ -819,13 +950,16 @@
         <h1>Point Cloud Drag and Drop</h1>
         <div id="container">
             <div id="dropbox">
-                <p id="status">Drop a .ply file here!</p>
+                <p id="status">Drop a .ply file here, , or use this fine button:<br><br><input type="file" id="fileSelect"></p>
                 <div id="progressBar">
                     <div id="percentBar">0%</div>
                 </div>
             </div>
         </div>
-        Drop a file above, or use this fine button here: <input type="file" id="fileSelect">
-            </body>
+		
+		<button id="shareButton" onclick="sendShareInvite();" style="padding:1em; margin:0em;" disabled=true>Share!</button>
+		<button id="clearButton" onclick="clearGLCanvas();" style="padding:1em; margin:0em;" disabled=true>Clear</button>
+	
+	</body>
     
 </html>

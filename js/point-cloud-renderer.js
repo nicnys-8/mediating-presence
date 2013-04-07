@@ -164,6 +164,13 @@ PointCloudRenderer = function(canvas) {
 		lastMouseY = newY;
 	}
 
+	this.updateModelRotation = function(mat) {
+		pcRotationMatrix = mat;
+	}
+	this.getRotationMatrix = function() {
+		return pcRotationMatrix;
+	}
+	
 	// TODO: addEventListener instead?
 	canvas.addEventListener("mousedown", handleMouseDown, false);
 	document.addEventListener("mouseup", handleMouseUp, false);

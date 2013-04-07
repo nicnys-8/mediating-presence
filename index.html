@@ -472,9 +472,9 @@
 				hidePopup();
 				switchToTab("#share");
 				
-				TabControl.sendMessage("share", "inviteAccepted", { turn : false });
+				TabControl.sendMessage("share", "inviteAccepted", { turn : true });
 				// Send a fake message to self to start the local klotski game as well
-				tabControllers["#share"].onMessageReceived(null, "inviteAccepted", {turn : true });
+				// tabControllers["#share"].onMessageReceived(null, "inviteAccepted", {turn : false });
 			}
 			
 			function declineShared3DModel() {
