@@ -431,7 +431,20 @@ KlotskiToken = function(x, y, width, height, color) {
 
 levels = [];
 
-var level = [new KlotskiToken(0, 0, 1, 2, "blue"),
+var level = [new KlotskiToken(0, 0, 2, 1, "blue"),
+             new KlotskiToken(2, 0, 2, 1, "blue"),
+             new KlotskiToken(0, 1, 2, 1, "red"),
+             new KlotskiToken(0, 2, 2, 1, "red"),
+             new KlotskiToken(2, 2, 2, 1, "blue"),
+             new KlotskiToken(0, 3, 1, 1, "blue"),
+             new KlotskiToken(1, 3, 1, 1, "blue"),
+             new KlotskiToken(0, 4, 1, 1, "red"),
+             new KlotskiToken(1, 4, 1, 1, "red"),
+             new KlotskiToken(2, 3, 2, 2, "green")
+             ];
+levels.push(level);
+
+level = [new KlotskiToken(0, 0, 1, 2, "blue"),
              new KlotskiToken(1, 0, 2, 2, "green"),
              new KlotskiToken(3, 0, 1, 2, "red"),
              new KlotskiToken(0, 2, 1, 2, "red"),
@@ -444,22 +457,9 @@ var level = [new KlotskiToken(0, 0, 1, 2, "blue"),
              ];
 levels.push(level);
 
-level = [new KlotskiToken(0, 0, 2, 1, "blue"),
-         new KlotskiToken(2, 0, 2, 1, "blue"),
-         new KlotskiToken(0, 1, 2, 1, "red"),
-         new KlotskiToken(0, 2, 2, 1, "red"),
-         new KlotskiToken(2, 2, 2, 1, "blue"),
-         new KlotskiToken(0, 3, 1, 1, "blue"),
-         new KlotskiToken(1, 3, 1, 1, "blue"),
-         new KlotskiToken(0, 4, 1, 1, "red"),
-         new KlotskiToken(1, 4, 1, 1, "red"),
-         new KlotskiToken(2, 3, 2, 2, "green") // Main block
-         ];
-levels.push(level);
-
 level = [new KlotskiToken(0, 3, 1, 2, "blue"),
          new KlotskiToken(1, 3, 1, 2, "red"),
-         new KlotskiToken(2, 3, 2, 2, "green"), // Main block
+         new KlotskiToken(2, 3, 2, 2, "green"),
          new KlotskiToken(1, 2, 1, 1, "red"),
          new KlotskiToken(2, 2, 1, 1, "red"),
          new KlotskiToken(0, 1, 2, 1, "blue"),

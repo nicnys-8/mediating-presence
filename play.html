@@ -157,6 +157,7 @@
                     function endGame() {
                         startDiv.style.display = "block";
                         gameDiv.style.display = "none";
+                        if (streamIds.length > 0) inviteButton.disabled = false;
                     }
                     
                     /**
