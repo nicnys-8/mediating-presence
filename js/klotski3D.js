@@ -58,7 +58,6 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
         }
         camera.position.set(2, 5, 13);
         camera.lookAt(new THREE.Vector3(2, 3.5, 0));
-        // Rotate the camera to make y grow downwards
         camera.rotation.z = Math.PI;
         
         // If a renderer does not already exist, create it
@@ -109,6 +108,7 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
             blocks.push(block);
             obstacles.push(block);
         }
+        timer.start();
     };
     
     /**
@@ -232,7 +232,6 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
         this.playerColor = (hasTurn) ? "red" : 'blue';
         levelIndex = 0;
         loadLevel(levelIndex);
-        timer.start();
         // Set the view correctly
         setView();
     };
@@ -321,16 +320,16 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
      Called when the a level is finished
      */
     var nextLevel = function() {
-        /* Stop the current touch
-        onMouseUp();*/
         levelIndex++;
         levelIndex = levelIndex % levels.length;
         loadLevel(levelIndex);
-        timer.start();
     };
     
     /**
-     ...
+     Turns over control of the game to one of the players
+     @param bool A boolean - if true, the local player gets
+     control of the blocks. If false, the remote player
+     gets cnotrol.
      */
     var setHasTurn = function(bool) {
         if (bool == hasTurn) return;
@@ -432,46 +431,42 @@ KlotskiToken = function(x, y, width, height, color) {
 
 levels = [];
 
-var level1 = [new KlotskiToken(0, 0, 2, 1, "blue"),
-              new KlotskiToken(2, 0, 2, 1, "blue"),
-              new KlotskiToken(0, 1, 2, 1, "red"),
-              new KlotskiToken(0, 2, 2, 1, "red"),
-              new KlotskiToken(2, 2, 2, 1, "blue"),
-              new KlotskiToken(0, 3, 1, 1, "blue"),
-              new KlotskiToken(1, 3, 1, 1, "red"),
-              new KlotskiToken(0, 4, 1, 1, "blue"),
-              new KlotskiToken(1, 4, 1, 1, "red"),
-              new KlotskiToken(2, 3, 2, 2, "green") // Main block
-              ];
-levels.push(level1);
+var level = [new KlotskiToken(0, 0, 1, 2, "blue"),
+             new KlotskiToken(1, 0, 2, 2, "green"),
+             new KlotskiToken(3, 0, 1, 2, "red"),
+             new KlotskiToken(0, 2, 1, 2, "red"),
+             new KlotskiToken(1, 2, 2, 1, "blue"),
+             new KlotskiToken(3, 2, 1, 2, "red"),
+             new KlotskiToken(1, 3, 1, 1, "blue"),
+             new KlotskiToken(2, 3, 1, 1, "red"),
+             new KlotskiToken(0, 4, 1, 1, "blue"),
+             new KlotskiToken(3, 4, 1, 1, "red")
+             ];
+levels.push(level);
 
-var level2 = [new KlotskiToken(0, 3, 1, 2, "blue"),
-              new KlotskiToken(1, 3, 1, 2, "red"),
-              new KlotskiToken(2, 3, 2, 2, "green"), // Main block
-              new KlotskiToken(1, 2, 1, 1, "red"),
-              new KlotskiToken(2, 2, 1, 1, "red"),
-              new KlotskiToken(0, 1, 2, 1, "blue"),
-              new KlotskiToken(2, 1, 2, 1, "blue"),
-              new KlotskiToken(0, 0, 2, 1, "red"),
-              new KlotskiToken(2, 0, 2, 1, "blue")
-              ];
-levels.push(level2);
+level = [new KlotskiToken(0, 0, 2, 1, "blue"),
+         new KlotskiToken(2, 0, 2, 1, "blue"),
+         new KlotskiToken(0, 1, 2, 1, "red"),
+         new KlotskiToken(0, 2, 2, 1, "red"),
+         new KlotskiToken(2, 2, 2, 1, "blue"),
+         new KlotskiToken(0, 3, 1, 1, "blue"),
+         new KlotskiToken(1, 3, 1, 1, "blue"),
+         new KlotskiToken(0, 4, 1, 1, "red"),
+         new KlotskiToken(1, 4, 1, 1, "red"),
+         new KlotskiToken(2, 3, 2, 2, "green") // Main block
+         ];
+levels.push(level);
 
-var level3 = [new KlotskiToken(0, 4, 1, 1, "red"),
-              new KlotskiToken(1, 4, 1, 1), "red",
-              new KlotskiToken(2, 4, 1, 1, "red"),
-              new KlotskiToken(3, 4, 1, 1, "red"),
-              new KlotskiToken(0, 3, 1, 1, "red"),
-              new KlotskiToken(1, 3, 1, 1, "red"),
-              new KlotskiToken(2, 2, 2, 2, "green"), // Main block
-              new KlotskiToken(0, 2, 1, 1, "red"),
-              new KlotskiToken(1, 2, 1, 1, "red"),
-              new KlotskiToken(0, 1, 1, 1, "red"),
-              new KlotskiToken(2, 1, 1, 1, "red"),
-              new KlotskiToken(3, 1, 1, 1, "red"),
-              new KlotskiToken(0, 0, 1, 1, "red"),
-              new KlotskiToken(2, 0, 1, 1, "red"),
-              new KlotskiToken(3, 0, 1, 1, "red")
-              ];
-levels.push(level3);
+level = [new KlotskiToken(0, 3, 1, 2, "blue"),
+         new KlotskiToken(1, 3, 1, 2, "red"),
+         new KlotskiToken(2, 3, 2, 2, "green"), // Main block
+         new KlotskiToken(1, 2, 1, 1, "red"),
+         new KlotskiToken(2, 2, 1, 1, "red"),
+         new KlotskiToken(0, 1, 2, 1, "blue"),
+         new KlotskiToken(2, 1, 2, 1, "blue"),
+         new KlotskiToken(0, 0, 2, 1, "red"),
+         new KlotskiToken(2, 0, 2, 1, "blue")
+         ];
+levels.push(level);
+
 

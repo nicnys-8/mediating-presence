@@ -107,8 +107,6 @@
                         turnButton = document.getElementById("turnButton");
                         inviteButton = document.getElementById("inviteButton");
                         inviteButton.disabled = true;
-                        //crap
-                        inviteButton.disabled = false;
                         
                         turnInfo = document.getElementById("turnInfo");
                         playerColorSpan = document.getElementById("playerColorSpan");
@@ -127,12 +125,8 @@
                      Sends a game invitation to another player
                      */
                     function invitePlayer() {
-                        //crap
-                        startGame(true);
-                        /*
                          inviteButton.disabled = true;
                          TabControl.sendMessage("index", "invite", {});
-                         */
                     }
                     
                     /**
@@ -216,10 +210,10 @@
                      Give up control of the game to your opponent
                      */
                     function giveUpTurn() {
-                        klotski.setHasTurn(false);
-                        turnButton.disabled = true;
-                        turnInfo.innerHTML = "Friend's turn";
-                        TabControl.sendMessage("play", "yourTurn", {});
+                         klotski.setHasTurn(false);
+                         turnButton.disabled = true;
+                         turnInfo.innerHTML = "Friend's turn";
+                         TabControl.sendMessage("play", "yourTurn", {});
                     }
                     
                     /*---------------------
@@ -287,7 +281,14 @@
                 
                 <div id="turnInfo" style="font-size:200%;">Your turn</div>
                 <div>
-                    You can move <span id="playerColorSpan" style="color:red">red</span> blocks
+                    You can move
+                    <span id="playerColorSpan" style="color:red">red</span>
+                </div>
+                
+                <div>
+                    and
+                    <span id="playerColorSpan" style="color:green">green</span>
+                    blocks.
                 </div>
                 
                 <button type="button" id="endButton" onclick="endGame()" style="height:60px; width:200px; display:block">
