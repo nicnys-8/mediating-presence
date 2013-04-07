@@ -106,6 +106,7 @@
 					currentStreamID = streamID;
 				}
 				
+				/*
 				// Create a div to show a thumbnail of the video
 				var thumb = document.createElement("canvas");
 				thumb.width = 160;
@@ -126,6 +127,7 @@
 					// Show an image instead?
 					thumb.innerHTML = "<center><span style='width:160px; margin:50px auto;'>No video... :)</span></center>";
 				}
+				 */
 			}
 			
 			TabControl.onStreamAdded = function(stream) {
@@ -136,6 +138,7 @@
 				
 				currentStreamID = streamID;
 				
+				/*
 				// Create a div to show a thumbnail of the video
 				var thumb = document.createElement("canvas");
 				thumb.width = 160;
@@ -156,12 +159,13 @@
 					// Show an image instead?
 					thumb.innerHTML = "<center><span style='width:160px; margin:50px auto;'>No video... :)</span></center>";
 				}
+				 */
 			}
 			
 			TabControl.onStreamRemoved = function(stream) {
 				
 				var streamID = stream.getID();
-				var thumb = thumbs[streamID];
+				// var thumb = thumbs[streamID];
 				var index = streamIDs.indexOf(streamID);
 				
 				// Remove the stream ID
@@ -173,11 +177,13 @@
 				streams[streamID].hide();
 				delete streams[streamID];
 				
+				/*
 				// Remove the thumbnail div
 				if (thumb) {
 					thumb.parentNode.removeChild(thumb);
 					delete thumbs[streamID];
 				}
+				*/
 				
 				// Update which stream is shown in the middle
 				if (streamID == currentStreamID) {
@@ -189,10 +195,7 @@
 				}
 			}
 			
-			TabControl.onMessageReceived = function(senderId, type, data) {
-				if (type == "currentStream") {
-					currentStreamID = data;
-				}
+			TabControl.onMessageReceived = function(senderId, type, packet) {
 			}
 			
 			TabControl.onKinectInit = function(proxy) {
@@ -234,6 +237,7 @@
 			
 			function drawThumbs() {
 				
+				/*
 				for (var streamID in thumbs) {
 					var canvas = thumbs[streamID];
 					var ctx = canvas.getContext("2d");
@@ -249,6 +253,7 @@
 						ctx.drawImage(bufferCanvas, 0, 0, canvas.width, canvas.height);
 					}
 				}
+				*/
 				
 				if (currentStreamID) {
 					

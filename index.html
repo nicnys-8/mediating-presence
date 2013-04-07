@@ -72,7 +72,7 @@
 				right:0px;
 				width:200px;
 				height:100%;
-				background-color:lightblue;
+				/* background-color:lightblue; */
 				z-index:2;
 			}
 			.video-thumb {
@@ -209,29 +209,6 @@
 			var tabOrder = [ "#chat", "#share", "#play" ];
 			var tabControllers = {};
 			
-			TabControl.onActivate = function() {
-			};
-			TabControl.onDeactivate = function() {
-			};
-			
-			TabControl.onLocalStreamInit = function(stream) {
-				
-				// Add local video stream (to make the image data available to the tabs)
-				var div = document.createElement("div");
-				div.id = "temp" + stream.getID();
-				div.style.width = "320px";
-				div.style.height = "240px";
-				div.style.visibility = "hidden";
-				document.body.appendChild(div);
-				stream.show(div.id);
-				
-				for (var tabName in tabControllers) {
-					if (tabControllers[tabName]) {
-						tabControllers[tabName].setLocalStream(stream);
-					}
-				}
-			}
-			
 			var streamIDs = [];
 			var streams = {};
 			var thumbs = {};
@@ -292,6 +269,22 @@
 			function setCurrentStream(streamID) {
 				currentStreamID = streamID;
 				tabControllers["#chat"].onMessageReceived(null, "currentStream", streamID);
+			}
+			
+			TabControl.onActivate = function() {
+			};
+			TabControl.onDeactivate = function() {
+			};
+			
+			TabControl.onLocalStreamInit = function(stream) {
+				
+				addVideoStream(stream);
+				
+				for (var tabName in tabControllers) {
+					if (tabControllers[tabName]) {
+						tabControllers[tabName].setLocalStream(stream);
+					}
+				}
 			}
 			
 			TabControl.onStreamAdded = function(stream) {
