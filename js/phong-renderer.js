@@ -73,7 +73,7 @@ PhongRenderer = function(canvas) {
 	prog.unifViewPos = gl.getUniformLocation(prog, "uViewPos");
 	
 	// Set black background
-	gl.clearColor(0.0, 0.0, 0.0, 1.0);
+	gl.clearColor(0.0, 0.0, 0.0, 0.0);
 	gl.enable(gl.DEPTH_TEST);
 	
 	// Create buffers for point cloud data
@@ -100,24 +100,6 @@ PhongRenderer = function(canvas) {
 	}
 	
 	this.bufferData = function(vertices, normals, indices) {
-		
-		// var vertexFloats = new Float32Array(vertices);
-		
-		var maxX=-Infinity, maxY=-Infinity, maxZ=-Infinity,
-			minX=Infinity, minY=Infinity, minZ=Infinity;
-		for (var i = 0; i < vertices.length; i += 3) {
-			var x = vertices[i++],
-				y = vertices[i++],
-				z = vertices[i++];
-			maxX = Math.max(maxX, x);
-			maxY = Math.max(maxY, -y);
-			maxZ = Math.max(maxZ, -z);
-			
-			minX = Math.min(minX, x);
-			minY = Math.min(minY, -y);
-			minZ = Math.min(minZ, -z);
-		}
-		console.log((maxX + minX) / 2 + ", " + (maxY + minY) / 2 + ", " + (maxZ + minZ) / 2);
 		
 		gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
 		gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);

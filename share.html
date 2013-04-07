@@ -560,8 +560,8 @@
 									// Index is out of bounds, WebGL limits number of indexable vertices to 2^16 - 1 (index type unsigned short)
 								} else {
 									buffer[indexOut++] = data[indexIn + 0] | (data[indexIn + 1] << 8);
-									buffer[indexOut++] = data[indexIn + 2] | (data[indexIn + 3] << 8);
 									buffer[indexOut++] = data[indexIn + 4] | (data[indexIn + 5] << 8);
+									buffer[indexOut++] = data[indexIn + 8] | (data[indexIn + 9] << 8);
 								}
 							} else {
 								console.log("Mesh face not triangle, skipping");
@@ -713,9 +713,36 @@
 						} else if (rendererConstructor == PointCloudRenderer) {
 							renderer.bufferData(model.pos, model.colors);
 						}
+						
+						if (model.pos) {
+							
+							// Calculate position for the object
+							var vertices = model.pos;
+							
+							var maxX=-Infinity, maxY=-Infinity, maxZ=-Infinity,
+								minX=Infinity, minY=Infinity, minZ=Infinity;
+							for (var i = 0; i < vertices.length;) {
+								var x = vertices[i++],
+									y = vertices[i++],
+									z = vertices[i++];
+								maxX = Math.max(maxX, x);
+								maxY = Math.max(maxY, -y);
+								maxZ = Math.max(maxZ, -z);
+								
+								minX = Math.min(minX, x);
+								minY = Math.min(minY, -y);
+								minZ = Math.min(minZ, -z);
+							}
+							var cx = (maxX + minX) / 2;
+							var cy = (maxY + minY) / 2;
+							var cz = (maxZ + minZ) / 2;
+							
+							renderer.setCenterOfRotation([cx, cy, cz]);
+							renderer.setPosition([0, 0, -(maxX - minX) / Math.atan(22.5 * Math.PI / 180)]);
+						}
 					}
 					
-					renderer.setPosition([0.0, 0.0, -0.5]);
+					// renderer.setPosition([0.0, 0.0, -1000]);
 					/*
 					renderer.setCenterOfRotation([-80, 60, 1000]);
 					renderer.setPosition([0, 0, -1000]);
