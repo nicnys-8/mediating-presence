@@ -90,6 +90,7 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
      @param index The index of the level to be loaded
      */
     var loadLevel = function(index) {
+        clearLevel();
         var level = levels[index];
         var token;
         for (var i = 0; i < level.length; i++) {
@@ -312,7 +313,6 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
     var nextLevel = function() {
         /* Stop the current touch
         onMouseUp();*/
-        clearLevel();
         levelIndex++;
         levelIndex = levelIndex % levels.length;
         loadLevel(levelIndex);
