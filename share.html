@@ -630,9 +630,9 @@
 					onShareDeclined();
 				} else if (type == "model") {
 					loadJSONModel(packet);
-				} else if (type == "rotation") {
+				} else if (type == "rotate") {
 					if (renderer) {
-						renderer.updataModelRotation(packet.matrix);
+						renderer.updateModelRotation(packet.matrix);
 					}
 				} else if (type == "modelReceived") {
 					console.log("Received model load confirmation");
@@ -858,6 +858,8 @@
 						}
 					}
 				}
+				
+				positionModel(model);
 				
 				if (renderer) {
 					dropbox.style.display = "none";
