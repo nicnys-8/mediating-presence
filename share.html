@@ -933,7 +933,7 @@
 			
 			function sendRotation() {
 				if (renderer) {
-					TabControl.sendMessage("share", "rotate", {matrix:renderer.getRotationMatrix});
+					TabControl.sendMessage("share", "rotate", {matrix:renderer.getRotationMatrix()});
 					setTimeout(sendRotation, 100);
 				}
 			}
