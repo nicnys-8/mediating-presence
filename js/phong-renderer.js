@@ -240,7 +240,7 @@ PhongRenderer = function(canvas) {
 
 	
 	// TODO: addEventListener instead?
-	canvas.addEventListener("mousedown", handleMouseDown, false);
+	document.addEventListener("mousedown", handleMouseDown, false);
 	document.addEventListener("mouseup", handleMouseUp, false);
 	document.addEventListener("mousemove", handleMouseMove, false);
 };
