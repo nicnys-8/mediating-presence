@@ -31,7 +31,7 @@
 				top:0px;
 				width:200px;
 				height:100%;
-				background-color:lightblue;
+				/*background-color:lightblue;*/
 			}
 			
 			#sidebar-right {
@@ -39,7 +39,7 @@
 				top:0px;
 				width:200px;
 				height:100%;
-				background-color:lightblue;
+				/*background-color:lightblue;*/
 			}
 			
 			.video-thumb {
@@ -48,14 +48,14 @@
 				margin:20px auto;
 				width:160px;
 				height:120px;
-				background-color:lightyellow;
+				/*background-color:lightyellow;*/
 			}
 			
 			#content {
 				left:200px;
 				right:200px;
 				height:100%;
-				background-color:lightgreen;
+				/*background-color:lightgreen;*/
 			}
 			
 			#large-video {
@@ -63,7 +63,7 @@
 				width:80%;
 				height:80%;
 				margin:10%;
-				background-color:pink;
+				/*background-color:pink;*/
 			}
 			
 			</style>
@@ -134,9 +134,7 @@
 				streams[streamID] = stream;
 				streamIDs.push(streamID);
 				
-				if (!currentStreamID) {
-					currentStreamID = streamID;
-				}
+				currentStreamID = streamID;
 				
 				// Create a div to show a thumbnail of the video
 				var thumb = document.createElement("canvas");
