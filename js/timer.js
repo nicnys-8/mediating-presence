@@ -4,7 +4,6 @@
  @param elemnent The HTML element in which the time is displayed 
  */
 Timer = function(element) {
-    
     var intervalId;
     
     // Private variables
@@ -12,17 +11,25 @@ Timer = function(element) {
     var timer, sec, min;
     
     /**
-     Starts the timer from 00:00
+     Starts the timer update loop
      */
     var start = function() {
+        // If the timer is not already running, start it
+        if (!intervalId) {
+            intervalId = setInterval(updateTime, 1000);
+        }
         timer = 0;
         sec = 0;
         min = 0;
-        intervalId = setInterval(updateTime, 1000);
+        element.innerHTML = "Time passed: " + getTimeString();
     };
-    
+
+    /**
+     Sets the timer to 00:00
+     */
     var stop = function() {
         clearInterval(intervalId);
+        intervalId = null;
     };
     
     /**

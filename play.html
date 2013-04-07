@@ -87,7 +87,7 @@
                             nextLevel();
                         }
                         else if (type == "yourTurn") {
-                            klotski.hasTurn = true;
+                            klotski.setHasTurn(true);
                             turnButton.disabled = false;
                             turnInfo.innerHTML = "Your turn";
                         }
@@ -107,6 +107,8 @@
                         turnButton = document.getElementById("turnButton");
                         inviteButton = document.getElementById("inviteButton");
                         inviteButton.disabled = true;
+                        //crap
+                        inviteButton.disabled = false;
                         
                         turnInfo = document.getElementById("turnInfo");
                         playerColorSpan = document.getElementById("playerColorSpan");
@@ -119,15 +121,18 @@
                         document.addEventListener('mouseup', onMouseUp, false);
                         
                         tick();
-                        //window.ondragstart = function() { return false; }
                     };
                     
                     /**
                      Sends a game invitation to another player
                      */
                     function invitePlayer() {
+                        //crap
+                        startGame(true);
+                        /*
                          inviteButton.disabled = true;
                          TabControl.sendMessage("index", "invite", {});
+                         */
                     }
                     
                     /**
@@ -165,7 +170,7 @@
                      */
                     function tick() {
                         requestAnimationFrame(tick);
-                        if (klotski) klotski.updateScene();
+                        if (gameDiv.style.display == "block") klotski.updateScene();
                     }
                     
                     /**
@@ -211,7 +216,7 @@
                      Give up control of the game to your opponent
                      */
                     function giveUpTurn() {
-                        klotski.hasTurn = false;
+                        klotski.setHasTurn(false);
                         turnButton.disabled = true;
                         turnInfo.innerHTML = "Friend's turn";
                         TabControl.sendMessage("play", "yourTurn", {});
@@ -285,12 +290,12 @@
                     You can move <span id="playerColorSpan" style="color:red">red</span> blocks
                 </div>
                 
-                <button type="button" id="turnButton" onclick="giveUpTurn()" style="height:60px">
-                    Give up turn
+                <button type="button" id="endButton" onclick="endGame()" style="height:60px; width:200px; display:block">
+                    End game
                 </button>
                 
-                <button type="button" id="endButton" onclick="endGame()" style="height:60px">
-                    End game
+                <button type="button" id="turnButton" onclick="giveUpTurn()" style="height:60px; width:200px; display:block">
+                    Give up turn
                 </button>
                 
             </div>

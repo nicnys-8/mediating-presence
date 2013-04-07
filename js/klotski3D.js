@@ -23,6 +23,8 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
     var scene;
     var camera
     var renderer;
+    var pointLight;
+    var ambientLight;
     var obstacles;
     var externalMoves;
     var particleSystem;
@@ -175,16 +177,22 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
     
     /**
      Adds lights to the level
+     @param bright Decides if the light should be bright or dark
      */
-    var initLights = function() {
+    var setLights = function(bright) {
         // Point light
-        var light = new THREE.PointLight(0xffffff);
-        light.position.set(0, 0, 20);
-        scene.add(light);
+        if (!pointLight) {
+            pointLight = new THREE.PointLight();
+            pointLight.position.set(0, 0, 20);
+            scene.add(pointLight);
+        }
+        pointLight.intensity = (bright) ? 1.0 : 0.8;
         
         // Ambient light
-        var light = new THREE.AmbientLight(0x404040); // soft white light
-        scene.add(light);
+        if (!ambientLight) {
+            ambientLight = new THREE.AmbientLight(0x404040);
+            scene.add(ambientLight);
+        }
     };
     
     /*-----------------------
@@ -197,11 +205,11 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
     externalMoves = [];
     activeBlock = null;
     clickOffset = new THREE.Vector3(0, 0, 0);
-    hasTurn = false;
     
     initWalls();
     initFloor();
-    initLights();
+    var bright = true;
+    setLights(bright);
     
     particleSystem = new TouchParticleSystem();
     scene.add(particleSystem);
@@ -216,9 +224,11 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
      --------------------*/
     /**
      Starts the game from the first level
+     @param playerStarts Boolean telling us whether it's the local
+     player's turn at the start of the game
      */
-    var startGame = function(hasTurn) {
-        this.hasTurn = hasTurn;
+    var startGame = function(playerStarts) {
+        this.setHasTurn(playerStarts);
         this.playerColor = (hasTurn) ? "red" : 'blue';
         levelIndex = 0;
         loadLevel(levelIndex);
@@ -297,7 +307,7 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
             levelFinishedCallback(levelIndex, finishTime);
         }
         
-        if (this.hasTurn) {
+        if (hasTurn) {
             localBlockUpdate();
         } else {
             remoteBlockUpdate();
@@ -319,6 +329,15 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
         timer.start();
     };
     
+    /**
+     ...
+     */
+    var setHasTurn = function(bool) {
+        if (bool == hasTurn) return;
+        hasTurn = bool;
+        setLights(bool);
+    }
+    
     /*-----------------------
      ==| Mouse input code |==
      ----------------------*/
@@ -330,7 +349,7 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
         particleSystem.setOrigin(mouse3D.x, mouse3D.y, mouse3D.z);
         particleSystem.active = true;
         
-        if (!this.hasTurn) return;
+        if (!hasTurn) return;
         for (var i = 0; i < blocks.length; i++) {
             var blockHit = mouseInterface.getMouseHit(blocks, x, y);
             if (blockHit) {
@@ -390,13 +409,13 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
     this.startGame = startGame;
     this.updateScene = updateScene;
     this.nextLevel = nextLevel;
+    this.setHasTurn = setHasTurn;
     
     /*-----------------------
      ==| Public variables |==
      ----------------------*/
     this.playerColor;
     this.shouldRender = true;
-    this.hasTurn = true;
 };
 
 /**
