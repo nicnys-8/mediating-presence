@@ -748,32 +748,13 @@
 						
 						renderer = new rendererConstructor(glCanvas);
 						
-						if (model.pos) {
-							
-							// Calculate position for the object
-							var vertices = model.pos;
-							
-							var maxX=-Infinity, maxY=-Infinity, maxZ=-Infinity,
-								minX=Infinity, minY=Infinity, minZ=Infinity;
-							for (var i = 0; i < vertices.length;) {
-								var x = vertices[i++],
-									y = vertices[i++],
-									z = vertices[i++];
-								maxX = Math.max(maxX, x);
-								maxY = Math.max(maxY, -y);
-								maxZ = Math.max(maxZ, -z);
-								
-								minX = Math.min(minX, x);
-								minY = Math.min(minY, -y);
-								minZ = Math.min(minZ, -z);
-							}
-							var cx = (maxX + minX) / 2;
-							var cy = (maxY + minY) / 2;
-							var cz = (maxZ + minZ) / 2;
-							
-							renderer.setCenterOfRotation([cx, cy, cz]);
-							renderer.setPosition([0, 0, -(maxX - minX) / Math.atan(22.5 * Math.PI / 180)]);
-						}
+						positionModel(model);
+						
+						console.log(JSON.stringify({matrix:renderer.getRotationMatrix()}));
+						
+						var he = renderer.getRotationMatrix();
+						he[0] = he[5] = he[10] = he[15] = 0.5;
+						renderer.updateModelRotation(he);
 						
 						if (rendererConstructor == PhongRenderer) {
 							renderer.bufferData(model.pos, model.normals, model.faces);
@@ -795,6 +776,36 @@
                 // reader.readAsText(file);
 				reader.readAsArrayBuffer(file);
             }
+			
+			function positionModel(model) {
+				
+				if (model.pos) {
+					
+					// Calculate position for the object
+					var vertices = model.pos;
+					
+					var maxX=-Infinity, maxY=-Infinity, maxZ=-Infinity,
+						minX=Infinity, minY=Infinity, minZ=Infinity;
+					for (var i = 0; i < vertices.length;) {
+						var x = vertices[i++],
+							y = vertices[i++],
+							z = vertices[i++];
+						maxX = Math.max(maxX, x);
+						maxY = Math.max(maxY, -y);
+						maxZ = Math.max(maxZ, -z);
+						
+						minX = Math.min(minX, x);
+						minY = Math.min(minY, -y);
+						minZ = Math.min(minZ, -z);
+					}
+					var cx = (maxX + minX) / 2;
+					var cy = (maxY + minY) / 2;
+					var cz = (maxZ + minZ) / 2;
+					
+					renderer.setCenterOfRotation([cx, cy, cz]);
+					renderer.setPosition([0, 0, -(maxX - minX) / Math.atan(22.5 * Math.PI / 180)]);
+				}
+			}
 			
 			function serializeModel(model) {
 				

@@ -171,10 +171,15 @@ MeshRenderer = function(canvas) {
 	}
 
 	this.updateModelRotation = function(mat) {
-		pcRotationMatrix = mat;
+		mat4.set(mat, pcRotationMatrix);
+		console.log(pcRotationMatrix);
 	}
 	this.getRotationMatrix = function() {
-		return pcRotationMatrix;
+		var rot = [];
+		for (var i = 0; i < pcRotationMatrix.length; i++) {
+			rot[i] = pcRotationMatrix[i];
+		}
+		return rot;
 	}
 	
 	// TODO: addEventListener instead?
