@@ -189,7 +189,10 @@
 				}
 			}
 			
-			TabControl.onMessageReceived = function(senderId, type, packet) {
+			TabControl.onMessageReceived = function(senderId, type, data) {
+				if (type == "currentStream") {
+					currentStreamID = data;
+				}
 			}
 			
 			TabControl.onKinectInit = function(proxy) {

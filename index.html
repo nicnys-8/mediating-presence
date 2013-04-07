@@ -70,11 +70,20 @@
 			#sidebar-right {
 				position:absolute;
 				right:0px;
-				width:100px;
+				width:200px;
 				height:100%;
 				background-color:lightblue;
 				z-index:2;
 			}
+			.video-thumb {
+				position:relative;
+				display:block;
+				margin:20px auto;
+				width:160px;
+				height:120px;
+				/*background-color:lightyellow;*/
+			}
+			
 			#content {
 				position:absolute;
 				left:0px; /*100px;*/
@@ -222,17 +231,72 @@
 					}
 				}
 			}
-
-			TabControl.onStreamAdded = function(stream) {
 			
-				// Add video stream (to make the image data available to the tabs)
-				var div = document.createElement("div");
-				div.id = "temp" + stream.getID();
-				div.style.width = "320px";
-				div.style.height = "240px";
-				div.style.visibility = "hidden";
-				document.body.appendChild(div);
-				stream.show(div.id);
+			var streamIDs = [];
+			var streams = {};
+			var thumbs = {};
+			var currentStreamID = null;
+			
+			function addVideoStream(stream) {
+				var streamID = stream.local ? "myStream" : stream.getID();
+				streams[streamID] = stream;
+				streamIDs.push(streamID);
+				
+				var thumb = document.createElement("div");
+				thumb.id = "thumb" + streamID;
+				thumb.className = "video-thumb";
+				thumb.onclick = function() {
+					setCurrentStream(streamID);
+				}
+				thumbs[streamID] = thumb;
+				
+				document.getElementById("sidebar-right").appendChild(thumb);
+				
+				stream.show(thumb.id);
+				
+				setCurrentStream(streamID);
+			}
+			
+			function removeVideoStream(stream) {
+				
+				var streamID = stream.getID();
+				var thumb = thumbs[streamID];
+				var index = streamIDs.indexOf(streamID);
+				
+				// Remove the stream ID
+				if (index != -1) {
+					streamIDs.splice(index, 1);
+				}
+				
+				// Remove the stream
+				streams[streamID].hide();
+				delete streams[streamID];
+				
+				// Remove the thumbnail div
+				if (thumb) {
+					thumb.parentNode.removeChild(thumb);
+					delete thumbs[streamID];
+				}
+				
+				// Update which stream is shown in the middle
+				if (streamID == currentStreamID) {
+					if (streamIDs.length == 0) {
+						setCurrentStream(null);
+						// currentStreamID = null;
+					} else {
+						setCurrentStream(streamIDs[index % streamIDs.length]);
+					}
+				}
+			}
+			
+			function setCurrentStream(streamID) {
+				currentStreamID = streamID;
+				tabControllers["#chat"].onMessageReceived(null, "currentStream", streamID);
+			}
+			
+			TabControl.onStreamAdded = function(stream) {
+				
+				addVideoStream(stream);
 				
 				// Just propagate the message to the tabs
 				for (var tabName in tabControllers) {
@@ -243,6 +307,8 @@
 			};
 			
 			TabControl.onStreamRemoved = function(stream) {
+				
+				removeVideoStream(stream);
 				
 				// Just propagate the message to the tabs
 				for (var tabName in tabControllers) {
@@ -576,10 +642,10 @@
 				 
 			</div>
 			
-			<!--
+			
 			<div id="sidebar-right">
 			</div>
-			-->
+			
 		</div>
 			
     </body>
