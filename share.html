@@ -623,6 +623,7 @@
 			}
 			
 			TabControl.onMessageReceived = function(senderId, type, packet) {
+				
 				if (type == "inviteAccepted") {
 					onShareAccepted();
 				} else if (type == "inviteDeclined") {
@@ -633,7 +634,11 @@
 					if (renderer) {
 						renderer.updataModelRotation(packet);
 					}
+				} else if (type == "modelReceived") {
+					console.log("Received model load confirmation");
+					sendRotation();
 				}
+				
 			}
 			
 			TabControl.onKinectInit = function(proxy) {
@@ -817,14 +822,8 @@
 			}
 			
 			function loadJSONModel(model) {
-				
-				if (rendererConstructor == PhongRenderer) {
-					renderer.bufferData(model.pos, model.normals, model.faces);
-				} else if (rendererConstructor == MeshRenderer) {
-					renderer.bufferData(model.pos, model.colors, model.faces);
-				} else if (rendererConstructor == PointCloudRenderer) {
-					renderer.bufferData(model.pos, model.colors);
-				}
+
+				clearGLCanvas();
 				
 				// Select renderer
 				if (model.pos) {
@@ -844,6 +843,12 @@
 														new Float32Array(model.colors));
 						}
 					}
+				}
+				
+				if (renderer) {
+					dropbox.style.display = "none";
+					glCanvas.style.display = "block";
+					TabControl.sendMessage("share", "modelReceived", {});
 				}
 			}
 			
@@ -904,9 +909,13 @@
 			
 			function onShareAccepted() {
 				if (model) {
+					
+					console.log("Sending model");
+					console.log(model);
+					
 					TabControl.sendMessage("share", "model", serializeModel(model));
-					// Start sending rotation updates after a while
-					setTimeout(sendRotation, 2000);
+
+					console.log("Waiting for confirmation...");
 				}
 			}
 			
