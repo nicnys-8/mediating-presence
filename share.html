@@ -630,6 +630,7 @@
 					onShareDeclined();
 				} else if (type == "model") {
 					loadJSONModel(packet);
+					sendRotation();
 				} else if (type == "rotate") {
 					if (renderer) {
 						renderer.updateModelRotation(packet.matrix);
@@ -946,7 +947,11 @@
 			
 			function sendRotation() {
 				if (renderer) {
-					TabControl.sendMessage("share", "rotate", {matrix:renderer.getRotationMatrix()});
+					
+					var sendRot = renderer.getRotationMatrix();
+					if (sendRot) {
+						TabControl.sendMessage("share", "rotate", {matrix:sendRot});
+					}
 					setTimeout(sendRotation, 100);
 				}
 			}

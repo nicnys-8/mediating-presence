@@ -184,6 +184,10 @@ PhongRenderer = function(canvas) {
 		mouseDown = false;
 	}
 	
+	var hasDataToSend = false;
+	var sendRotation = mat4.create();
+	mat4.identity(sendRotation);
+	
 	function handleMouseMove(event) {
 		
 		if (!mouseDown) {
@@ -203,19 +207,34 @@ PhongRenderer = function(canvas) {
 		
 		mat4.multiply(newRotationMatrix, pcRotationMatrix, pcRotationMatrix);
 		
+		// ** For shared viewing **
+		mat4.multiply(newRotationMatrix, sendRotation, sendRotation);
+		hasDataToSend = true;
+		// ************************
+		
 		lastMouseX = newX;
 		lastMouseY = newY;
 	}
 
 	this.updateModelRotation = function(mat) {
-		mat4.set(mat, pcRotationMatrix);
-		console.log(pcRotationMatrix);
+		// mat4.set(mat, pcRotationMatrix);
+		// console.log(pcRotationMatrix);
+		
+		mat4.multiply(mat, pcRotationMatrix, pcRotationMatrix);
 	}
 	this.getRotationMatrix = function() {
+		
+		if (!hasDataToSend)
+			return null;
+		
 		var rot = [];
-		for (var i = 0; i < pcRotationMatrix.length; i++) {
-			rot[i] = pcRotationMatrix[i];
+		for (var i = 0; i < sendRotation.length; i++) {
+			rot[i] = sendRotation[i];
 		}
+		mat4.identity(sendRotation);
+		
+		hasDataToSend = false;
+		
 		return rot;
 	}
 
