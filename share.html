@@ -751,12 +751,6 @@
 						
 						positionModel(model);
 						
-						console.log(JSON.stringify({matrix:renderer.getRotationMatrix()}));
-						
-						var he = renderer.getRotationMatrix();
-						he[0] = he[5] = he[10] = he[15] = 0.5;
-						renderer.updateModelRotation(he);
-						
 						if (rendererConstructor == PhongRenderer) {
 							renderer.bufferData(model.pos, model.normals, model.faces);
 						} else if (rendererConstructor == MeshRenderer) {
