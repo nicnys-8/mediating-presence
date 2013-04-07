@@ -254,9 +254,11 @@
 			
 			TabControl.onMessageReceived = function(senderId, type, packet) {
 				
+				/*
 				console.log("Received messsage");
 				console.log(packet);
-
+				 */
+				
 				var destination = packet.dst;
 				var messageType = packet.type;
 				var data = packet.data;

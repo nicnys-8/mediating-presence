@@ -632,7 +632,7 @@
 					loadJSONModel(packet);
 				} else if (type == "rotation") {
 					if (renderer) {
-						renderer.updataModelRotation(packet);
+						renderer.updataModelRotation(packet.matrix);
 					}
 				} else if (type == "modelReceived") {
 					console.log("Received model load confirmation");
@@ -933,7 +933,7 @@
 			
 			function sendRotation() {
 				if (renderer) {
-					TabControl.sendMessage("share", "rotate", renderer.getRotationMatrix);
+					TabControl.sendMessage("share", "rotate", {matrix:renderer.getRotationMatrix});
 					setTimeout(sendRotation, 100);
 				}
 			}
