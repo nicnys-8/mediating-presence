@@ -186,7 +186,7 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
             pointLight.position.set(0, 0, 20);
             scene.add(pointLight);
         }
-        pointLight.intensity = (bright) ? 1.0 : 0.8;
+        pointLight.intensity = (bright) ? 1.0 : 0.7;
         
         // Ambient light
         if (!ambientLight) {

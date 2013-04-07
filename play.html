@@ -90,6 +90,7 @@
                             klotski.setHasTurn(true);
                             turnButton.disabled = false;
                             turnInfo.innerHTML = "Your turn";
+                            turnInfo.style.color= 'blue';
                         }
                         else {
                             console.log("Received unreadable message");
@@ -125,18 +126,14 @@
                      Sends a game invitation to another player
                      */
                     function invitePlayer() {
-                         inviteButton.disabled = true;
-                         TabControl.sendMessage("index", "invite", {});
+                        inviteButton.disabled = true;
+                        TabControl.sendMessage("index", "invite", {});
                     }
                     
                     /**
                      Leave the start screen and begin a Klotski game
                      */
                     function startGame(hasTurn) {
-                        startDiv.style.display = "none";
-                        gameDiv.style.display = "block";
-                        turnButton.disabled = !hasTurn;
-                        turnInfo.innerHTML = (hasTurn) ? "Your turn" : "Friend's turn";
                         // Create the Klotski object
                         if (!klotski) {
                             klotski = new Klotski(blockSnapped,
@@ -144,11 +141,16 @@
                                                   klotskiContainer
                                                   );
                         }
+                        startDiv.style.display = "none";
+                        gameDiv.style.display = "block";
+                        turnButton.disabled = !hasTurn;
+                        turnInfo.innerHTML = (hasTurn) ? "Your turn" : "Friend's turn";
+                        
                         klotski.startGame(hasTurn);
-                        // Tell the user what blocks they can move
+                        
+                        turnInfo.style.color = klotski.playerColor;
                         playerColorSpan.style.color = klotski.playerColor;
                         playerColorSpan.innerHTML = klotski.playerColor;
-                        // Start the update loop
                     }
                     
                     /**
@@ -211,10 +213,11 @@
                      Give up control of the game to your opponent
                      */
                     function giveUpTurn() {
-                         klotski.setHasTurn(false);
-                         turnButton.disabled = true;
-                         turnInfo.innerHTML = "Friend's turn";
-                         TabControl.sendMessage("play", "yourTurn", {});
+                        klotski.setHasTurn(false);
+                        turnButton.disabled = true;
+                        turnInfo.innerHTML = "Friend's turn";
+                        turnInfo.style.color = 'blue';
+                        TabControl.sendMessage("play", "yourTurn", {});
                     }
                     
                     /*---------------------
@@ -280,7 +283,7 @@
                     Time passed: 00:00
                 </div>
                 
-                <div id="turnInfo" style="font-size:200%;">Your turn</div>
+                <div id="turnInfo" style="font-size:200%;" style="color:red">Your turn</div>
                 <div>
                     You can move
                     <span id="playerColorSpan" style="color:red">red</span>
