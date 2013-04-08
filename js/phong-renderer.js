@@ -198,12 +198,19 @@ PhongRenderer = function(canvas) {
 		var newY = event.clientY;
 		
 		var deltaX = newX - lastMouseX;
+		
+		if (deltaX > 20) {
+			lastMouseX = newX;
+			lastMouseY = newY;
+			return;
+		}
+		
 		var newRotationMatrix = mat4.create();
 		mat4.identity(newRotationMatrix);
-		mat4.rotate(newRotationMatrix, degToRad(deltaX / 10), [0, 1, 0]);
+		mat4.rotate(newRotationMatrix, degToRad(deltaX / 5), [0, 1, 0]);
 		
 		var deltaY = newY - lastMouseY;
-		mat4.rotate(newRotationMatrix, degToRad(deltaY / 10), [1, 0, 0]);
+		mat4.rotate(newRotationMatrix, degToRad(deltaY / 5), [1, 0, 0]);
 		
 		mat4.multiply(newRotationMatrix, pcRotationMatrix, pcRotationMatrix);
 		
