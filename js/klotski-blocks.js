@@ -83,7 +83,7 @@ Block.prototype.isSnapped = function() {
 KlotskiWall = function(column, row, width, height) {
     Block.call(this, column, row, width, height);
     // Set the texture
-    var texture = THREE.ImageUtils.loadTexture("../images/rock.png");
+    var texture = THREE.ImageUtils.loadTexture("../images/rock-small.png");
     this.material.map = texture;
     this.material.map.wrapS = THREE.RepeatWrapping;
     this.material.map.wrapT = THREE.RepeatWrapping;

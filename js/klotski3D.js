@@ -155,7 +155,7 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
      */
     var initFloor = function() {
         
-        var floorMaterial = new THREE.MeshLambertMaterial({map: THREE.ImageUtils.loadTexture('../images/grass.png')});
+        var floorMaterial = new THREE.MeshLambertMaterial({map: THREE.ImageUtils.loadTexture('../images/grass-small.png')});
         
         floorMaterial.map.wrapS = floorMaterial.map.wrapT = THREE.RepeatWrapping;
         floorMaterial.map.repeat.set(3, 3);
