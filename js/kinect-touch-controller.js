@@ -5,7 +5,7 @@
 
 // Constants
 const MIN_TOUCHES = 3;
-const TOUCH_LIFE_TIME = 2;
+const TOUCH_LIFE_TIME = 1;
 const CLICK_THRESHOLD = 3;
 //******
 // width and height should be gotten from somewhere else!1

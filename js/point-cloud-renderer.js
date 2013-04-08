@@ -156,7 +156,7 @@ PointCloudRenderer = function(canvas) {
 		
 		var deltaX = newX - lastMouseX;
 		
-		if (deltaX > 20) {
+		if (deltaX > 30) {
 			lastMouseX = newX;
 			lastMouseY = newY;
 			return;
