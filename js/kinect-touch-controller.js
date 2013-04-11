@@ -90,7 +90,7 @@ KinectTouchController.prototype.updateTouch = function() {
     var newTouch = this.detectLargestTouch();
     /*------------------------------
      == If no new touch is found: ==
-     -----------------------------*/
+     ------------------------------*/
     if (!newTouch) {
         if (this.touch) {
             this.touch.timeToLive--;
@@ -105,13 +105,28 @@ KinectTouchController.prototype.updateTouch = function() {
     }
     /*-----------------------------
      == If a new touch is found: ==
-     ----------------------------*/
+     -----------------------------*/
     newTouch.point = this.transform.transformPoint(newTouch.point);
     
     // If a live touch exists:
     if (this.touch) {
+        
         newTouch.age = this.touch.age;
         newTouch.age++;
+        //TODO: check if it's the same touch
+        /*
+         var xDistance = Math.abs(this.touch.point.x - newTouch.point.x);
+         var yDistance = Math.abs(this.touch.point.y - newTouch.point.y);
+         
+         var max = 5;
+         
+         if (xDistance > 0 && xDistance < max ||
+         yDistance > 0 && yDistance < max)
+         {
+         this.simulateMouseEvent(newTouch.point, "mousemove");
+         }
+         */
+        
         // Check if it has moved
         if (this.touch.point.x != newTouch.point.x ||
             this.touch.point.y != newTouch.point.y)
