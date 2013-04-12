@@ -33,10 +33,10 @@ var onDataReceived = function(event) {
 /**
  Create the key used to get access to a room
  */
-var createToken = function(userName, role, callback) {
+var createToken = function(userName, role, room, callback) {
     var req = new XMLHttpRequest();
     var url = serverUrl + 'createToken/';
-    var body = {username: userName, role: role};
+    var body = {username: userName, role: role, room: room};
     
     req.onreadystatechange = function () {
         if (req.readyState === 4) {
@@ -114,5 +114,5 @@ var onMediaAccessGranted = function() {
 initLynckia = function (tabControllerArg) {
     tabController = tabControllerArg;
     localStream = Erizo.Stream({audio: true, video: true, data: true});
-    createToken("user", "role", onTokenCreated);
+    createToken("user", "role", "pite", onTokenCreated);
 };
