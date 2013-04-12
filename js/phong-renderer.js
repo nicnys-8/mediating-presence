@@ -9,17 +9,16 @@ PhongRenderer = function(canvas) {
 				 "attribute vec3 aVertexPosition;",
 				 "attribute vec3 aNormal;",
 				 
-				 "uniform mat4 world;",
 				 "uniform mat4 view;",
 				 "uniform mat4 proj;",
 				 
 				 "varying vec3 vNormal;",
-				 "varying vec3 world_pos;",
+				 "varying vec3 vWorldPos;",
 				 
 				 "void main(void){",
-					"vNormal = (world * vec4(aNormal, 1.0)).xyz;",
-					"world_pos = (world * vec4(aVertexPosition, 1.0)).xyz;",
-					"gl_Position = proj * view * world * vec4(aVertexPosition, 1.0);",
+					"vWorldPos = (view * vec4(aVertexPosition, 1.0)).xyz;",
+					"vNormal = (view * vec4(aNormal, 0.0)).xyz;",
+					"gl_Position = proj * view * vec4(aVertexPosition, 1.0);",
 				 "}",
 				 ].join("\n");
 	
@@ -27,26 +26,28 @@ PhongRenderer = function(canvas) {
 	var fsStr = [
 				 "precision mediump float;",
 				 "varying vec3 vNormal;",
-				 "varying vec3 world_pos;",
+				 "varying vec3 vWorldPos;",
 				 
-				 "uniform mat4 world;",
-				 "uniform vec3 lightPos;",
+				 "uniform vec3 uLightPos;",
 				 "uniform vec3 uViewPos;",
 				 
-				 "void main(void){",
-					/*"vec3 pos = world_pos;",
-					"vec3 normal = normalize(vNormal);",
-					"vec3 L = normalize(lightPos - pos);",
-					"vec3 N = vNormal;",
-					"vec3 R = reflect(L, N);",
-					"vec3 E = normalize(uViewPos - pos);",
+				 "void main(void) {",
 				 
-					"float angle = clamp(dot(normal, L), 0.0, 1.0);",
-					"float cosBeta = clamp(pow(dot(E, R), 10.0), 0.0, 1.0);",
+					"vec3 pos = vWorldPos;",
+					"vec3 V = normalize(pos - uViewPos);",
+					"vec3 L = normalize(pos - uLightPos);",
+					"vec3 N = normalize(vNormal);",
+					"vec3 R = reflect(N, L);",
 				 
-					"vec3 col = vec3(1.0, 1.0, 1.0) * angle + vec3(1.0, 1.0, 1.0) * cosBeta;",
-					"gl_FragColor = vec4(col, 1.0);",*/
-					"gl_FragColor = vec4(vNormal, 1.0);",
+					"float angleNL = -dot(N, L);",
+					"float angleVR = pow(dot(V, R), 200.0);",
+				 
+					"vec3 specular = vec3(0.8, 0.8, 0.8) * angleVR;",
+					"vec3 diffuse = vec3(0.6, 0.6, 0.0) * angleNL;",
+					"vec3 ambient = vec3(0.2, 0.0, 0.2);",
+					"vec3 color = specular + diffuse + ambient;",
+				 
+					"gl_FragColor = vec4(color, 1.0);",
 				 "}",
 				  ].join("\n");
 		
@@ -67,9 +68,8 @@ PhongRenderer = function(canvas) {
 	
 	prog.unifMatrixP = gl.getUniformLocation(prog, "proj");
 	prog.unifMatrixMV = gl.getUniformLocation(prog, "view");
-	prog.unifMatrixW = gl.getUniformLocation(prog, "world");
 	
-	prog.unifLightPos = gl.getUniformLocation(prog, "lightPos");
+	prog.unifLightPos = gl.getUniformLocation(prog, "uLightPos");
 	prog.unifViewPos = gl.getUniformLocation(prog, "uViewPos");
 	
 	// Set black background
@@ -89,8 +89,6 @@ PhongRenderer = function(canvas) {
 	
 	var mvMatrix = mat4.create();
 	var pMatrix = mat4.create();
-	var wMatrix = mat4.create();
-	mat4.identity(wMatrix);
 	
 	var pcRotationMatrix = mat4.create();
 	mat4.identity(pcRotationMatrix);
@@ -124,11 +122,15 @@ PhongRenderer = function(canvas) {
 		pos = vec3.create([0, 0, 0]);
 	
 	this.setCenterOfRotation = function(vec) {
+		console.log("cor");
+		console.log(vec);
 		cor[0] = vec[0];
 		cor[1] = vec[1];
 		cor[2] = vec[2];
 	}
 	this.setPosition = function(vec) {
+		console.log("pos");
+		console.log(vec);
 		pos[0] = vec[0];
 		pos[1] = vec[1];
 		pos[2] = vec[2];
@@ -154,11 +156,10 @@ PhongRenderer = function(canvas) {
 		gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
 		gl.vertexAttribPointer(prog.attrNormal, normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
 		
-		gl.uniform3fv(prog.lightPos, [1, 1, 0]);
-		gl.uniform3fv(prog.uViewPos, [0, 0, 0]);
+		gl.uniform3fv(prog.unifLightPos, [10.0, 10.0, -10.0]);
+		gl.uniform3fv(prog.unifViewPos, [0.0, 0.0, 0.0]);
 		gl.uniformMatrix4fv(prog.unifMatrixP, false, pMatrix);
 		gl.uniformMatrix4fv(prog.unifMatrixMV, false, mvMatrix);
-		gl.uniformMatrix4fv(prog.unifMatrixW, false, wMatrix);
 		
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
 		gl.drawElements(gl.TRIANGLES, indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
