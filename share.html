@@ -156,8 +156,7 @@
 				
 				// Check for magic word at start of file!
 				if (lines[0] != "ply") {
-					alert("Fool! This is no .ply file!");
-					return;
+					throw "Magic word 'ply' missing from header. Is this really a .ply file?";
 				}
 				
 				// The format is specified on the second line
@@ -624,22 +623,27 @@
 			
 			TabControl.onMessageReceived = function(senderId, type, packet) {
 				
-				if (type == "inviteAccepted") {
-					onShareAccepted();
-				} else if (type == "inviteDeclined") {
-					onShareDeclined();
-				} else if (type == "model") {
-					loadJSONModel(packet);
-					sendRotation();
-				} else if (type == "rotate") {
-					if (renderer) {
-						renderer.updateModelRotation(packet.matrix);
-					}
-				} else if (type == "modelReceived") {
-					console.log("Received model load confirmation");
-					sendRotation();
+				switch (type) {
+					case "inviteAccepted":
+						onShareAccepted();
+						break;
+					case "inviteDeclined":
+						onShareDeclined();
+						break;
+					case "model":
+						loadJSONModel(packet);
+						sendRotation();
+						break;
+					case "rotate":
+						if (renderer) {
+							renderer.updateModelRotation(packet.matrix);
+						}
+						break;
+					case "modelReceived":
+						console.log("Received model load confirmation");
+						sendRotation();
+						break;
 				}
-				
 			}
 			
 			TabControl.onKinectInit = function(proxy) {
@@ -781,23 +785,26 @@
 					
 					var maxX=-Infinity, maxY=-Infinity, maxZ=-Infinity,
 						minX=Infinity, minY=Infinity, minZ=Infinity;
+					
 					for (var i = 0; i < vertices.length;) {
+						
 						var x = vertices[i++],
 							y = vertices[i++],
 							z = vertices[i++];
+					
 						maxX = Math.max(maxX, x);
-						maxY = Math.max(maxY, -y);
-						maxZ = Math.max(maxZ, -z);
+						maxY = Math.max(maxY, y);
+						maxZ = Math.max(maxZ, z);
 						
 						minX = Math.min(minX, x);
-						minY = Math.min(minY, -y);
-						minZ = Math.min(minZ, -z);
+						minY = Math.min(minY, y);
+						minZ = Math.min(minZ, z);
 					}
 					var cx = (maxX + minX) / 2;
 					var cy = (maxY + minY) / 2;
 					var cz = (maxZ + minZ) / 2;
 					
-					renderer.setCenterOfRotation([cx, cy, cz]);
+					renderer.setCenterOfRotation([-cx, -cy, -cz]);
 					renderer.setPosition([0, 0, -(maxX - minX) / Math.atan(22.5 * Math.PI / 180)]);
 				}
 			}
