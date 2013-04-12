@@ -3,6 +3,10 @@
  */
 var Ply = function() {
 
+	var FORMAT_ASCII = "ascii 1.0";
+	var FORMAT_BINARY_LE = "binary_little_endian 1.0";
+	var FORMAT_BINARY_BE = "binary_big_endian 1.0";
+	
 	var TYPE_SIZES = { // Some of these may not actually exist :)
 		"char" : 1,
 		"char8" : 1,
@@ -200,16 +204,16 @@ var Ply = function() {
 	var parse = function(inputStr) {
 		
 		var data = new Uint8Array(inputStr);
-		var header = "";
+		var headerStr = "";
 		
 		var index = 0;
 		var len = data.length;
 		var foundHeader = false;
 		
 		while (index < len) {
-			header += String.fromCharCode(data[index++]);
+			headerStr += String.fromCharCode(data[index++]);
 			
-			if (index > 10 && header.substring(index - 10) == "end_header") {
+			if (index > 10 && headerStr.substring(index - 10) == "end_header") {
 				index++; // Skip last whitespace
 				foundEndOfHeader = true;
 				break;
@@ -222,18 +226,21 @@ var Ply = function() {
 		
 		// var split = inputStr.split("end_header");
 		
-		var info = parseHeader(header);
+		var header = parseHeader(headerStr);
 		
-		console.log(info);
+		console.log(header);
 		
 		var dataString = "";
 		var splitData;
-		var result = {};
+
+		var firstVertexIndex, firstFaceIndex;
+		var parserInput;
 		
-		switch (info.format) {
-			case "ascii 1.0":
+		switch (header.format) {
+			case FORMAT_ASCII:
 				
 				// Convert the ArrayBuffer bytes to ascii (assuming UTF-8 encoding)
+				// TODO: this is really slow, find a better way! :)
 				
 				var dataString = new Array(inputStr.byteLength - index);
 				
@@ -250,35 +257,35 @@ var Ply = function() {
 					splitData[i] = splitData[i].split(" ");
 				}
 				
-				result.pos = PlyParse.asciiParseVertexProps(splitData, ["x", "y", "z"], info);
-				result.normals = PlyParse.asciiParseVertexProps(splitData, ["nx", "ny", "nz"], info);
-				result.colors = PlyParse.asciiParseVertexProps(splitData, ["red", "green", "blue"], info);
-				result.intensity = PlyParse.asciiParseVertexProps(splitData, ["intensity"], info);
-				result.faces = PlyParse.asciiParseElements(splitData, info.numVertices, info);
-				
+				parserInput = splitData;
+				firstVertexIndex = 0;
+				firstFaceIndex = header.numVertices;
 				break;
 				
-			case "binary_little_endian 1.0":
+			case FORMAT_BINARY_LE:
 				
-				var firstVertex = index;
-				var firstElem = index + info.vertexPropsLength() * info.numVertices;
-				
-				result.pos = PlyParse.binaryParseVertexProps(data, firstVertex, ["x", "y", "z"], info);
-				result.normals = PlyParse.binaryParseVertexProps(data, firstVertex, ["nx", "ny", "nz"], info);
-				result.colors = PlyParse.binaryParseVertexProps(data, firstVertex, ["red", "green", "blue"], info);
-				result.intensity = PlyParse.binaryParseVertexProps(data, firstVertex, ["intensity"], info);
-				result.faces = PlyParse.binaryParseElements(data, firstElem, info);
+				parserInput = data;
+				firstVertexIndex = index;
+				firstFaceIndex = index + header.vertexPropsLength() * header.numVertices;
 				break;
 				
-			case "binary_big_endian 1.0":
+			case FORMAT_BINARY_BE:
 				throw "Sorry, we don't support big endian binary format yet...";
 			default:
-				throw "Invalid ply format '" + info.format + "'.";
+				throw "Invalid ply format '" + header.format + "'.";
 		}
 		// *************************
 		
+		var result = {};
+		result.pos = PARSE_VERTEX_PROPS[header.format](parserInput, firstVertexIndex, ["x", "y", "z"], header);
+		result.normals = PARSE_VERTEX_PROPS[header.format](parserInput, firstVertexIndex, ["nx", "ny", "nz"], header);
+		result.colors = PARSE_VERTEX_PROPS[header.format](parserInput, firstVertexIndex, ["red", "green", "blue"], header);
+		result.intensity = PARSE_VERTEX_PROPS[header.format](parserInput, firstVertexIndex, ["intensity"], header);
+		result.faces = PARSE_FACES[header.format](parserInput, firstFaceIndex, header);
+		
 		// Suggest a renderer for the model
 		result.renderer = null;
+		
 		if (result.pos) {
 			if (!result.faces) {
 				// No faces means it's a point cloud
@@ -296,7 +303,7 @@ var Ply = function() {
 		
 		// A little haxxing here, since my renderers
 		// expect RGBA data as normalized 32-bit floats
-		if (result.colors && info.vertexProps["red"].size == 1) {
+		if (result.colors && header.vertexProps["red"].size == 1) {
 			var rgba = new Array(Math.round(result.colors.length / 3 * 4));
 			var indexIn = 0, indexOut = 0;
 			var norm = 1.0 / 255.0;
@@ -324,9 +331,12 @@ var Ply = function() {
 		return result;
 	};
 
-	var asciiParseVertexProps = function(splitData, propNames, info) {
+	var PARSE_VERTEX_PROPS = {};
+	var PARSE_FACES = {};
+	
+	PARSE_VERTEX_PROPS[FORMAT_ASCII] = function(data, startIndex, propNames, header) {
 		
-		var count = info.numVertices;
+		var count = header.numVertices;
 		
 		if (count == 0) {
 			return null;
@@ -337,68 +347,34 @@ var Ply = function() {
 		var numProps = propNames.length;
 		
 		// Check if properties exist
-		if (!info.hasProperties(propNames)) {
+		if (!header.hasProperties(propNames)) {
 			console.log("Trying to parse missing properties " + propNames);
 			return null;
 		}
 		
 		for (var i = 0; i < numProps; i++) {
-			var prop = info.vertexProps[propNames[i]];
+			var prop = header.vertexProps[propNames[i]];
 			indices[i] = prop.index;
 			parseFuncs[i] = prop.parseFunc;
 		}
 		
-		// var lines = data.split("\n");
 		var result = new Array(count * numProps);
 		var index = 0;
 		for (var i = 0; i < count; i++) {
-			var line = splitData[i];
+			var line = data[startIndex + i];
 			for (var j = 0; j < numProps; j++) {
 				result[index++] = parseFuncs[j](line[indices[j]]);
 			}
 		}
 		
-		var arrayType = ARRAY_TYPES[info.vertexProps[propNames[0]].type];
+		var arrayType = ARRAY_TYPES[header.vertexProps[propNames[0]].type];
 		
 		return new arrayType(result);
-	}
+	};
 
-	var asciiParseElements = function(splitData, startIndex, info) {
+	PARSE_VERTEX_PROPS[FORMAT_BINARY_LE] = function(data, startIndex, propNames, header) {
 		
-		var count = info.numFaces;
-		
-		if (count == 0) {
-			return null;
-		}
-		
-		var result = new Array(count * 3);
-		var index = 0;
-		var maxIndex = Math.pow(2, 16);
-		
-		for (var i = 0; i < count; i++) {
-			var line = splitData[startIndex + i];
-			
-			var indexCount = parseInt(line[0]);
-			if (indexCount == 3) {
-				
-				var i1 = parseInt(line[1]);
-				var i2 = parseInt(line[2]);
-				var i3 = parseInt(line[3]);
-				
-				if (i1 < maxIndex && i2 < maxIndex && i3 < maxIndex) {
-					result[index++] = i1;
-					result[index++] = i2;
-					result[index++] = i3;
-				}
-			}
-		}
-		
-		return new Uint16Array(result);
-	}
-
-	var binaryParseVertexProps = function(data, startIndex, propNames, info) {
-		
-		var count = info.numVertices;
+		var count = header.numVertices;
 		
 		if (count == 0) {
 			return null;
@@ -408,15 +384,15 @@ var Ply = function() {
 		var numProps = propNames.length;
 		
 		// Check if properties exist
-		if (!info.hasProperties(propNames)) {
+		if (!header.hasProperties(propNames)) {
 			console.log("Trying to parse missing properties " + propNames);
 			return null;
 		}
 		
 		// Check that all properties are of the same type
-		var type = info.vertexProps[propNames[0]].type;
+		var type = header.vertexProps[propNames[0]].type;
 		for (var i = 1; i < numProps; i++) {
-			var otherType = info.vertexProps[propNames[i]].type;
+			var otherType = header.vertexProps[propNames[i]].type;
 			if (type !== otherType) {
 				console.log("Property size mismatch in binary data, '" + type + "' and '" + otherType + "'.");
 				return null;
@@ -425,13 +401,13 @@ var Ply = function() {
 		
 		// Make offset list
 		for (var i = 0; i < numProps; i++) {
-			var prop = info.vertexProps[propNames[i]];
+			var prop = header.vertexProps[propNames[i]];
 			offsets[i] = prop.offset;
 		}
 		
 		var size = TYPE_SIZES[type];
 		var result = new ArrayBuffer(count * numProps * size);
-		var lineLength = info.vertexPropsLength();
+		var lineLength = header.vertexPropsLength();
 		var buffer;
 		var indexIn = startIndex;
 		var indexOut = 0;
@@ -477,19 +453,57 @@ var Ply = function() {
 		var arrayType = PlyParse.ARRAY_TYPES[type];
 		
 		return new arrayType(result);
-	}
+	};
 
-	var binaryParseElements = function(data, startIndex, info) {
+	PARSE_VERTEX_PROPS[FORMAT_BINARY_BE] = function() {
+		throw "Sorry, we don't support big endian binary format yet...";
+	};
+	
+	PARSE_FACES[FORMAT_ASCII] = function(data, startIndex, header) {
 		
-		var count = info.numFaces;
+		var count = header.numFaces;
+		
+		if (count == 0) {
+			return null;
+		}
+		
+		var result = new Array(count * 3);
+		var index = 0;
+		var maxIndex = Math.pow(2, 16);
+		
+		for (var i = 0; i < count; i++) {
+			var line = data[startIndex + i];
+			
+			var indexCount = parseInt(line[0]);
+			
+			if (indexCount == 3) {
+				
+				var i1 = parseInt(line[1]);
+				var i2 = parseInt(line[2]);
+				var i3 = parseInt(line[3]);
+				
+				if (i1 < maxIndex && i2 < maxIndex && i3 < maxIndex) {
+					result[index++] = i1;
+					result[index++] = i2;
+					result[index++] = i3;
+				}
+			}
+		}
+		
+		return new Uint16Array(result);
+	};
+
+	PARSE_FACES[FORMAT_BINARY_LE] = function(data, startIndex, header) {
+		
+		var count = header.numFaces;
 		
 		if (count == 0) {
 			return null;
 		}
 		
 		// size1 isn't used, assuming 8 bit data type
-		var size1 = TYPE_SIZES[info.faceProps.countType];
-		var size2 = TYPE_SIZES[info.faceProps.indexType];
+		var size1 = TYPE_SIZES[header.faceProps.countType];
+		var size2 = TYPE_SIZES[header.faceProps.indexType];
 		
 		var indexIn = startIndex;
 		var indexOut = 0;
@@ -565,8 +579,11 @@ var Ply = function() {
 			arrayType = Uint16Array;
 		}
 		return new arrayType(result);
-	}
+	};
 	
+	PARSE_FACES[FORMAT_BINARY_BE] = function() {
+		throw "Sorry, we don't support big endian binary format yet...";
+	};
 	
 	return { parse : parse };
 }();
