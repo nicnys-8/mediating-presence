@@ -3,6 +3,7 @@
  A timer object with second precision
  @param elemnent The HTML element in which the time is displayed 
  */
+
 Timer = function(element) {
     var intervalId;
     

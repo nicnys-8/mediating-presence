@@ -1,0 +1,694 @@
+<html>
+    
+    <head>
+        
+        <title>Kinect Calibration</title>
+        
+        <link rel="stylesheet" type="text/css" href="../css/pb.css" />
+        
+		<style type="text/css">
+			div.fullPage {
+				display:none;
+				position:absolute;
+                top:0;
+				left:0;
+                padding:0px;
+                margin:0px;
+                width:100%;
+				height:100%;
+			}
+            canvas.fullPage {
+				width:100%;
+				height:100%;
+				background-color:black;
+			}
+			canvas.videoCanvas {
+				display:block;
+				margin:1em 1em 1em 1em;
+				width:640px;
+				height:480px;
+			}
+			#videoCanvas2, #videoCanvas2:active, #videoCanvas2:focus {
+				cursor: crosshair;
+			}
+			#fullscreenCanvas {
+				width:100%;
+				height:100%;
+				background-color:black;
+			}
+            #loadingSpan {
+                display:block;
+                padding:30% 0% 0% 0%;
+                font-size:200%;
+            }
+            </style>
+		
+        <script type="text/javascript" src="../js/mediaext.js"></script>
+        <script type="text/javascript" src="../js/geometry.js"></script>
+        <script type="text/javascript" src="../js/lib/sylvester.js"></script>
+        <script type="text/javascript" src="../js/lib/zig.js"></script>
+        <script type="text/javascript" src="../js/kinect-decoder.js"></script>
+        <script type="text/javascript" src="../js/image-handling.js"></script>
+		
+        <script>
+            
+            // The Kinect related constants may be fetchable from the plugin?
+			const VIDEO_DISPLAY_WIDTH = 640, VIDEO_DISPLAY_HEIGHT = 480;
+			const KINECT_RGB_WIDTH = 160, KINECT_RGB_HEIGHT = 120;
+            const KINECT_DEPTH_WIDTH = 160, KINECT_DEPTH_HEIGHT = 120;
+            
+            const NUM_DEPTH_REFS = 50; // The number of frames to combine into the depth reference image
+            
+            var calibrationImage, calibrationContext;
+			var snapshotImage, snapshotContext;
+            var fullscreenCanvas;
+            
+            var calibrationSteps = [];
+            var calibrationIndex = 0;
+            
+            var vectors;
+            var depthRef;
+            var touchDistance = 10;
+            var interval = 10;
+            var xScale = 1.0;
+            
+			CalibrationPoint = function(color, position) {
+				this.browserX = 0;
+				this.browserY = 0;
+				this.cameraX = 0;
+				this.cameraY = 0;
+				this.color = color;
+				this.position = position;
+			};
+            
+			var calibrationPoints = [new CalibrationPoint("red", "top left"),
+									 new CalibrationPoint("green", "top right"),
+									 new CalibrationPoint("blue", "bottom right"),
+									 new CalibrationPoint("yellow", "bottom left"),
+									 new CalibrationPoint("white", "center")];
+            var initialized = false;
+            
+			var depthData = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT),
+            depthRef = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT),
+            planeError = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT);
+			var currentVideoFrame, videoData;
+            
+			var transform = null;
+            var plane;
+			var tmpPoly = [];
+            
+			function $(nodeName) {
+				return document.getElementById(nodeName);
+			}
+            function show(nodeName) {
+                $(nodeName).style.display = "block";
+            }
+            function hide(nodeName) {
+				$(nodeName).style.display = "none";
+            }
+			
+            /**
+             Called from body.onload
+             Initializes plugin and creates a few canvases :)
+             */
+            function init() {
+                
+                show("loading");
+                
+				calibrationImage = MediaExt.createCanvas(VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
+                calibrationContext = calibrationImage.getContext("2d");
+				
+				snapshotImage = MediaExt.createCanvas(VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
+                snapshotContext = snapshotImage.getContext("2d");
+                
+				fullscreenCanvas = $("fullscreenCanvas");
+				
+                window.onresize = function() {
+                    fullscreenCanvas.width = window.innerWidth;
+                    fullscreenCanvas.height = window.innerHeight;
+                    
+                    $("drawCanvas").width = window.innerWidth;
+                    $("drawCanvas").height = window.innerHeight;
+                    
+                    drawCalibrationMarkers();
+                };
+				
+				window.onresize();
+				
+                currentVideoFrame = MediaExt.createCanvas(KINECT_RGB_WIDTH, KINECT_RGB_HEIGHT);
+				videoData = currentVideoFrame.getContext("2d").createImageData(KINECT_RGB_WIDTH, KINECT_RGB_HEIGHT);
+                
+                
+                createCalibrationSteps();
+                
+                
+				plugin = document.getElementById("ZigPlugin");
+				// Start the video streams
+				plugin.requestStreams({updateDepth:true, updateImage:true});
+				// Start updating the canvases every new kinect frame
+                plugin.addEventListener("NewFrame", onNewKinectData);
+            }
+            
+            
+            /**
+             Callback from the plugin when new depth and RGB data is available from the Kinect.
+             Runs the calibration update loop using an array of calibration step objects (created
+             in function "createCalibrationSteps()"
+             */
+			function onNewKinectData() {
+				
+                /* Take a snapshot from the Kinect RGB video */
+                KinectDecoder.decodeRGB(plugin.imageMap, videoData.data);
+                currentVideoFrame.getContext("2d").putImageData(videoData, 0, 0);
+                
+                /* Take a snapshot from the Kinect depth video */
+                KinectDecoder.decodeDepth(plugin.depthMap, depthData);
+                
+                var currStep = calibrationSteps[calibrationIndex];
+                var nextStep = calibrationSteps[calibrationIndex + 1];
+                
+                if (!initialized) {
+                    currStep.onBegin();
+                    initialized = true;
+                }
+                
+                // Run the current calibration step
+                // onUpdate returns true if the step is finished
+                if (currStep.onUpdate()) {
+                    
+                    calibrationIndex++;
+                    
+                    nextStep.onBegin();
+                    
+                    hide(currStep.divID);
+                    show(nextStep.divID);
+                }
+			}
+            
+            function gotoCalibrationStep(index) {
+                hide(calibrationSteps[calibrationIndex].divID);
+				show(calibrationSteps[index].divID);
+                calibrationIndex = index;
+                initialized = false;
+            }
+            
+            function restartCalibration() {
+				gotoCalibrationStep(1);
+			}
+            
+            function createCalibrationSteps() {
+                
+                // Each calibration step is an object with a divID (name of the div containing
+                // its display page) and functions onBegin() and onUpdate()
+                // The functions are called from the Kinect update loop
+                
+                var CALIBRATION_STEP_0 = {
+                    divID : "loading",
+                    onBegin : function() {},
+                    onUpdate : function() { return true; },
+                };
+                
+                var CALIBRATION_STEP_1 = {
+                    
+                    divID : "stepOne",
+                    
+                    /**
+                     STEP 1 BEGIN FUNCTION
+                     */
+                    onBegin : function() {
+                        this.isDone = false;
+                        
+                        var self = this;
+                        $("startButton").onclick = function() { self.onStartButtonClicked(); };
+                        $("startButton").disabled = false;
+                    }, // end of CALIBRATION_STEP_1.onBegin()
+                    
+                    /**
+                     STEP 1 UPDATE FUNCTION
+                     Draw the current video frame to screen
+                     */
+                    onUpdate : function() {
+                        this.ctx.drawImage(currentVideoFrame, 0, 0, VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
+                        return this.isDone;
+                    }, // end of CALIBRATION_STEP_1.onUpdate()
+                    
+                    onStartButtonClicked : function() {
+                        drawCalibrationMarkers();
+                        this.isDone = true;
+                    },
+                    
+                    ctx : $("videoCanvas1").getContext("2d"),
+                    isDone : false,
+                    
+                }; // end of CALIBRATION_STEP_1 object
+                
+                
+                var CALIBRATION_STEP_2 = {
+                    
+                    divID : "stepTwo",
+                    
+                    /**
+                     STEP 2 BEGIN FUNCTION
+                     */
+                    onBegin : function() {
+                        this.depthRefCount = 0;
+                    }, // end of CALIBRATION_STEP_2.onBegin()
+                    
+                    /**
+                     STEP 2 UPDATE FUNCTION
+                     Generate a depth reference image
+                     */
+                    onUpdate : function() {
+                        
+                        this.depthRefCount++;
+                        
+                        if (this.depthRefCount == 1) {
+                            
+                            // First step, just copy the current depth data
+                            for (var i = 0; i < depthData.length; i++) {
+                                depthRef[i] = depthData[i];
+                            }
+                            
+                        } else if (this.depthRefCount <= NUM_DEPTH_REFS) {
+                            
+                            // Refine the reference image with the new depth data.
+                            // Zero values indicate no data, so we want to fill those in.
+                            // If a reference value and a new value both exist, the new
+                            // reference value is set to a weighted average of the two.
+                            for (var i = 0; i < depthData.length; i++) {
+                                if (depthRef[i] == 0) {
+                                    depthRef[i] = depthData[i];
+                                } else if (depthData[i] != 0) {
+                                    var ratio = 1.0 / this.depthRefCount;
+                                    depthRef[i] = depthRef[i] * (1.0 - ratio) + depthData[i] * ratio;
+                                }
+                            }
+                            
+                        } else {
+                            
+                            // Finished, save the current video frame and go to the next step of the calibration
+                            snapshotContext.drawImage(currentVideoFrame, 0, 0, VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
+                            
+                            /*
+                             //Check if local storage is supported
+                             function supports_html5_storage() {
+                             try {
+                             return 'localStorage' in window && window['localStorage'] !== null;
+                             } catch (e) {
+                             return false;
+                             }
+                             }*/
+                            return true;
+                        }
+                        return false;
+                    }, // end of CALIBRATION_STEP_2.onUpdate()
+                    
+                    depthRefCount : 0,
+                    
+                }; // end of CALIBRATION_STEP_2 object
+                
+                
+                var CALIBRATION_STEP_3 = {
+                    
+                    divID : "stepThree",
+                    
+                    /**
+                     STEP 4 BEGIN FUNCTION
+                     Called after step 3 finishes
+                     
+                     Sets up a canvas where the user can mark the calibration points
+                     */
+                    onBegin : function() {
+                        
+                        this.isDone = false;
+                        this.pointIndex = 0;
+                        
+                        // Set up button actions
+                        var self = this;
+                        $("undoButton").onclick = function() { self.onUndoButtonPressed(); };
+						$("undoButton").disabled = true;
+                        $("doneButton").onclick = function() { self.onDoneButtonPressed(); };
+                        $("doneButton").disabled = true;
+                        $("retakeImageButton").onclick = function() { restartCalibration(); };
+                        
+                        // Draw the snapshot to the calibration context (hidden canvas)
+                        calibrationContext.drawImage(snapshotImage, 0, 0, VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
+                        
+                        var videoCanvas2 = $("videoCanvas2");
+                        var videoContext2 = videoCanvas2.getContext("2d");
+                        
+                        videoContext2.drawImage(snapshotImage, 0, 0, VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
+                        videoCanvas2.isDrawing = false;
+                        videoCanvas2.isFull = false;
+                        
+                        // Add mouse events to the canvas to allow placing circles on the calibration markers
+                        videoCanvas2.onmousedown = function(e) {
+                            
+                            if (videoCanvas2.isFull)
+                            return;
+                            
+                            videoCanvas2.isDrawing = true;
+                            
+                            var x = e.pageX - this.offsetLeft;
+                            var y = e.pageY - this.offsetTop;
+                            
+                            videoContext2.drawImage(calibrationImage, 0, 0, VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
+                            drawCircle(videoContext2, x, y, calibrationPoints[self.pointIndex].color);
+                            
+                            e.preventDefault(); // prevent dragging to begin (keeps correct cursor)
+                        };
+                        
+                        videoCanvas2.onmousemove = function(e) {
+                            
+                            if (!videoCanvas2.isDrawing)
+                            return;
+                            
+                            var x = e.pageX - this.offsetLeft;
+                            var y = e.pageY - this.offsetTop;
+                            
+                            videoContext2.drawImage(calibrationImage, 0, 0, VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
+                            drawCircle(videoContext2, x, y, calibrationPoints[self.pointIndex].color);
+                        };
+                        
+                        videoCanvas2.onmouseup = function(e) {
+                            
+                            if (videoCanvas2.isFull)
+                            return;
+                            
+                            videoCanvas2.isDrawing = false;
+                            
+                            var x = e.pageX - this.offsetLeft;
+                            var y = e.pageY - this.offsetTop;
+                            
+                            videoContext2.drawImage(calibrationImage, 0, 0, VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
+                            drawCircle(videoContext2, x, y, calibrationPoints[self.pointIndex].color);
+                            drawCircle(calibrationContext, x, y, calibrationPoints[self.pointIndex].color);
+                            
+                            calibrationPoints[self.pointIndex].cameraX = x / 4;
+                            calibrationPoints[self.pointIndex].cameraY = y / 4;
+                            
+                            self.pointIndex++;
+                            $("undoButton").disabled = false;
+                            
+                            videoCanvas2.isFull = (self.pointIndex == 5);
+                            if (videoCanvas2.isFull) {
+                                $("doneButton").disabled = false;
+                                hide("crossSpan");
+                                show("doneSpan");
+								
+                            } else {
+                                self.updateColorInstructions();
+                            }
+                        };
+                        
+                        this.updateColorInstructions();
+                        
+                    }, // end of CALIBRATION_STEP_3.onBegin()
+                    
+                    /**
+                     STEP 3 UPDATE FUNCTION
+                     ...
+                     */
+                    onUpdate : function() {
+                        return this.isDone;
+                    }, // end of CALIBRATION_STEP_3.onUpdate()
+                    
+                    onDoneButtonPressed : function() {
+						// Check if plane can be calculated, alert and restart step otherwise!
+						try {
+                            // TODO: Create the transform here instead of in the beginning of step 4
+                            // Geometric transform to map points in camera space to the browser window (will probably be replaced by projective transformation)
+                            
+                            vectors = [
+                                       [{x:calibrationPoints[0].browserX, y:calibrationPoints[0].browserY},
+                                        {x:calibrationPoints[1].browserX, y:calibrationPoints[1].browserY},
+                                        {x:calibrationPoints[2].browserX, y:calibrationPoints[2].browserY},
+                                        {x:calibrationPoints[3].browserX, y:calibrationPoints[3].browserY}],
+                                       
+                                       [{x:calibrationPoints[0].cameraX, y:calibrationPoints[0].cameraY},
+                                        {x:calibrationPoints[1].cameraX, y:calibrationPoints[1].cameraY},
+                                        {x:calibrationPoints[2].cameraX, y:calibrationPoints[2].cameraY},
+                                        {x:calibrationPoints[3].cameraX, y:calibrationPoints[3].cameraY}]
+                                       ];
+                            
+                            // Store transform
+                            //localStorage.transform = JSON.stringify(tData);
+                            
+                            transform = new Geometry.Transform(vectors[0], vectors[1]);
+							this.isDone = true;
+						} catch (err) {
+							alert("Unable to do the math... And I'm a computer! Did you put any of the calibration points on top of each other? Try again, please!");
+							gotoCalibrationStep(3);
+						}
+                    },
+                    
+                    onUndoButtonPressed : function() {
+                        this.pointIndex--;
+                        $("undoButton").disabled = (this.pointIndex == 0);
+                        $("doneButton").disabled = true;
+                        
+                        hide("doneSpan");
+                        show("crossSpan");
+                        
+                        calibrationContext.drawImage(snapshotImage, 0, 0, VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
+                        
+                        for (var i = 0; i < this.pointIndex; i++) {
+                            var cp = calibrationPoints[i];
+                            drawCircle(calibrationContext, cp.cameraX * 4, cp.cameraY * 4, cp.color);
+                        }
+                        
+                        $("videoCanvas2").getContext("2d").drawImage(calibrationImage, 0, 0, VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
+                        $("videoCanvas2").isFull = false;
+                        
+                        this.updateColorInstructions();
+                    },
+                    
+                    updateColorInstructions : function() {
+                        $("positionSpan").innerHTML = calibrationPoints[this.pointIndex].position;
+                        $("colorSpan").innerHTML = calibrationPoints[this.pointIndex].color;
+                    },
+                    
+                    isDone : false,
+                    pointIndex : 0,
+                    
+                }; // end of CALIBRATION_STEP_3 object
+                
+                
+                var CALIBRATION_STEP_4 = {
+                    
+                    divID : "stepFour",
+                    
+                    /**
+                     STEP 4 BEGIN FUNCTION
+                     Called after step 3 finishes
+                     */
+                    onBegin : function() {
+                        
+                        // Used for drawing the touch area
+                        tmpPoly = [{x:calibrationPoints[0].cameraX, y:calibrationPoints[0].cameraY},
+                                   {x:calibrationPoints[1].cameraX, y:calibrationPoints[1].cameraY},
+                                   {x:calibrationPoints[2].cameraX, y:calibrationPoints[2].cameraY},
+                                   {x:calibrationPoints[3].cameraX, y:calibrationPoints[3].cameraY}];
+                        
+                    }, // end of CALIBRATION_STEP_4.onBegin()
+                    
+                    /**
+                     STEP 4 UPDATE FUNCTION
+                     Called when new Kinect data is available and this calibration step is active
+                     
+                     The calibration is finished here, this function calculates the distance to the touch surface
+                     at each pixel and draws a circle at the points where a touch is detected.
+                     */
+                    onUpdate : function() {
+                        
+                        // ** TEMP **
+                        // Draw the depth image in the background (temporary, just for reference)
+                        ImageHandling.depthToRGBA(depthData, videoData.data);
+                        currentVideoFrame.getContext("2d").putImageData(videoData, 0, 0);
+                        Geometry.drawPolys([tmpPoly], currentVideoFrame.getContext("2d"));
+                        this.ctx.drawImage(currentVideoFrame, 0, 0, window.innerWidth, window.innerHeight);
+                        // **********
+                        touchDistance = parseInt(document.getElementById("distanceSlider").value);
+						interval = parseInt(document.getElementById("intervalSlider").value);
+						xScale = parseFloat(document.getElementById("xScaleSlider").value);
+                        
+                        for (var y = 0, index = 0; y < KINECT_DEPTH_HEIGHT; y++) {
+                            for (var x = 0; x < KINECT_DEPTH_WIDTH; x++, index++) {
+                                
+                                var z = depthData[index];
+                                
+                                // Ignore points where depth data is missing
+                                if (z == 0)
+                                continue;
+                                
+                                // var distance = plane.signedDistanceTo(x, y, z) - planeError[index];
+                                var distance = depthRef[index] - depthData[index];
+                                if (distance > touchDistance && distance < (touchDistance + interval)) {
+                                    // Transform the point to browser coordinates
+                                    var p = transform.transformPoint({x:x, y:y});
+                                    p.x = p.x * xScale;
+                                    if (p.x >= 0 && p.y >= 0 && p.x <= window.innerWidth && p.y <= window.innerHeight) {
+                                        
+                                        this.ctx.beginPath();
+                                        this.ctx.arc(p.x, p.y, 10, 0, 2 * Math.PI, false);
+                                        this.ctx.fillStyle = "yellow";
+                                        this.ctx.closePath();
+                                        this.ctx.fill();
+                                    }
+                                }
+                            }
+                        }
+                        return false;
+                    }, // end of CALIBRATION_STEP_4.onUpdate()
+                    
+                    ctx : $("drawCanvas").getContext("2d"),
+                    
+                }; // end of CALIBRATION_STEP_4 object
+                
+                
+                calibrationSteps = [CALIBRATION_STEP_0,
+                                    CALIBRATION_STEP_1,
+                                    CALIBRATION_STEP_2,
+                                    CALIBRATION_STEP_3,
+                                    CALIBRATION_STEP_4];
+                
+            } // end of createCalibrationSteps()
+			
+            function drawCalibrationMarkers() {
+                
+                var ctx = fullscreenCanvas.getContext("2d");
+                var w = fullscreenCanvas.width;
+                var h = fullscreenCanvas.height;
+                var offset = 50;
+                
+				calibrationPoints[0].browserX = offset;
+				calibrationPoints[0].browserY = offset;
+                drawX(ctx, offset, offset, calibrationPoints[0].color);
+				
+				calibrationPoints[1].browserX = w - offset;
+				calibrationPoints[1].browserY = offset;
+                drawX(ctx, w - offset, offset, calibrationPoints[1].color);
+				
+                calibrationPoints[2].browserX = w - offset;
+				calibrationPoints[2].browserY = h - offset;
+                drawX(ctx, w - offset, h - offset, calibrationPoints[2].color);
+                
+				calibrationPoints[3].browserX = offset;
+				calibrationPoints[3].browserY = h - offset;
+                drawX(ctx, offset, h - offset, calibrationPoints[3].color);
+				
+				calibrationPoints[4].browserX = w / 2;
+				calibrationPoints[4].browserY = h / 2;
+                drawX(ctx, w / 2, h / 2, calibrationPoints[4].color);
+            }
+            
+            function drawX(ctx, x, y, color) {
+                
+                ctx.lineWidth = 20;
+                ctx.strokeStyle = color;
+                
+                ctx.beginPath();
+                ctx.moveTo(x - 30, y - 30);
+                ctx.lineTo(x + 30, y + 30);
+                ctx.closePath();
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(x - 30, y + 30);
+                ctx.lineTo(x + 30, y - 30);
+                ctx.closePath();
+                ctx.stroke();
+            }
+            
+			function drawCircle(ctx, x, y, color) {
+				var radius = 15;
+				ctx.beginPath();
+				ctx.arc(x, y, radius, 0, 2 * Math.PI, false);
+				ctx.lineWidth = 5;
+				ctx.strokeStyle = color;
+				ctx.closePath();
+				ctx.stroke();
+			}
+            
+            var storeThresholdValues = function() {
+                var transformData = {
+                    vectors: vectors,
+                    depthRef: depthRef,
+                    touchDistance: touchDistance,
+                    interval: interval,
+                    xScale: xScale
+                };
+                localStorage.transformData = JSON.stringify(transformData);
+                
+                console.log("Stored data:");
+                console.log("Vectors: " + vectors);
+                console.log("depthRef: " + depthRef);
+                console.log("touchDistance: " + touchDistance);
+                console.log("interval: " + interval);
+                console.log("xScale: " + xScale);
+            }
+            
+            </script>
+    </head>
+    
+    <body onload="init();">
+        
+		<div id="pluginContainer">
+            <object id="ZigPlugin" type="application/x-zig" width="0" height="0">
+                <param name="onload" value="zigPluginLoaded">
+                    </object>
+        </div>
+		
+        <center>
+			
+            <div class="fullPage" id="loading">
+                <span id="loadingSpan">Waiting for Kinect plugin...</span>
+            </div>
+            
+			<div class="fullPage" id="stepOne">
+				<h1>Calibration!</h1>
+				<canvas class="videoCanvas" id="videoCanvas1" width="640px" height="480px"></canvas>
+				Move the camera so it films the screen make sure all the calibration markers are visible! Then cliiick the button below.
+				<br>
+				<button id="startButton" disabled=true>Take Snapshot</button>
+			</div>
+			
+            <div class="fullPage" id="stepTwo">
+                <canvas id="fullscreenCanvas"></canvas>
+            </div>
+            
+			<div class="fullPage" id="stepThree">
+				<h1>Calibration!</h1>
+				<canvas class="videoCanvas" id="videoCanvas2" width="640px" height="480px"></canvas>
+                <span id="crossSpan" style="display:block">
+                    Please click the <span id="positionSpan"></span> (<span id="colorSpan"></span>) cross in the image!
+                </span>
+                <span id="doneSpan" style="display:none">
+                    Great! If you are happy with the placement of the circles, finish the calibration by pressing the Done button!
+                </span>
+				<button id="retakeImageButton">Retake Image</button>
+				<button id="undoButton" disabled=true>Undo</button>
+				<button id="doneButton" disabled=true>Done</button>
+            </div>
+            
+            <div class="fullPage" id="stepFour" style="wdith:100%">
+                <canvas class="fullPage" id="drawCanvas" style="position:absolute; top:0; left:0"></canvas>
+                <div style="background-color:white; position:absolute; top:0; left:0; wdith:100%">
+                    <span>Touch distance:</span>
+                    <input type="range" id="distanceSlider" value="24" min="0" max="30" />
+                    <span>Touch interval: </span>
+                    <input type="range" id="intervalSlider" value="7" min="0" max="30" />
+                    <span>x scale::</span>
+                    <span>x scale::</span>
+                    <input type="range" id="xScaleSlider" value="0.85" min="0.7" max="1.0" step="0.01" />
+                    <button onclick="storeThresholdValues()">Save current setup</button>
+                </div>
+                
+            </div>
+            
+        </center>
+        
+    </body>
+    
+    
+</html>
