@@ -198,7 +198,7 @@ var Ply = function() {
 			faceProps.indexType = facePropsList[1];
 		}
 		
-		return new PlyProps(format, numVertices, numFaces, vertexProps, faceProps);
+		return new Header(format, numVertices, numFaces, vertexProps, faceProps);
 	};
 
 	var parse = function(inputStr) {
@@ -450,7 +450,7 @@ var Ply = function() {
 				return null;
 		}
 		
-		var arrayType = PlyParse.ARRAY_TYPES[type];
+		var arrayType = ARRAY_TYPES[type];
 		
 		return new arrayType(result);
 	};
