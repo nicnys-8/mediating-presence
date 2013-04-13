@@ -12,6 +12,7 @@
         <script type="text/javascript" src="js/lib/glMatrix-0.9.5.min.js"></script>
         <script type="text/javascript" src="js/point-cloud-renderer.js"></script>
 		<script type="text/javascript" src="js/phong-renderer.js"></script>
+		<script type="text/javascript" src="js/phong-renderer-ext.js"></script>
 		<script type="text/javascript" src="js/rgba-mesh-renderer.js"></script>
 		<script type="text/javascript" src="js/ply-parser.js"></script>
 		
@@ -96,7 +97,15 @@
 				shareButton = document.getElementById("shareButton");
 				clearButton = document.getElementById("clearButton");
 				
-                // **********************
+				for (var i = 0; i < 3; i++) {
+					document.getElementById("specular" + i).value = specular[i] * 255;
+					document.getElementById("diffuse" + i).value = diffuse[i] * 255;
+					document.getElementById("ambient" + i).value = ambient[i] * 255;
+				}
+				document.getElementById("shininess").value = shininess;
+				
+
+				// **********************
                 // Drag and drop with File API
                 var dropbox = document.getElementById("dropbox"),
                 dropboxContainer = document.getElementById("container"),
@@ -189,7 +198,7 @@
 						
 						positionModel(model);
 						
-						if (rendererConstructor == PhongRenderer) {
+						if (rendererConstructor == PhongRenderer || rendererConstructor == PhongRendererExt) {
 							renderer.bufferData(model.pos, model.normals, model.faces);
 						} else if (rendererConstructor == MeshRenderer) {
 							renderer.bufferData(model.pos, model.colors, model.faces);
@@ -209,100 +218,6 @@
                 // reader.readAsText(file);
 				reader.readAsArrayBuffer(file);
             }
-			
-			function positionModel(model) {
-				
-				if (model.pos) {
-					
-					// Calculate position for the object
-					var vertices = model.pos;
-					
-					var maxX=-Infinity, maxY=-Infinity, maxZ=-Infinity,
-						minX=Infinity, minY=Infinity, minZ=Infinity;
-					
-					for (var i = 0; i < vertices.length;) {
-						
-						var x = vertices[i++],
-							y = vertices[i++],
-							z = vertices[i++];
-					
-						maxX = Math.max(maxX, x);
-						maxY = Math.max(maxY, y);
-						maxZ = Math.max(maxZ, z);
-						
-						minX = Math.min(minX, x);
-						minY = Math.min(minY, y);
-						minZ = Math.min(minZ, z);
-					}
-					var cx = (maxX + minX) / 2;
-					var cy = (maxY + minY) / 2;
-					var cz = (maxZ + minZ) / 2;
-					
-					renderer.setCenterOfRotation([-cx, -cy, -cz]);
-					renderer.setPosition([0, 0, -(maxX - minX) / Math.atan(22.5 * Math.PI / 180)]);
-				}
-			}
-			
-			function serializeModel(model) {
-				
-				var pos = model.pos ? new Array(model.pos.length) : [];
-				var normals = model.normals ? new Array(model.normals.length) : [];
-				var faces = model.faces ? new Array(model.faces.length) : [];
-				var colors = model.colors ? new Array(model.colors.length) : [];
-				
-				for (var i = 0, len = pos.length; i < len; i++) {
-					pos[i] = model.pos[i];
-				}
-				for (var i = 0, len = normals.length; i < len; i++) {
-					normals[i] = model.normals[i];
-				}
-				for (var i = 0, len = faces.length; i < len; i++) {
-					faces[i] = model.faces[i];
-				}
-				for (var i = 0, len = colors.length; i < len; i++) {
-					colors[i] = model.colors[i];
-				}
-				return {pos:pos,
-						normals:normals,
-						faces:faces,
-						colors:colors,};
-			}
-			
-			function loadJSONModel(model) {
-
-				clearGLCanvas();
-				
-				// Select renderer
-				if (model.pos) {
-					if (!model.faces) {
-						// No faces means it's a point cloud
-						if (model.colors) {
-							renderer = new PointCloudRenderer(glCanvas);
-							renderer.bufferData(new Float32Array(model.pos),
-												new Float32Array(model.colors));
-						}
-					} else {
-						if (model.normals) {
-							renderer = new PhongRenderer(glCanvas);
-							renderer.bufferData(new Float32Array(model.pos),
-												new Float32Array(model.normals),
-												new Uint16Array(model.faces));
-						} else if (model.colors) {
-							renderer = new MeshRenderer(glCanvas);
-							renderer.bufferData(new Float32Array(model.pos),
-												new Float32Array(model.colors));
-						}
-					}
-				}
-				
-				positionModel(model);
-				
-				if (renderer) {
-					dropbox.style.display = "none";
-					glCanvas.style.display = "block";
-					TabControl.sendMessage("share", "modelReceived", {});
-				}
-			}
 			
 			function downloadFile(url, success) {
 				var req = new XMLHttpRequest();
@@ -346,10 +261,133 @@
                 };
             }
 			
+			var specular = [0.8, 0.8, 0.8];
+			var diffuse = [0.6, 0.6, 0.6];
+			var ambient = [0.2, 0.2, 0.2];
+			var shininess = 20.0;
+			var lightPos = [0, 0, 0];
+			var baseScale = 1.0;
+			var distance = 0.0;
+			var zoom = 1.0;
+			
+			function positionModel(model) {
+				
+				if (model.pos) {
+					
+					// Calculate position for the object
+					var vertices = model.pos;
+					
+					var maxX = -Infinity,
+						maxY = -Infinity,
+						maxZ = -Infinity,
+						minX = Infinity,
+						minY = Infinity,
+						minZ = Infinity;
+					
+					for (var i = 0; i < vertices.length;) {
+						
+						var x = vertices[i++],
+							y = vertices[i++],
+							z = vertices[i++];
+						
+						maxX = Math.max(maxX, x);
+						maxY = Math.max(maxY, y);
+						maxZ = Math.max(maxZ, z);
+						
+						minX = Math.min(minX, x);
+						minY = Math.min(minY, y);
+						minZ = Math.min(minZ, z);
+					}
+					
+					var cx = (maxX + minX) / 2,
+						cy = (maxY + minY) / 2,
+						cz = (maxZ + minZ) / 2;
+					
+					baseScale = 1.0 / (maxX - minX);
+					distance = -1.0 / Math.atan(22.5 * Math.PI / 180);
+					
+					renderer.setScale(baseScale * zoom);
+					renderer.setCenterOfRotation([-cx, -cy, -cz]);
+					renderer.setPosition([0, 0, distance]);
+				}
+			}
+			
+			function serializeModel(model) {
+				
+				var pos = model.pos ? new Array(model.pos.length) : [];
+				var normals = model.normals ? new Array(model.normals.length) : [];
+				var faces = model.faces ? new Array(model.faces.length) : [];
+				var colors = model.colors ? new Array(model.colors.length) : [];
+				
+				for (var i = 0, len = pos.length; i < len; i++) {
+					pos[i] = model.pos[i];
+				}
+				for (var i = 0, len = normals.length; i < len; i++) {
+					normals[i] = model.normals[i];
+				}
+				for (var i = 0, len = faces.length; i < len; i++) {
+					faces[i] = model.faces[i];
+				}
+				for (var i = 0, len = colors.length; i < len; i++) {
+					colors[i] = model.colors[i];
+				}
+				return {pos:pos,
+					normals:normals,
+					faces:faces,
+					colors:colors,};
+			}
+			
+			function loadJSONModel(model) {
+				
+				clearGLCanvas();
+				
+				// Select renderer
+				if (model.pos) {
+					if (!model.faces) {
+						// No faces means it's a point cloud
+						if (model.colors) {
+							renderer = new PointCloudRenderer(glCanvas);
+							renderer.bufferData(new Float32Array(model.pos),
+												new Float32Array(model.colors));
+						}
+					} else {
+						if (model.normals) {
+							renderer = new PhongRenderer(glCanvas);
+							renderer.bufferData(new Float32Array(model.pos),
+												new Float32Array(model.normals),
+												new Uint16Array(model.faces));
+						} else if (model.colors) {
+							renderer = new MeshRenderer(glCanvas);
+							renderer.bufferData(new Float32Array(model.pos),
+												new Float32Array(model.colors));
+						}
+					}
+				}
+				
+				positionModel(model);
+				
+				if (renderer) {
+					dropbox.style.display = "none";
+					glCanvas.style.display = "block";
+					TabControl.sendMessage("share", "modelReceived", {});
+				}
+			}
 			
 			function drawScene() {
 				requestAnimFrame(drawScene);
 				if (renderer) {
+					
+					if (renderer.setSpecular) {
+						renderer.setSpecular(specular);
+						renderer.setDiffuse(diffuse);
+						renderer.setAmbient(ambient);
+						renderer.setShininess(shininess);
+						renderer.setScale(baseScale * zoom);
+						renderer.setLightPos(lightPos);
+					}
+					
+					// renderer.setPosition([0, 0, distance * zoom]);
+					
 					renderer.render();
 				}
 			}
@@ -413,6 +451,68 @@
 	<body>
         
         <h1>Share 3D models</h1>
+		
+		<div id="controls" style="padding:0px 20px 20px 20px; border:1px solid black; border-radius:5px; position:absolute; left:20px; top:60px;">
+			
+			<h2>Material</h2>
+			<h3>Specular</h3>
+			<div style="text-align:right;">
+				Red <input id="specular0" type="range" min=0 max=255 value=127
+				onchange="specular[0] = Number(this.value / 255.0);"/><br>
+				Green <input id="specular1" type="range" min=0 max=255 value=127
+				onchange="specular[1] = Number(this.value / 255.0);"/><br>
+				Blue <input id="specular2" type="range" min=0 max=255 value=127
+				onchange="specular[2] = Number(this.value / 255.0);"/><br>
+			</div>
+			
+			<h3>Diffuse</h3>
+			<div style="text-align:right;">
+				Red <input id="diffuse0" type="range" min=0 max=255 value=127
+				onchange="diffuse[0] = Number(this.value / 255.0);"/><br>
+				Green <input id="diffuse1" type="range" min=0 max=255 value=127
+				onchange="diffuse[1] = Number(this.value / 255.0);"/><br>
+				Blue <input id="diffuse2" type="range" min=0 max=255 value=127
+				onchange="diffuse[2] = Number(this.value / 255.0);"/><br>
+			</div>
+			
+			<h3>Ambient</h3>
+			<div style="text-align:right;">
+				Red <input id="ambient0" type="range" min=0 max=255 value=127
+				onchange="ambient[0] = Number(this.value / 255.0);"/><br>
+				Green <input id="ambient1" type="range" min=0 max=255 value=127
+				onchange="ambient[1] = Number(this.value / 255.0);"/><br>
+				Blue <input id="ambient2" type="range" min=0 max=255 value=127
+				onchange="ambient[2] = Number(this.value / 255.0);"/><br>
+			</div>
+			
+			<h3>Shininess</h3>
+			<div style="text-align:right;">
+				<input id="shininess" type="range" min=0 max=255 value=127
+				onchange="shininess = Number(this.value);"/><br>
+			</div>
+			
+			<h3>Zoom</h3>
+			<div style="text-align:right;">
+				<input type="range" min=0 max=2 value=1 step=0.01
+				onchange="zoom = Number(this.value);"/><br>
+			</div>
+		</div>
+
+		<div id="controls" style="padding:0px 20px 20px 20px; border:1px solid black; border-radius:5px; position:absolute; right:20px; top:60px;">
+			
+			<h2>Light</h2>
+			<h3>Position</h3>
+			<div style="text-align:right;">
+				x <input type="range" min=-5 max=5 value=0 step=0.05
+				onchange="lightPos[0] = Number(this.value);"/><br>
+				y <input type="range" min=-5 max=5 value=0 step=0.05
+				onchange="lightPos[1] = Number(this.value);"/><br>
+				z <input type="range" min=-5 max=5 value=0 step=0.05
+				onchange="lightPos[2] = Number(this.value);"/><br>
+			</div>
+			
+		</div>
+
         <div id="container">
             <div id="dropbox">
                 <p id="status">Drop a .ply file here, or use this fine button:<br><br><input type="file" id="fileSelect"></p>
