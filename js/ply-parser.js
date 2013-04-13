@@ -294,7 +294,7 @@ var Ply = function() {
 				}
 			} else {
 				if (result.normals) {
-					result.renderer = PhongRenderer;
+					result.renderer = PhongRendererExt;
 				} else if (result.colors || result.intensity) {
 					result.renderer = MeshRenderer;
 				}
