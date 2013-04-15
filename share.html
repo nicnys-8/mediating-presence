@@ -87,9 +87,40 @@
 			TabControl.onNewKinectData = function(videoData, depthData) {
 			}
 			
+			function updateInputs(name, values) {
+				document.getElementById(name + "Color").value = crapRGBtoHex(values);
+				document.getElementById(name + "0").value = values[0] * 255;
+				document.getElementById(name + "1").value = values[1] * 255;
+				document.getElementById(name + "2").value = values[2] * 255;
+			}
+			
             TabControl.onLoad = function() {
                 
-                glCanvas = MediaExt.createCanvas(kWidth, kHeight);
+				var specularPicker = document.getElementById("specularColor");
+				specularPicker.value = crapRGBtoHex(specular);
+				specularPicker.onchange = function() {
+					crapHexToRGB(this.value, specular);
+					updateInputs("specular", specular);
+				}
+				var diffusePicker = document.getElementById("diffuseColor");
+				diffusePicker.value = crapRGBtoHex(diffuse);
+				diffusePicker.onchange = function() {
+					crapHexToRGB(this.value, diffuse);
+					updateInputs("diffuse", diffuse);
+				}
+				var ambientPicker = document.getElementById("ambientColor");
+				ambientPicker.value = crapRGBtoHex(ambient);
+				ambientPicker.onchange = function() {
+					crapHexToRGB(this.value, ambient);
+					updateInputs("ambient", ambient);
+				}
+				
+				/*
+				for (var prop in colorSel)
+					console.log(prop);
+				 */
+				
+				glCanvas = MediaExt.createCanvas(kWidth, kHeight);
                 glCanvas.style.display = "none";
                 glCanvas.style.margin = "20px auto";
                 document.getElementById("container").appendChild(glCanvas);
@@ -444,6 +475,38 @@
 				clearButton.disabled = true;
 			}
 			
+			
+			var haxHex = "0123456789abcdef";
+			
+			function crapHexToRGB(value, dst) {
+				
+				var R = ((haxHex.indexOf(value[1])) << 4 | haxHex.indexOf(value[2])) / 255.0;
+				var G = ((haxHex.indexOf(value[3])) << 4 | haxHex.indexOf(value[4])) / 255.0;
+				var B = ((haxHex.indexOf(value[5])) << 4 | haxHex.indexOf(value[6])) / 255.0;
+				
+				if (!dst) {
+					dst = [];
+				}
+				
+				dst[0] = R;
+				dst[1] = G;
+				dst[2] = B;
+				
+				return dst;
+			}
+			function crapRGBtoHex(rgb) {
+				const maskUpper = 240; // 0xf0
+				const maskLower = 15; // 0x0f
+				var R = Math.round(rgb[0] * 255);
+				var G = Math.round(rgb[1] * 255);
+				var B = Math.round(rgb[2] * 255);
+				
+				var hex = "#" + haxHex[(R & maskUpper) >> 4] + haxHex[R & maskLower] +
+								haxHex[(G & maskUpper) >> 4] + haxHex[G & maskLower] +
+								haxHex[(B & maskUpper) >> 4] + haxHex[B & maskLower];
+				return hex;
+			}
+			
             </script>
         
     </head>
@@ -455,34 +518,34 @@
 		<div id="controls" style="padding:0px 20px 20px 20px; border:1px solid black; border-radius:5px; position:absolute; left:20px; top:60px;">
 			
 			<h2>Material</h2>
-			<h3>Specular</h3>
+			<h3>Specular <input id="specularColor" type="color"/></h3>
 			<div style="text-align:right;">
 				Red <input id="specular0" type="range" min=0 max=255 value=127
-				onchange="specular[0] = Number(this.value / 255.0);"/><br>
+				onchange="specular[0] = Number(this.value / 255.0); updateInputs('specular', specular);"/><br>
 				Green <input id="specular1" type="range" min=0 max=255 value=127
-				onchange="specular[1] = Number(this.value / 255.0);"/><br>
+				onchange="specular[1] = Number(this.value / 255.0); updateInputs('specular', specular);"/><br>
 				Blue <input id="specular2" type="range" min=0 max=255 value=127
-				onchange="specular[2] = Number(this.value / 255.0);"/><br>
+				onchange="specular[2] = Number(this.value / 255.0); updateInputs('specular', specular);"/><br>
 			</div>
 			
-			<h3>Diffuse</h3>
+			<h3>Diffuse <input id="diffuseColor" type="color"/></h3>
 			<div style="text-align:right;">
 				Red <input id="diffuse0" type="range" min=0 max=255 value=127
-				onchange="diffuse[0] = Number(this.value / 255.0);"/><br>
+				onchange="diffuse[0] = Number(this.value / 255.0); updateInputs('diffuse', diffuse);"/><br>
 				Green <input id="diffuse1" type="range" min=0 max=255 value=127
-				onchange="diffuse[1] = Number(this.value / 255.0);"/><br>
+				onchange="diffuse[1] = Number(this.value / 255.0); updateInputs('diffuse', diffuse);"/><br>
 				Blue <input id="diffuse2" type="range" min=0 max=255 value=127
-				onchange="diffuse[2] = Number(this.value / 255.0);"/><br>
+				onchange="diffuse[2] = Number(this.value / 255.0); updateInputs('diffuse', diffuse);"/><br>
 			</div>
 			
-			<h3>Ambient</h3>
+			<h3>Ambient <input id="ambientColor" type="color"/></h3>
 			<div style="text-align:right;">
 				Red <input id="ambient0" type="range" min=0 max=255 value=127
-				onchange="ambient[0] = Number(this.value / 255.0);"/><br>
+				onchange="ambient[0] = Number(this.value / 255.0); updateInputs('ambient', ambient);"/><br>
 				Green <input id="ambient1" type="range" min=0 max=255 value=127
-				onchange="ambient[1] = Number(this.value / 255.0);"/><br>
+				onchange="ambient[1] = Number(this.value / 255.0); updateInputs('ambient', ambient);"/><br>
 				Blue <input id="ambient2" type="range" min=0 max=255 value=127
-				onchange="ambient[2] = Number(this.value / 255.0);"/><br>
+				onchange="ambient[2] = Number(this.value / 255.0); updateInputs('ambient', ambient);"/><br>
 			</div>
 			
 			<h3>Shininess</h3>
@@ -509,6 +572,9 @@
 				onchange="lightPos[1] = Number(this.value);"/><br>
 				z <input type="range" min=-5 max=5 value=0 step=0.05
 				onchange="lightPos[2] = Number(this.value);"/><br>
+				
+				BLOB! <input type="range" min=-0.125 max=0.125 value=0 step=0.00125
+				onchange="renderer.setBlobbiness(this.value);"/><br>
 			</div>
 			
 		</div>
