@@ -136,6 +136,50 @@ BaseRenderer = function(canvas) {
 		pos[2] = vec[2];
 	}
 	
+	var uniformLocations = null;
+	
+	this.getUniformLocations = function(names) {
+		if (uniformLocations == null) {
+			uniformLocations = {};
+			for (var i in names) {
+				var name = names[i];
+				uniformLocations[name] = gl.getUniformLocation(prog, name);
+			}
+		}
+		return uniformLocations;
+	}
+	
+	this.setUniform = function(name, type, value) {
+	
+		var location = uniformLocations[name];
+		if (!location) {
+			return;
+		}
+		switch (type) {
+		case "float":
+			gl.uniform1f(location, value); break;
+		case "int":
+			gl.uniform1i(location, value); break;
+		case "vec2":
+			gl.uniform2fv(location, value); break;
+		case "ivec2":
+			gl.uniform2iv(location, value); break;
+		case "vec3":
+			gl.uniform3fv(location, value); break;
+		case "ivec3":
+			gl.uniform3iv(location, value); break;
+		case "mat2":
+			gl.uniformMatrix2fv(location, false, value); break;
+		case "mat3":
+			gl.uniformMatrix3fv(location, false, value); break;
+		case "mat4":
+			gl.uniformMatrix4fv(location, false, value); break;
+		default:
+			// I skipped some known types for now, so this message may be faulty :)
+			console.log("Trying to set unknown uniform type '" + type + "'.");
+		}
+	}
+	
 	// TODO: Add boolean parameter that specifies if requestAnimationFrame should be called?
 	this.render = function() {
 		
