@@ -12,14 +12,17 @@ PhongRendererExt = function(canvas) {
 				 "uniform mat4 view;",
 				 "uniform mat4 proj;",
 				 "uniform mat4 norm;",
+				 "uniform float blobbiness;",
 				 
 				 "varying vec3 vNormal;",
 				 "varying vec3 vWorldPos;",
 				 
 				 "void main(void){",
 					"vWorldPos = (view * vec4(aVertexPosition, 1.0)).xyz;",
-					"vNormal = (view * vec4(aNormal, 0.0)).xyz;",
-					"gl_Position = proj * view * vec4(aVertexPosition, 1.0);",
+					"vec4 n = norm * vec4(aNormal, 0.0);",
+					"vec4 pos = view * vec4(aVertexPosition, 1.0);",
+					"vNormal = n.xyz;",
+					"gl_Position = proj * (pos + (n * blobbiness)); // +*/ sin(pos.y * 3.14159 * blobbiness)); // * blobbiness);",
 				 "}",
 				 ].join("\n");
 	
@@ -36,6 +39,7 @@ PhongRendererExt = function(canvas) {
 				 "uniform vec3 matDiffuse;",
 				 "uniform vec3 matAmbient;",
 				 "uniform float matShininess;",
+				 "uniform float blobbiness;",
 				 
 				 "void main(void) {",
 				 
@@ -88,6 +92,8 @@ PhongRendererExt = function(canvas) {
 	prog.unifDiffuse = gl.getUniformLocation(prog, "matDiffuse");
 	prog.unifAmbient = gl.getUniformLocation(prog, "matAmbient");
 	prog.unifShininess = gl.getUniformLocation(prog, "matShininess");
+	
+	prog.unifBlobbiness = gl.getUniformLocation(prog, "blobbiness");
 	
 	// Set black background
 	gl.clearColor(0.0, 0.0, 0.0, 0.0);
@@ -188,6 +194,11 @@ PhongRendererExt = function(canvas) {
 		lightPos[2] = vec[2];
 	}
 	
+	var blobbiness = 0.0;
+	this.setBlobbiness = function(val) {
+		blobbiness = val;
+	}
+	
 	// TODO: Add boolean parameter that specifies if requestAnimationFrame should be called?
 	this.render = function() {
 		
@@ -219,6 +230,7 @@ PhongRendererExt = function(canvas) {
 		gl.uniform3fv(prog.unifDiffuse, diffuse);
 		gl.uniform3fv(prog.unifAmbient, ambient);
 		gl.uniform1f(prog.unifShininess, shininess);
+		gl.uniform1f(prog.unifBlobbiness, blobbiness);
 		
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
 		gl.drawElements(gl.TRIANGLES, indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
