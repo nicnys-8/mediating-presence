@@ -115,16 +115,18 @@
                         if (z > 0 && z < maxDepth) {
 							
                             // INCORRECT SCALING! :)
-                            pos[index * 3 + 0] = x;
-                            pos[index * 3 + 1] = -y;
-                            pos[index * 3 + 2] = -z / zScale;
+                            pos.push(x); // [index * 3 + 0] = x;
+                            pos.push(-y); // [index * 3 + 1] = -y;
+                            pos.push(-z / zScale); // [index * 3 + 2] = -z / zScale;
                             
-							var ri = Math.round(y * KINECT_DEPTH_WIDTH + Math.max(x + 6, 0));
+							var ri = x < 80 ? Math.round(y * KINECT_DEPTH_WIDTH + Math.max(x + 6 + (6 * Math.abs(x - 80) / 80), 0))
+							: Math.round(y * KINECT_DEPTH_WIDTH + Math.max(x + 6 - (6 * Math.abs(x - 80) / 80), 0));
 							
-                            rgb[index * 4 + 0] = videoData.data[ri * 4 + 0] / 255.0;
-                            rgb[index * 4 + 1] = videoData.data[ri * 4 + 1] / 255.0;
-                            rgb[index * 4 + 2] = videoData.data[ri * 4 + 2] / 255.0;
-                            rgb[index * 4 + 3] = videoData.data[ri * 4 + 3] / 255.0;
+							
+                            rgb.push(/*[index * 4 + 0] = */videoData.data[ri * 4 + 0] / 255.0*2);
+                            rgb.push(/*[index * 4 + 1] = */videoData.data[ri * 4 + 1] / 255.0*2);
+                            rgb.push(/*[index * 4 + 2] = */videoData.data[ri * 4 + 2] / 255.0*2);
+                            rgb.push(/*[index * 4 + 3] = */videoData.data[ri * 4 + 3] / 255.0*2);
 							
 							/*
 							maxX = Math.max(maxX, x);
@@ -150,14 +152,14 @@
 				/*
 				Bad first attempt at meshing the point cloud
 				*/
-				for (var i = 0; i < KINECT_DEPTH_HEIGHT; i = nextRow, index += rowSize) {
+				for (var i = 0; i < KINECT_DEPTH_HEIGHT; i++/* = nextRow*/, index += rowSize) {
 					
 					rowSize = meshRowSizes[i];
 					
 					// Find the next row containing points
 					nextRow = i + 1;
 					
-					while (nextRow < KINECT_DEPTH_HEIGHT && meshRowSizes[nextRow] === 0) {
+					while (nextRow < KINECT_DEPTH_HEIGHT && meshRowSizes[nextRow] == 0) {
 						nextRow++;
 					}
 					if (nextRow >= KINECT_DEPTH_HEIGHT) {
@@ -169,50 +171,51 @@
 					if (rowSize == 0) {
 						continue;
 					}
-					
+					/*
 					// Can't make a triangle unless at least three vertices exist
 					if (rowSize < 2 && nextRowSize < 2) {
 						continue;
 					}
-					
+					*/
 					// Does the first triangle point up or down?
 					pointsUp = (rowSize == 1);
 				
 					var rowIndex = 0;
 					var nextRowIndex = 0;
-					/*
+					
+					
 					for (var ii = 0; ii < rowSize - 1; ii++) {
 						for (var jj = 0; jj < nextRowSize; jj++) {
 							
 							var i1 = index + ii;
-							var i2 = index + ii + 1;
-							var i3 = index + rowSize + jj;
+							var i2 = index + rowSize + jj;
+							var i3 = index + ii + 1;
 							
 							if (useTriangle(pos, i1, i2, i3, 10)) {
 								triangles.push(i1);
 								triangles.push(i2);
 								triangles.push(i3);
-								break;
+								// break;
 							}
 						}
 					}
 					
-					for (var jj = 0; jj < nextRowSize - 1; jj++) {
-						for (var ii = 0; ii < rowSize; ii++) {
+					for (var ii = 0; ii < nextRowSize - 1; ii++) {
+						for (var jj = 0; jj < rowSize; jj++) {
 						
-							var i1 = index + ii;
-							var i2 = index + rowSize + jj;
-							var i3 = index + rowSize + jj + 1;
+							var i1 = index + rowSize + ii;
+							var i2 = index + jj;
+							var i3 = index + rowSize + ii + 1;
 							
 							if (useTriangle(pos, i1, i2, i3, 10)) {
 								triangles.push(i1);
 								triangles.push(i2);
 								triangles.push(i3);
-								break;
+								// break;
 							}
 						}
 					}
-					*/
+					/*
 					
 					// Add indices
 					while (true) {
@@ -225,11 +228,11 @@
 						
 							if (nextRowIndex < nextRowSize - 1) {
 							
-								var i1 = index + rowIndex,
-									i2 = index + rowSize + nextRowIndex,
+								var i1 = index + rowSize + nextRowIndex,
+									i2 = index + rowIndex,
 									i3 = index + rowSize + nextRowIndex + 1;
 							
-								if (useTriangle(pos, i1, i2, i3, 30)) {
+								if (useTriangle(pos, i1, i2, i3, 10)) {
 									triangles.push(i1);
 									triangles.push(i2);
 									triangles.push(i3);
@@ -245,7 +248,7 @@
 									i2 = index + rowSize + nextRowIndex,
 									i3 = index + rowIndex + 1;
 							
-								if (useTriangle(pos, i1, i2, i3, 30)) {
+								if (useTriangle(pos, i1, i2, i3, 10)) {
 									triangles.push(i1);
 									triangles.push(i2);
 									triangles.push(i3);
@@ -255,7 +258,7 @@
 						}
 						
 						pointsUp = !pointsUp;
-					}
+					}*/
 				}
 				
 				// console.log((maxX + minX) / 2 + ", " + (maxY + minY) / 2 + ", " + (maxZ + minZ) / 2);
