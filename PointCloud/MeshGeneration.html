@@ -123,10 +123,10 @@
 							: Math.round(y * KINECT_DEPTH_WIDTH + Math.max(x + 6 - (6 * Math.abs(x - 80) / 80), 0));
 							
 							
-                            rgb.push(/*[index * 4 + 0] = */videoData.data[ri * 4 + 0] / 255.0*2);
-                            rgb.push(/*[index * 4 + 1] = */videoData.data[ri * 4 + 1] / 255.0*2);
-                            rgb.push(/*[index * 4 + 2] = */videoData.data[ri * 4 + 2] / 255.0*2);
-                            rgb.push(/*[index * 4 + 3] = */videoData.data[ri * 4 + 3] / 255.0*2);
+                            rgb.push(/*[index * 4 + 0] = */videoData.data[ri * 4 + 0] / 255.0);
+                            rgb.push(/*[index * 4 + 1] = */videoData.data[ri * 4 + 1] / 255.0);
+                            rgb.push(/*[index * 4 + 2] = */videoData.data[ri * 4 + 2] / 255.0);
+                            rgb.push(/*[index * 4 + 3] = */videoData.data[ri * 4 + 3] / 255.0);
 							
 							/*
 							maxX = Math.max(maxX, x);
@@ -183,7 +183,7 @@
 					var rowIndex = 0;
 					var nextRowIndex = 0;
 					
-					
+					/*
 					for (var ii = 0; ii < rowSize - 1; ii++) {
 						for (var jj = 0; jj < nextRowSize; jj++) {
 							
@@ -215,7 +215,7 @@
 							}
 						}
 					}
-					/*
+					*/
 					
 					// Add indices
 					while (true) {
@@ -258,7 +258,7 @@
 						}
 						
 						pointsUp = !pointsUp;
-					}*/
+					}
 				}
 				
 				// console.log((maxX + minX) / 2 + ", " + (maxY + minY) / 2 + ", " + (maxZ + minZ) / 2);
