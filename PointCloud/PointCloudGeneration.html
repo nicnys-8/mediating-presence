@@ -117,7 +117,7 @@
 							
 							if (lerp) {
 								
-								if (zr && x < KINECT_DEPTH_WIDTH - 1) {
+								if (zr && x < KINECT_DEPTH_WIDTH - 1 && Math.abs(zr - z) < 50) {
 									pos.push(x + 0.5);
 									pos.push(-y);
 									pos.push(-((z + zr) / 2) / zScale);
@@ -128,7 +128,7 @@
 									rgb.push(a);
 								}
 								
-								if (zb && y < KINECT_DEPTH_HEIGHT - 1) {
+								if (zb && y < KINECT_DEPTH_HEIGHT - 1 && Math.abs(zb - z) < 50) {
 									pos.push(x);
 									pos.push(-(y + 0.5));
 									pos.push(-((z + zb) / 2) / zScale);
@@ -139,7 +139,7 @@
 									rgb.push(a);
 								}
 								
-								if (zbr && x < KINECT_DEPTH_WIDTH - 1 && y < KINECT_DEPTH_HEIGHT - 1) {
+								if (zbr && x < KINECT_DEPTH_WIDTH - 1 && y < KINECT_DEPTH_HEIGHT - 1  && Math.abs(zbr - z) < 50) {
 									pos.push(x + 0.5);
 									pos.push(-(y + 0.5));
 									pos.push(-((z + zbr) / 2) / zScale);
