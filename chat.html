@@ -61,11 +61,17 @@
 			#large-video {
 				position:relative;
 				width:80%;
-				height:80%;
-				margin:10%;
+				height:50%;
+				margin:10% 10% 5% 10%;
 				/*background-color:pink;*/
 			}
 			
+			#text-chat {
+				position:relative;
+				width:80%;
+				height:35%;
+				margin:0% 10% 0% 10%;
+			}
 			</style>
 		
 		<script type="text/javascript" src="js/tab-control.js"></script>
@@ -195,7 +201,10 @@
 				}
 			}
 			
-			TabControl.onMessageReceived = function(senderId, type, packet) {
+			TabControl.onMessageReceived = function(senderId, type, data) {
+				if (type == "msg") {
+					showChatMessage(senderId, data);
+				}
 			}
 			
 			TabControl.onKinectInit = function(proxy) {
@@ -233,6 +242,17 @@
 				
 				bufferCanvas = document.createElement("canvas");
 				bufferContext = bufferCanvas.getContext("2d");
+				
+				
+				var textArea = document.getElementById("chat-input");
+
+				textArea.onkeypress = function(evt) {
+					if (evt.keyCode == 13) {
+						sendChatMessage();
+						return false;
+					}
+					return true;
+				};
 			}
 			
 			function drawThumbs() {
@@ -278,6 +298,30 @@
 				timer = setTimeout(drawThumbs, 100);
 			}
 			
+			function showChatMessage(sender, message) {
+				
+				if (!message) {
+					return;
+				}
+				
+				var textOut = document.getElementById("chat-area");
+				textOut.value = textOut.value + "\n" + sender + " said: " + message;
+				textOut.scrollTop = textOut.scrollHeight;
+			}
+			
+			function sendChatMessage() {
+				
+				var textIn = document.getElementById("chat-input");
+				var message = textIn.value.trim();
+				
+				if (message) {
+					showChatMessage("You", message);
+					TabControl.sendMessage("chat", "msg", message);
+				}
+				
+				textIn.value = "";
+			}
+			
 			</script>
         
     </head>
@@ -288,7 +332,18 @@
 			
 			<div id="sidebar-left"></div>
 			
-			<div id="content"><canvas id="large-video"></canvas></div>
+			<div id="content">
+				<canvas id="large-video"></canvas>
+				
+				<div id="text-chat">
+					<textarea id="chat-area" disabled=true style="position:relative; width:100%; height:70%; margin-bottom:5px;">Text chat!</textarea>
+					<br>
+					<textarea id="chat-input" rows="1" style="position:relative; width:80%; height:2em; margin:0 5px 0 0;"></textarea>
+					<button
+						style="width:18%; height:2em; margin-top:0;"
+						onclick="sendChatMessage();">Send</button>
+				</div>
+			</div>
 			
 			<div id="sidebar-right"></div>
 			
