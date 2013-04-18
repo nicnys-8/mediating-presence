@@ -1,0 +1,172 @@
+
+<!-- Partly based on example from http://learningwebgl.com/lessons/lesson02/index.html -->
+
+<html>
+    <head>
+        
+        <title>Point Cloud Rendering Test</title>
+        
+		<script type="text/javascript" src="js/tab-control.js"></script>
+        <script type="text/javascript" src="../js/mediaext.js"></script>
+        <script type="text/javascript" src="../js/lib/webgl-utils.js"></script>
+        <script type="text/javascript" src="../js/lib/glMatrix-0.9.5.min.js"></script>
+        <script type="text/javascript" src="../js/lib/zig.js"></script>
+        <script type="text/javascript" src="../js/kinect-decoder.js"></script>
+        <script type="text/javascript" src="../js/image-handling.js"></script>
+		<script type="text/javascript" src="../js/kinect-plugin-proxy-zigfu.js"></script>
+		<script type="text/javascript" src="../js/point-cloud-renderer-x.js"></script>
+		
+        <link rel="stylesheet" type="text/css" href="../css/pb.css"/>
+        <link rel="stylesheet" type="text/css" href="../css/pointcloud.css"/>
+        
+        <script type="text/javascript">
+            
+            const VIDEO_DISPLAY_WIDTH = 640, VIDEO_DISPLAY_HEIGHT = 480;
+			const KINECT_RGB_WIDTH = 160, KINECT_RGB_HEIGHT = 120;
+            const KINECT_DEPTH_WIDTH = 160, KINECT_DEPTH_HEIGHT = 120;
+            
+            var depthBuffer = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT);
+			
+			for (var i = 0, len = depthBuffer.length; i < len; ++i) {
+				depthBuffer[i] = 0;
+			}
+			
+            var glCanvas, renderer;
+			
+			TabControl.onActivate = function() {
+				// drawThumbs();
+			}
+			
+			TabControl.onDeactivate = function() {
+				// clearTimeout(timer);
+				// timer = null;
+			}
+			
+			TabControl.onLocalStreamInit = function(stream) {
+			}
+			
+			TabControl.onStreamAdded = function(stream) {
+			}
+			
+			TabControl.onStreamRemoved = function(stream) {
+			}
+			
+			TabControl.onMessageReceived = function(senderId, type, data) {
+			}
+			
+			TabControl.onKinectInit = function(proxy) {
+			}
+
+			TabControl.onNewKinectData = function(videoData, depthData) {
+				
+				var maxDepth = 3000;
+				var pos = [];
+				
+				var zScale = 1.0 / parseFloat(document.getElementById("zScale").value);
+				var brightness = parseFloat(document.getElementById("brightness").value);
+				var lerp = document.getElementById("lerp").checked;
+				
+				canvas.getContext("2d").putImageData(videoData, 0, 0);
+				
+				renderer.setTexture(videoData);
+				
+				for (var i = 0, len = depthBuffer.length; i < len; ++i) {
+					if (depthData[i] != 0)
+						depthBuffer[i] = depthData[i];
+				}
+				
+                for (var y = 0, index = 0; y < KINECT_DEPTH_HEIGHT; y++) {
+                    for (var x = 0; x < KINECT_DEPTH_WIDTH; x++, index++) {
+                        
+                        var z = depthBuffer[index];
+						
+                        var zr = depthBuffer[index + 1];
+						var zb = depthBuffer[index + KINECT_DEPTH_WIDTH];
+						var zbr = depthBuffer[index + KINECT_DEPTH_WIDTH + 1];
+						
+                        if (z > 0 && z < maxDepth) {
+							
+							pos.push(x);
+							pos.push(-y);
+							pos.push(-z * zScale);
+							
+							if (lerp) {
+								
+								if (zr && x < KINECT_DEPTH_WIDTH - 1 && Math.abs(zr - z) < 50) {
+									pos.push(x + 0.5);
+									pos.push(-y);
+									pos.push(-((z + zr) / 2) * zScale);
+								}
+								
+								if (zb && y < KINECT_DEPTH_HEIGHT - 1 && Math.abs(zb - z) < 50) {
+									pos.push(x);
+									pos.push(-(y + 0.5));
+									pos.push(-((z + zb) / 2) * zScale);
+								}
+								
+								if (zbr &&
+									x < KINECT_DEPTH_WIDTH - 1 &&
+									y < KINECT_DEPTH_HEIGHT - 1 &&
+									Math.abs(zbr - z) < 50) {
+									
+									pos.push(x + 0.5);
+									pos.push(-(y + 0.5));
+									pos.push(-((z + zbr) / 2) * zScale);
+								}
+							}
+                        }
+                    }
+                }
+				
+				renderer.setBrightness(brightness);
+                renderer.setCenterOfRotation([-80, 60, 1000 * zScale]);
+				renderer.setPosition([0, 0, -1000 * zScale]);
+				renderer.bufferData(pos);
+                renderer.render();
+            }
+			
+			var canvas;
+			
+            TabControl.onLoad = function() {
+                
+                glCanvas = MediaExt.createCanvas(VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
+                glCanvas.style.margin = "20px auto";
+                document.getElementById("container").appendChild(glCanvas);
+				
+				canvas = MediaExt.createCanvas(KINECT_RGB_WIDTH, KINECT_RGB_HEIGHT);
+				document.body.appendChild(canvas);
+				
+				renderer = new PointCloudRendererX(glCanvas);
+            }
+            
+            </script>
+        
+    </head>
+	
+	<body>
+        
+        <div id="pluginContainer">
+            <object id="ZigPlugin" type="application/x-zig" width="0" height="0">
+                <param name="onload" value="zigPluginLoaded">
+			</object>
+        </div>
+        
+        <h1>Point Cloud Generation</h1>
+        <div id="container">
+        </div>
+		
+		<table style="margin:0px auto;">
+			<tr>
+				<td style="text-align:right;">Z-Scale:</td>
+				<td><input id="zScale" type="range" name="points" min="1" max="20" value="5"></td>
+			</tr><tr>
+				<td style="text-align:right;">Brightness:</td>
+				<td><input id="brightness" type="range" name="points" min="0" max="5" step="0.01" value="1"></td>
+			</tr><tr>
+				<td style="text-align:right;">Interpolate:</td>
+				<td><input id="lerp" type="checkbox"></td>
+			</tr>
+		</table>
+			
+</html>
+
