@@ -61,8 +61,9 @@ app.post('/createToken/', function (req, res) {
          "use strict";
          var username = req.body.username;
          var role = req.body.role;
-         var room = req.body.room;
-         N.API.createToken(room, username, role, function (token) {
+         var roomID = myRoom; // INTE KLAR!!!!
+         
+         N.API.createToken(roomID, username, role, function (token) {
                            console.log(token);
                            res.send(token);
                            });
@@ -71,7 +72,7 @@ app.post('/createToken/', function (req, res) {
 // Added by Nicke
 app.post('/createRoom/', function (req, res) {
          "use strict";
-         var roomName = req.body.roomName;
+         var roomName = myRoom;//req.body.roomName;
          
          N.API.createRoom(roomName, function (roomID) {
                           var room = roomID._id;

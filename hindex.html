@@ -1,0 +1,652 @@
+
+<!-- :hover doesn't work with the doctype tag..?
+<!DOCTYPE html>
+-->
+
+<html>
+    <head>
+        
+        <title>Kinect Telepresence</title>
+		
+		<!--
+		<link rel="stylesheet" type="text/css" href="css/pb.css"/>
+		 -->
+		<style type="text/css">
+			
+			* {
+				margin:0;
+				padding:0;
+			}
+			
+			html, body {
+				height:100%;
+				width:100%;
+			}
+			
+			body {
+				background:url('images/paper.jpg');
+				/*background:url('images/paper-tile.png');*/
+			}
+			
+			iframe {
+				display:none;
+				overflow:auto;
+				position:absolute;
+				width:100%;
+				height:100%;
+				left:-100%;
+			}
+			
+			#wrap {
+				position:absolute;
+				top:100px;
+				bottom:0px;
+				left:0px;
+				right:0px;
+			}
+			
+			#menu {
+				width:500px;
+				height:100px;
+				margin:0 auto 0 auto;
+				clear:both;
+			}
+			
+			#menu ul {
+				list-style:none;
+			}
+			#menu ul li {
+				display:inline;
+			}
+			
+			#sidebar-left {
+				position:absolute;
+				left:0px;
+				width:100px;
+				height:100%;
+				background-color:lightblue;
+				z-index:2;
+			}
+			#sidebar-right {
+				position:absolute;
+				right:0px;
+				width:200px;
+				height:100%;
+				/* background-color:lightblue; */
+				z-index:2;
+			}
+			.video-thumb {
+				position:relative;
+				display:block;
+				margin:20px auto;
+				width:160px;
+				height:120px;
+				/*background-color:lightyellow;*/
+			}
+			
+			#content {
+				position:absolute;
+				left:0px; /*100px;*/
+				right:0px; /*100px;*/
+				height:100%;
+				z-index:1;
+			}
+			.linkbutton {
+				display:inline-block;
+				width:100px;
+				height:100px;
+				background-position:0 0;
+				background-size:400%;
+			}
+			
+			.linkbutton.selected,
+			.linkbutton.selected:hover {
+				background-position:66.6666666% 0;
+			}
+			.linkbutton.disabled,
+			.linkbutton.disabled:hover,
+			.linkbutton.disabled:active {
+				background-position:100% 0;
+			}
+			
+			.linkbutton:hover {
+				background-position:33.3333333% 0;
+			}
+			.linkbutton:active {
+				background-position:66.6666666% 0;
+			}
+			
+			#chatbutton {
+				background-image:url('images/chat-top.png');
+			}
+			
+			#sharebutton {
+				background-image:url('images/share-top.png');
+			}
+			
+			#playbutton {
+				background-image:url('images/play-top.png');
+			}
+			
+			#audiobutton {
+				background-image:url('images/audio-top.png');
+			}
+			
+			#videobutton {
+				background-image:url('images/video-top.png');
+			}
+			
+			#blanket {
+				background-color:rgba(0, 0, 0, 0.5);
+				/* *background:none;*/
+				position:absolute;
+				z-index: 9001;
+				top:0px;
+				left:0px;
+				width:100%;
+				height:100%;
+				overflow:hidden;
+				
+				/* Start of animation */
+				opacity:0.0;
+				display:none;
+			}
+			
+			#popupDiv {
+				font-family:monospace;
+				font-size:150%;
+				position:relative;
+				/*background:url(pop-back.jpg) no-repeat;*/
+				background-color:white;
+				width:480px;
+				height:320px;
+				border:5px solid #000;
+				top:50%;
+				margin:-160px auto;
+				z-index: 9002;
+				text-align:center;
+				
+				/* Start of animation */
+				top:100%;
+				display:none;
+			}
+			
+			#popupDiv .popup-content {
+				display:none;
+				position:absolute;
+				width:60%;
+				height:60%;
+				top:20%;
+				left:20%;
+			}
+			
+			#popupDiv button {
+				font-size:100%;
+				padding:0.5em;
+				margin:1em 0.25em;
+				
+			}
+			
+		</style>
+		
+		<script type="text/javascript" src="js/lib/jquery.js"></script>
+        <script type="text/javascript" src="js/lib/sylvester.js"></script>
+        <script type="text/javascript" src="js/geometry.js"></script>
+        <script type="text/javascript" src="js/image-handling.js"></script>
+		<script type="text/javascript" src="js/tab-control.js"></script>
+		<script type="text/javascript" src="js/kinect-decoder.js"></script>
+        <script type="text/javascript" src="js/kinect-touch-controller.js"></script>
+		<script type="text/javascript" src="js/kinect-plugin-proxy-zigfu.js"></script>
+		<script type="text/javascript" src="js/lib/erizo.js"></script>
+		<script type="text/javascript" src="js/lynckia-client.js"></script>
+
+		<script>
+			
+			var currentTabID;
+			var enableVideo = true;
+			var enableAudio = true;
+			
+			var tabOrder = [ "#chat", "#share", "#play" ];
+			var tabControllers = {};
+			
+			var streamIDs = [];
+			var streams = {};
+			var thumbs = {};
+			var currentStreamID = null;
+			
+			function addVideoStream(stream) {
+				var streamID = stream.local ? "myStream" : stream.getID();
+				streams[streamID] = stream;
+				streamIDs.push(streamID);
+				
+				var thumb = document.createElement("div");
+				thumb.id = "thumb" + streamID;
+				thumb.className = "video-thumb";
+				thumb.onclick = function() {
+					setCurrentStream(streamID);
+				}
+				thumbs[streamID] = thumb;
+				
+				document.getElementById("sidebar-right").appendChild(thumb);
+				
+				stream.show(thumb.id);
+				
+				setCurrentStream(streamID);
+			}
+			
+			function removeVideoStream(stream) {
+				
+				var streamID = stream.getID();
+				var thumb = thumbs[streamID];
+				var index = streamIDs.indexOf(streamID);
+				
+				// Remove the stream ID
+				if (index != -1) {
+					streamIDs.splice(index, 1);
+				}
+				
+				// Remove the stream
+				streams[streamID].hide();
+				delete streams[streamID];
+				
+				// Remove the thumbnail div
+				if (thumb) {
+					thumb.parentNode.removeChild(thumb);
+					delete thumbs[streamID];
+				}
+				
+				// Update which stream is shown in the middle
+				if (streamID == currentStreamID) {
+					if (streamIDs.length == 0) {
+						setCurrentStream(null);
+						// currentStreamID = null;
+					} else {
+						setCurrentStream(streamIDs[index % streamIDs.length]);
+					}
+				}
+			}
+			
+			function setCurrentStream(streamID) {
+				currentStreamID = streamID;
+				tabControllers["#chat"].onMessageReceived(null, "currentStream", streamID);
+			}
+			
+			TabControl.onActivate = function() {
+			};
+			TabControl.onDeactivate = function() {
+			};
+			
+			TabControl.onLocalStreamInit = function(stream) {
+				
+				addVideoStream(stream);
+				
+				for (var tabName in tabControllers) {
+					if (tabControllers[tabName]) {
+						tabControllers[tabName].setLocalStream(stream);
+					}
+				}
+			}
+			
+			TabControl.onStreamAdded = function(stream) {
+				
+				addVideoStream(stream);
+				
+				// Just propagate the message to the tabs
+				for (var tabName in tabControllers) {
+					if (tabControllers[tabName]) {
+						tabControllers[tabName].onStreamAdded(stream);
+					}
+				}
+			};
+			
+			TabControl.onStreamRemoved = function(stream) {
+				
+				removeVideoStream(stream);
+				
+				// Just propagate the message to the tabs
+				for (var tabName in tabControllers) {
+					if (tabControllers[tabName]) {
+						tabControllers[tabName].onStreamRemoved(stream);
+					}
+				}
+			};
+			
+			TabControl.onMessageReceived = function(senderId, type, packet) {
+				
+				/*
+				console.log("Received messsage");
+				console.log(packet);
+				 */
+				
+				var destination = packet.dst;
+				var messageType = packet.type;
+				var data = packet.data;
+
+				if (destination == "index") {
+					
+					switch (messageType) {
+						
+						case "invite":
+							// Invitation to Klotski game
+							handleKlotskiInvite(senderId, data);
+							break;
+						case "share":
+							// Someone wants to share a 3D model
+							handleShared3DModel(senderId, data);
+							break;
+						default:
+							break;
+					}
+					
+				} if (destination == "all") {
+					
+					for (var tabName in tabControllers) {
+						if (tabControllers[tabName]) {
+							tabControllers[tabName].onMessageReceived(senderId, messageType, data);
+						}
+					}
+					
+				} else {
+					
+					var tabController = tabControllers[destination] || tabControllers["#" + destination];
+					if (tabController) {
+						tabController.onMessageReceived(senderId, messageType, data);
+					}
+				}
+			};
+
+			TabControl.onKinectInit = function(proxy) {
+
+				// Important! This needs to happen after TabControl.onLoad
+				// TODO: Make sure it does! :)
+				for (var tabName in tabControllers) {
+					if (tabControllers[tabName]) {
+						tabControllers[tabName].onKinectInit(proxy);
+					}
+				}
+			};
+			
+            var first = true;
+			TabControl.onNewKinectData = function(videoData, depthData) {
+				for (var tabName in tabControllers) {
+					if (tabControllers[tabName]) {
+						tabControllers[tabName].onNewKinectData(videoData, depthData);
+					}
+				}
+			};
+			
+            TabControl.onLoad = function() {
+				initLynckia(TabControl);
+                // Added by Nicke ====
+                // Get the Lynckia room from the URL parameter
+                var roomId = window.location.search.replace( "?", "" );
+                accessRoom(roomId);
+                //=====
+
+				currentTabID = "#chat";
+				
+				// If a tab is specified in the url, make it the current tab
+				var hash = window.location.hash;
+				hash = hash.substring(0, hash.length - 1); // remove underscore
+				
+				if (tabOrder.indexOf(hash) != -1) {
+					currentTabID = hash;
+				}
+				
+				var currentTab = $(currentTabID);
+				
+				currentTab.show();
+				currentTab.css("left", "0");
+				$(currentTabID + "button").addClass("selected");
+				
+				var tabs = $("iframe");
+				
+				tabs.each(function() {
+							tabControllers["#" + this.id] = this.contentWindow.TabControl;
+							deactivateTab(this.id);
+						  });
+				
+				activateTab(currentTabID);
+				
+				// handleKlotskiInvite();
+				
+			};
+			
+			function activateTab(tabName) {
+				
+				var tabController = tabControllers[tabName] || tabControllers["#" + tabName];
+				
+				if (tabController && tabController.onActivate) {
+					tabController.onActivate();
+				} else {
+					console.warn("Failed to activate tab '" + tabName + "', since it has no TabControl object. Please import the script 'tab-control.js'!");
+				}
+			}
+			
+			function deactivateTab(tabName) {
+				
+				var tabController = tabControllers[tabName] || tabControllers["#" + tabName];
+				
+				if (tabController && tabController.onDeactivate) {
+					tabController.onDeactivate();
+				} else {
+					console.warn("Failed to deactivate tab '" + tabName + "', since it has no TabControl object. Please import the script 'tab-control.js'!");
+				}
+			}
+			
+			function switchToTab(nextTabID) {
+				
+				if (nextTabID == currentTabID) {
+					return;
+				}
+				
+				var currentTab = $(currentTabID);
+				var nextTab = $(nextTabID);
+				
+				// Choose animation direction depending on if the next tab is
+				// to the left or to the right of the current tab
+				var fromLeft = tabOrder.indexOf(currentTabID) > tabOrder.indexOf(nextTabID);
+				var startPos = fromLeft ? "-100%" : "100%";
+				
+				deactivateTab(currentTabID);
+				currentTab.animate({
+									left:"-=" + startPos,
+									opacity:0.0,
+									}, 500, function() {
+										// Animation complete.
+										$(this).hide();
+									});
+
+				nextTab.show();
+				nextTab.css("left", startPos);
+				nextTab.css("opacity", 0.0);
+				nextTab.animate({
+								 left:"-=" + startPos,
+								 opacity:1.0,
+								 }, 500, function() {
+									activateTab(this.id);
+								 });
+				
+				$(currentTabID + "button").toggleClass("selected");
+				$(nextTabID +"button").toggleClass("selected");
+				
+				currentTabID = nextTabID;
+				window.location.hash = nextTabID + "_";
+			}
+			
+			function toggleAudio() {
+				
+				var audiobutton = $("#audiobutton");
+				if (audiobutton.hasClass("disabled"))
+					return;
+				
+				audiobutton.css("background-image", enableAudio ? "url('images/noaudio-top.png')" : "url('images/audio-top.png')");
+
+				enableAudio = !enableAudio;
+			}
+			
+			function toggleVideo() {
+				
+				var videobutton = $("#videobutton");
+				if (videobutton.hasClass("disabled"))
+					return;
+				
+				videobutton.css("background-image", enableVideo ? "url('images/novideo-top.png')" : "url('images/video-top.png')");
+				
+				enableVideo = !enableVideo;
+			}
+		
+			/*
+			 crappy shrink animation of popup:
+			 $('#popupDiv').animate({
+			 width:0,
+			 height:0,
+			 marginTop:0,
+			 fontSize:0,
+			 }, 200, function() {
+			 // Animation complete.
+			 $(this).hide();
+			 });
+			 */
+			
+			function handleKlotskiInvite(senderId, data) {
+				$("#sharePopup").hide();
+				$("#klotskiPopup").show();
+				showPopup();
+			}
+			function acceptKlotskiInvite() {
+				hidePopup();
+				switchToTab("#play");
+
+				TabControl.sendMessage("play", "inviteAccepted", { turn : false });
+				// Send a fake message to self to start the local klotski game as well
+				tabControllers["#play"].onMessageReceived(null, "inviteAccepted", {turn : true });
+			}
+			
+			function declineKlotskiInvite() {
+				hidePopup();
+				TabControl.sendMessage("play", "inviteDeclined", {});
+			}
+			
+			function handleShared3DModel(senderId, data) {
+				$("#klotskiPopup").hide();
+				$("#sharePopup").show();
+				showPopup();
+			}
+			
+			function acceptShared3DModel() {
+				hidePopup();
+				switchToTab("#share");
+				
+				TabControl.sendMessage("share", "inviteAccepted", { turn : true });
+				// Send a fake message to self to start the local klotski game as well
+				// tabControllers["#share"].onMessageReceived(null, "inviteAccepted", {turn : false });
+			}
+			
+			function declineShared3DModel() {
+				hidePopup();
+				TabControl.sendMessage("share", "inviteDeclined", {});
+			}
+			
+			function showPopup() {
+				
+				var popup = $("#popupDiv");
+				var blanket = $("#blanket");
+				
+				popup.show();
+				popup.animate({ top:"50%", /* opacity:1.0, */}, 500, function() {});
+				blanket.show();
+				blanket.animate({ opacity:1.0, }, 500, function() {});
+			}
+			
+			function hidePopup() {
+				var popup = $("#popupDiv");
+				var blanket = $("#blanket");
+				popup.animate({ top:"100%", /* opacity:0.0, */},
+							  500, function() { $(this).hide(); });
+				blanket.animate({ opacity:0.0, },
+								500, function() { $(this).hide(); });
+			}
+		</script>
+        
+    </head>
+	
+	<body>
+		
+		<div id="pluginContainer">
+			<object id="ZigPlugin" type="application/x-zig" width="0" height="0">
+				<param name="onload" value="zigPluginLoaded">
+					</object>
+		</div>
+			
+		<a href="http://www.ltu.se" target="_blank"><img src="images/ltu_logo_small.png" style="position:absolute; left:5px; top:5px;"></a>
+		<!--
+		<a href="http://www.ltu.se" target="_blank"><img src="images/ltu_logo_small.png" style="position:absolute; left:5px; bottom:5px;"></a>
+		-->
+		
+		<a href="http://www.ltu.se" target="_blank"><img src="images/ltu_logo_small.png" style="position:absolute; right:5px; top:5px;"></a>
+		<!--
+		<a href="http://www.ltu.se" target="_blank"><img src="images/ltu_logo_small.png" style="position:absolute; right:5px; bottom:5px;"></a>
+		-->
+		
+		<div id="blanket">
+			<div id="popupDiv">
+				
+				<div id="klotskiPopup" class="popup-content">
+					<img style="display:float; width:90px; height:75px;" src="images/play-icon.png"></img>
+					You have been invited to play a game of Klotski!
+					<br>
+					<button onclick="acceptKlotskiInvite();">Accept</button>
+					<button onclick="declineKlotskiInvite();">Decline</button>
+				</div>
+				
+				<div id="sharePopup" class="popup-content">
+					<img style="display:float; width:90px; height:75px;" src="images/share-icon.png"></img>
+					Someone wants to share a 3D model with you!
+					<br>
+					<button onclick="acceptShared3DModel();">Accept</button>
+					<button onclick="declineShared3DModel();">Decline</button>
+				</div>
+				
+			</div>
+		</div>
+		<div id="menu"><!-- These comments are only here to avoid whitespace between the divs :)
+			--><ul><!--
+				--><li><div class="linkbutton" id="chatbutton"
+					onmousedown="switchToTab('#chat');"></div></li><!--
+				--><li><div class="linkbutton" id="sharebutton"
+					onmousedown="switchToTab('#share');"></div></li><!--
+				--><li><div class="linkbutton" id="playbutton"
+					onmousedown="switchToTab('#play');"></div></li><!--
+				--><li><div class="linkbutton disabled" id="audiobutton"
+					onmousedown="toggleAudio();"></div></li><!--
+				--><li><div class="linkbutton disabled" id="videobutton"
+					onmousedown="toggleVideo();"></div></li><!--
+			--></ul><!--
+		--></div>
+		
+		<div id="wrap">
+			
+			<!--
+			<div id="sidebar-left">
+			</div>
+			-->
+			
+			<div id="content">
+				
+				<iframe id="chat" src="chat.html" seamless>GAH!</iframe>
+				<iframe id="share" src="share.html" seamless>GAH!</iframe>
+				<iframe id="play" src="play.html" seamless>GAH!</iframe>
+				 
+			</div>
+			
+			
+			<div id="sidebar-right">
+			</div>
+			
+		</div>
+			
+    </body>
+	
+</html>
+

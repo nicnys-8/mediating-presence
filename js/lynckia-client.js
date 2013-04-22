@@ -26,25 +26,25 @@ var subscribeToStreams = function (streams) {
 var onDataReceived = function(event) {
     var senderID = event.stream.getID();
     var data = event.msg;
-	
     tabController.onMessageReceived(senderID, null, data);
 };
 
 /**
  Create the key used to get access to a room
  */
-var createToken = function(userName, role, room, callback) {
+var createToken = function(userName, role, roomId, callback) {
     var req = new XMLHttpRequest();
-    var url = serverUrl + 'createToken/';
-    var body = {username: userName, role: role, room: room};
+    var url = serverUrl + "createToken/";
+    var body = {username: userName, role: role, roomId: roomId};
     
-    req.onreadystatechange = function () {
+    req.onreadystatechange = function() {
         if (req.readyState === 4) {
+            console.log("Response from server:");
             callback(req.responseText);
         }
     };
-    req.open('POST', url, true);
-    req.setRequestHeader('Content-Type', 'application/json');
+    req.open("POST", url, true);
+    req.setRequestHeader("Content-Type", "application/json");
     req.send(JSON.stringify(body));
 };
 
@@ -53,19 +53,73 @@ var createToken = function(userName, role, room, callback) {
  */
 var createRoom = function(roomName, callback) {
     var req = new XMLHttpRequest();
-    var url = serverUrl + 'createRoom/';
+    var url = serverUrl + "createRoom/";
     var body = {roomName: roomName};
     
-    req.onreadystatechange = function () {
+    req.onreadystatechange = function() {
         if (req.readyState === 4) {
             callback(req.responseText);
         }
     };
-    req.open('POST', url, true);
-    req.setRequestHeader('Content-Type', 'application/json');
+    req.open("POST", url, true);
+    req.setRequestHeader("Content-Type", "application/json");
     req.send(JSON.stringify(body));
 };
 
+/**
+ Delete a Lynckia room
+ */
+var deleteRoom = function(roomName) {
+    var req = new XMLHttpRequest();
+    var url = serverUrl + "deleteRoom/";
+    var body = {roomName: roomName};
+    
+    req.onreadystatechange = function() {
+        if (req.readyState === 4) {
+            if (req.responseText) console.log("Server message: " + req.responseText);
+        }
+    };
+    req.open("POST", url, true);
+    req.setRequestHeader("Content-Type", "application/json");
+    req.send(JSON.stringify(body));
+}
+
+/**
+ Get the specified Lynckia room
+ */
+var getRoom = function(roomName) {
+    var req = new XMLHttpRequest();
+    var url = serverUrl + "getRoom/";
+    var body = {roomName: roomName};
+    
+    req.onreadystatechange = function() {
+        if (req.readyState === 4) {
+            console.log("Result from call to 'getRoom': ");
+            console.log(req.responseText);
+        }
+    };
+    req.open("POST", url, true);
+    req.setRequestHeader("Content-Type", "application/json");
+    req.send(JSON.stringify(body));
+}
+
+/**
+ Get a list of the available Lynckia rooms
+ @param callBack Method called when the server responds
+ */
+var getRooms = function(callback) {
+    var req = new XMLHttpRequest();
+    var url = serverUrl + "getRooms/";
+    
+    req.onreadystatechange = function() {
+        if (req.readyState === 4) {
+            callback(req.responseText);
+        }
+    };
+    req.open("GET", url, true);
+    req.setRequestHeader("Content-Type", "application/json");
+    req.send(); // TODO: WHAT?! req.send(JSON.stringify(body));
+}
 
 /**
  Called when a user access token is created-
@@ -76,10 +130,17 @@ var onTokenCreated = function(token) {
     room = Erizo.Room({token: token});
     // Add listeners for responding to the media access request
     localStream.addEventListener("access-accepted", onMediaAccessGranted);
-    localStream.addEventListener("access-denied",
-                                 console.log("Access to webcam and microphone denied"));
+    localStream.addEventListener("access-denied", onMediaAccessDenied);
     // Ask for access to local media
     localStream.init();
+};
+
+/**
+ Called when access to the webcam and microphone is denied-
+ The event is logged in the console
+ */
+var onMediaAccessDenied = function() {
+    console.log("Access to webcam and microphone denied");
 };
 
 /**
@@ -88,6 +149,7 @@ var onTokenCreated = function(token) {
  the user to the room
  */
 var onMediaAccessGranted = function() {
+    console.log("Access to webcam and microphone accepted");
     room.addEventListener("room-connected", function (roomEvent) {tabController.setLocalStream(localStream);
                           room.publish(localStream);
                           subscribeToStreams(roomEvent.streams);
@@ -111,8 +173,21 @@ var onMediaAccessGranted = function() {
 /**
  Connect to a Lynckia room
  */
-initLynckia = function (tabControllerArg) {
+initLynckia = function(tabControllerArg) {
     tabController = tabControllerArg;
     localStream = Erizo.Stream({audio: true, video: true, data: true});
-    createToken("user", "role", "pite", onTokenCreated);
+    //createToken("user", "role", "lule", onTokenCreated);
 };
+
+/**
+ To be used by the Hindex file to access a room
+ */
+accessRoom = function(roomId) {
+    createToken("user", "role", roomId, onTokenCreated);
+};
+
+
+
+
+
+

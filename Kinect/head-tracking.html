@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en" style="height:100%; width:100%;">
+    <head>
+        <title>Klotski</title>
+        <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+                
+                <script src="../js/lib/zig.js"></script>
+                <script src="../js/kinect-decoder.js"></script>
+                <script src="../js/image-handling.js"></script>
+                <script>
+                    
+                    //zig.embed();
+                    
+                    
+                    // Method 1: specific event listeners
+                    
+                    /*
+                    zig.addEventListener('userfound', function(user) {
+                                         console.log('Found user. ID: ' + user.id);
+                                         
+                                         user.addEventListener('userupdate', function(user) {
+                                                               console.log('Head position: ' + user.skeleton[zig.Joint.Head].position);
+                                                               });
+                                         
+                                         });
+                    
+                    zig.addEventListener('userlost', function(user) {
+                                         console.log('Lost user. ID: ' + user.id);
+                                         });
+                     */
+                    
+                    var engager = zig.EngageUsersWithSkeleton(1);
+                    engager.addEventListener('userengaged', function(user) {
+                                             console.log('User engaged: ' + user.id);
+                                             
+                                             user.addEventListener('userupdate', function(user) {
+                                                                   console.log('Head position: ' + user.skeleton[zig.Joint.Head].position);
+                                                                   });
+                                             });
+                    engager.addEventListener('userdisengaged', function(user) {
+                                             console.log('User disengaged: ' + user.id);
+                                             });
+                    zig.addListener(engager);
+                    
+                    </script>
+                </head>
+    
+    <body>
+        <div id="pluginContainer">
+			<object id="ZigPlugin" type="application/x-zig" width="0" height="0">
+				<param name="onload" value="zigPluginLoaded">
+					</object>
+		</div>
+    </body>
+</html>
