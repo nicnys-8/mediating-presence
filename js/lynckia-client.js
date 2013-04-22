@@ -51,14 +51,15 @@ var createToken = function(userName, role, roomId, callback) {
 /**
  Create a Lynckia room
  */
-var createRoom = function(roomName, callback) {
+var createRoom = function(roomName) {
+    console.log("Sending a request to the server to create a new room");
     var req = new XMLHttpRequest();
     var url = serverUrl + "createRoom/";
     var body = {roomName: roomName};
     
     req.onreadystatechange = function() {
         if (req.readyState === 4) {
-            callback(req.responseText);
+            console.log("Received the following answer from the server: " + req.responseText);
         }
     };
     req.open("POST", url, true);
@@ -70,13 +71,17 @@ var createRoom = function(roomName, callback) {
  Delete a Lynckia room
  */
 var deleteRoom = function(roomName) {
+    console.log("Asking server to delete room named " + roomName);
     var req = new XMLHttpRequest();
     var url = serverUrl + "deleteRoom/";
     var body = {roomName: roomName};
-    
     req.onreadystatechange = function() {
         if (req.readyState === 4) {
-            if (req.responseText) console.log("Server message: " + req.responseText);
+            if (req.responseText) {
+                console.log("Server message: " + req.responseText);
+                // This isn't a very pretty solution...
+                if (req.responseText == "Attempting to delete nontexistent room") alert("lol" + req.responseText);
+            }
         }
     };
     req.open("POST", url, true);

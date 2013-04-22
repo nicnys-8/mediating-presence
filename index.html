@@ -24,7 +24,7 @@
             #roomTable {
                 margin: 0 auto;
             }
-                        
+            
             form {
                 font-size: 20px;
                 display:inline;
@@ -37,10 +37,11 @@
             button {
                 display:inline;
             }
-        
+            
             </style>
         
         <script src="http://ec2-54-228-160-5.eu-west-1.compute.amazonaws.com:3005/socket.io/socket.io.js"></script>
+        <script src="js/lib/jquery.js"></script>
 		<script src="js/lynckia-client.js"></script>
 		<script>
             var rooms;
@@ -61,7 +62,7 @@
                            */
                           function (data) {
                           var room = data.room;
-                          console.log("Room with name " + room.name + " has been added");
+                          console.log("Broadcast message received from server: Room with name " + room.name + " has been added");
                           // If the room isn't already displayed, display it
                           if (!roomDictionary[room._id]) addRoomInfo(room);
                           });
@@ -71,7 +72,7 @@
                            Decription goes here
                            */
                           function (data) {
-                          console.log("Room with ID " + data.roomId + " has been deleted");
+                          console.log("Broadcast message received from server: Room with ID " + data.roomId + " has been deleted");
                           removeRoomInfo(data.roomId);
                           });
                 
@@ -86,11 +87,11 @@
             /**
              Asks the server for a list of all rooms, setting the callback function
              for when they are received
-           */
+             */
             var updateRoomList = function() {
                 getRooms(onGotRooms);
             };
-               
+            
             
             /**
              Displays all rooms returned from the server
@@ -105,11 +106,12 @@
             };
             
             /**
-             Add a button with lalala...XXXXxxXXXXxXXXX
+             Display information and buttons describing the specified room
              */
             var addRoomInfo = function(room) {
                 
                 var row = document.createElement("tr");
+                row.style.backgroundColor = "blue";
                 roomTable.appendChild(row)
                 
                 var nameCell = document.createElement("td");
@@ -144,8 +146,8 @@
                     // If the rooms exists:
                     if (roomDictionary[room._id]) {
                         // (deleteRoom is defined in lynckia-client.js)
+                        console.log("Delete room button clicked");
                         deleteRoom(room.name);
-                        removeRoomInfo(room._id);
                     } else {
                         console.log("Attempting to delete nontexistent room");
                     }
@@ -154,7 +156,7 @@
             };
             
             /**
-             Remove a button with lalala...XXXXxxXXXXxXXXX
+             Remove the displayed room information
              */
             var removeRoomInfo = function(roomId) {
                 if (roomDictionary[roomId]) {
@@ -167,15 +169,20 @@
              Sends a request to the server to create a new room
              */
             var createRoomButtonClicked = function() {
+                console.log("Create room button pressed");
                 var roomName = document.getElementById("roomName").value;
-                createRoom(roomName,
-                           // Definition of callback function
-                           function(response) {
-                           if (response) {
-                           alert(response);
-                           }
-                           }); // second argument is the callback function
+                createRoom(roomName); // second argument is the callback function
             };
+            
+            /**
+             Make the text input react to the enter key
+             */
+            function handleKeyPress(event){
+                var key = event.keyCode || event.which;
+                if (key == 13){
+                    createRoomButtonClicked();
+                }
+            }
             
 			</script>
     </head>
@@ -183,14 +190,14 @@
 	<body onload="load()">
         
         <a href="http://www.ltu.se" target="_blank"><img src="images/ltu_logo_small.png" style="position:absolute; left:5px; top:5px;">
-        </a>
+            </a>
         <a href="http://www.ltu.se" target="_blank"><img src="images/ltu_logo_small.png" style="position:absolute; right:5px; top:5px;">
-        </a>
+            </a>
         
         <div id="roomCreation">
-            <form>
-                Write a room name:<input id="roomName" type="text">
-                    </form>
+            Write a room name:
+            <input id="roomName" type="text" rows="1" cols="20" onkeypress="handleKeyPress(event)"></input>
+            
             <button id="createRoomBtn" onclick="createRoomButtonClicked()">
                 Create room
             </button>
