@@ -19,7 +19,7 @@
         
         <script type="text/javascript">
             
-            const VIDEO_DISPLAY_WIDTH = 320, VIDEO_DISPLAY_HEIGHT = 240;
+            const VIDEO_DISPLAY_WIDTH = 640, VIDEO_DISPLAY_HEIGHT = 480;
 			const KINECT_RGB_WIDTH = 160, KINECT_RGB_HEIGHT = 120;
             const KINECT_DEPTH_WIDTH = 160, KINECT_DEPTH_HEIGHT = 120;
 			
@@ -147,32 +147,33 @@
 						
                         if (z > 0 && z < maxDepth) {
 							
-							pos.push(x);
-							pos.push(-y);
-							pos.push(-z * zScale);
+							pos.push(x, y, z);
 							
 							if (lerp) {
 								
-								if (zr && x < KINECT_DEPTH_WIDTH - 1 && Math.abs(zr - z) < 50) {
-									pos.push(x + 0.5);
-									pos.push(-y);
-									pos.push(-((z + zr) / 2) * zScale);
+								if (zr
+									&& x < KINECT_DEPTH_WIDTH - 1
+									&& Math.abs(zr - z) < 50) {
+									pos.push(x + 0.5,
+											 y,
+											 (z + zr) * 0.5);
 								}
 								
-								if (zb && y < KINECT_DEPTH_HEIGHT - 1 && Math.abs(zb - z) < 50) {
-									pos.push(x);
-									pos.push(-(y + 0.5));
-									pos.push(-((z + zb) / 2) * zScale);
+								if (zb
+									&& y < KINECT_DEPTH_HEIGHT - 1
+									&& Math.abs(zb - z) < 50) {
+									pos.push(x,
+											 y + 0.5,
+											 (z + zb) * 0.5);
 								}
 								
-								if (zbr &&
-									x < KINECT_DEPTH_WIDTH - 1 &&
-									y < KINECT_DEPTH_HEIGHT - 1 &&
-									Math.abs(zbr - z) < 50) {
-									
-									pos.push(x + 0.5);
-									pos.push(-(y + 0.5));
-									pos.push(-((z + zbr) / 2) * zScale);
+								if (zbr
+									&& x < KINECT_DEPTH_WIDTH - 1
+									&& y < KINECT_DEPTH_HEIGHT - 1
+									&& Math.abs(zbr - z) < 50) {
+									pos.push(x + 0.5,
+											 y + 0.5,
+											 (z + zbr) * 0.5);
 								}
 							}
                         }
@@ -180,9 +181,11 @@
                 }
 				
 				renderer.setBrightness(brightness);
-                renderer.setCenterOfRotation([-80, 60, 1000 * zScale]);
-				renderer.setPosition([0, 0, -1000 * zScale]);
+				renderer.setScale([1.0, -1.0, -zScale]);
+                renderer.setCenterOfRotation([-80, -60, -1000]);
+				renderer.setPosition([0, 0, -250]);
 				renderer.bufferData(pos);
+				
                 renderer.render();
 			}
 			
@@ -205,10 +208,10 @@
 		<table style="margin:0px auto;">
 			<tr>
 				<td style="text-align:right;">Z-Scale:</td>
-				<td><input id="zScale" type="range" name="points" min="1" max="20" value="5"></td>
+				<td><input id="zScale" type="range" min="1" max="20" value="5" step="0.05"></td>
 			</tr><tr>
 				<td style="text-align:right;">Brightness:</td>
-				<td><input id="brightness" type="range" name="points" min="0" max="5" step="0.01" value="1"></td>
+				<td><input id="brightness" type="range" min="0" max="5" step="0.01" value="1"></td>
 			</tr><tr>
 				<td style="text-align:right;">Interpolate:</td>
 				<td><input id="lerp" type="checkbox"></td>

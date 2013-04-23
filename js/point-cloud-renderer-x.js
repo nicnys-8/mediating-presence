@@ -9,7 +9,7 @@ PointCloudRendererX = function(canvas) {
 				
 				 "uniform mat4 uMVMatrix;",
 				 "uniform mat4 uPMatrix;",
-				 
+			
 				 /*
 				  // Not used atm (values hard coded)
 				 "uniform vec2 textureSize;",
@@ -22,7 +22,7 @@ PointCloudRendererX = function(canvas) {
 				 "void main(void) {",
 					"vec4 pos = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);",
 					"float x = aVertexPosition.x;",
-					"float y = -aVertexPosition.y;",
+					"float y = aVertexPosition.y;",
 				 
 					"if (x < 80.0) {", // textureSize.width / 2.0
 						"x += 6.0 * x / 80.0;",
@@ -79,9 +79,6 @@ PointCloudRendererX = function(canvas) {
 	var mvMatrix = mat4.create();
 	var pMatrix = mat4.create();
 	
-	var pcRotationMatrix = mat4.create();
-	mat4.identity(pcRotationMatrix);
-	
 	var degToRad = function(degrees) {
 		return degrees * Math.PI / 180;
 	}
@@ -100,20 +97,29 @@ PointCloudRendererX = function(canvas) {
 	}
 	
 	var cor = vec3.create([0, 0, 0]),
-		pos = vec3.create([0, 0, 0]);
+		pos = vec3.create([0, 0, 0]),
+		scale = vec3.create([1, 1, 1]),
+		brightness = 1.0,
+		rotX = 0.0, rotY = 0.0;
 	
 	this.setCenterOfRotation = function(vec) {
 		cor[0] = vec[0];
 		cor[1] = vec[1];
 		cor[2] = vec[2];
 	}
+	
 	this.setPosition = function(vec) {
 		pos[0] = vec[0];
 		pos[1] = vec[1];
 		pos[2] = vec[2];
 	}
 	
-	var brightness = 1.0;
+	this.setScale = function(vec) {
+		scale[0] = vec[0];
+		scale[1] = vec[1];
+		scale[2] = vec[2];
+	}
+	
 	this.setBrightness = function(value) {
 		brightness = value;
 	}
@@ -128,7 +134,9 @@ PointCloudRendererX = function(canvas) {
 		
 		mat4.identity(mvMatrix);
 		mat4.translate(mvMatrix, pos);
-		mat4.multiply(mvMatrix, pcRotationMatrix);
+		mat4.rotateY(mvMatrix, rotX);
+		mat4.rotateX(mvMatrix, rotY);
+		mat4.scale(mvMatrix, scale);
 		mat4.translate(mvMatrix, cor);
 		
 		gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
@@ -137,7 +145,7 @@ PointCloudRendererX = function(canvas) {
 		gl.uniformMatrix4fv(prog.unifMatrixP, false, pMatrix);
 		gl.uniformMatrix4fv(prog.unifMatrixMV, false, mvMatrix);
 		gl.uniform1f(prog.unifBrightness, brightness);
-		
+
 		gl.activeTexture(gl.TEXTURE0);
 		gl.bindTexture(gl.TEXTURE_2D, texture);
 		gl.uniform1i(prog.unifTex, 0);
@@ -152,9 +160,6 @@ PointCloudRendererX = function(canvas) {
 	var lastMouseX = null;
 	var lastMouseY = null;
 	
-	var pcRotationMatrix = mat4.create();
-	mat4.identity(pcRotationMatrix);
-	
 	function handleMouseDown(event) {
 		mouseDown = true;
 		lastMouseX = event.clientX;
@@ -164,78 +169,40 @@ PointCloudRendererX = function(canvas) {
 	function handleMouseUp(event) {
 		mouseDown = false;
 	}
-	
-	var hasDataToSend = false;
-	var sendRotation = mat4.create();
-	mat4.identity(sendRotation);
-	
+
 	function handleMouseMove(event) {
-		
 		if (!mouseDown) {
 			return;
 		}
-		
-		this.moveCursor(event.clientX, event.clientY);
+		moveCursor(event.clientX, event.clientY);
 	}
 	
-	this.moveCursor = function(x, y) {
+	var moveCursor = function(x, y) {
 		
 		var deltaX = x - lastMouseX;
-		
-		if (deltaX > 30) {
-			lastMouseX = x;
-			lastMouseY = y;
-			return;
-		}
-		
-		var newRotationMatrix = mat4.create();
-		mat4.identity(newRotationMatrix);
-		mat4.rotate(newRotationMatrix, degToRad(deltaX / 5), [0, 1, 0]);
-		
 		var deltaY = y - lastMouseY;
-		mat4.rotate(newRotationMatrix, degToRad(deltaY / 5), [1, 0, 0]);
 		
-		mat4.multiply(newRotationMatrix, pcRotationMatrix, pcRotationMatrix);
-		
-		// ** For shared viewing **
-		mat4.multiply(newRotationMatrix, sendRotation, sendRotation);
-		hasDataToSend = true;
-		// ************************
+		if (deltaX < 30) {
+			rotX += degToRad(deltaX / 5);
+		}
+		if (deltaY < 30) {
+			rotY += degToRad(deltaY / 5);
+		}
 		
 		lastMouseX = x;
 		lastMouseY = y;
 	}
 	
+	this.moveCursor = moveCursor;
+	
 	this.resetCursor = function() {
 		mouseDown = false;
 		lastMouseX = null;
 		lastMouseY = null;
-		mat4.identity(pcRotationMatrix);
+		rotX = 0.0;
+		rotY = 0.0;
 	}
 	
-	this.updateModelRotation = function(mat) {
-		// mat4.set(mat, pcRotationMatrix);
-		// console.log(pcRotationMatrix);
-		
-		mat4.multiply(mat, pcRotationMatrix, pcRotationMatrix);
-	}
-	this.getRotationMatrix = function() {
-		
-		if (!hasDataToSend)
-			return null;
-		
-		var rot = [];
-		for (var i = 0; i < sendRotation.length; i++) {
-			rot[i] = sendRotation[i];
-		}
-		mat4.identity(sendRotation);
-		
-		hasDataToSend = false;
-		
-		return rot;
-	}
-	
-	// TODO: addEventListener instead?
 	canvas.addEventListener("mousedown", handleMouseDown, false);
 	document.addEventListener("mouseup", handleMouseUp, false);
 	document.addEventListener("mousemove", handleMouseMove, false);
