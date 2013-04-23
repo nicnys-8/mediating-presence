@@ -13,16 +13,17 @@ PhongRendererExt = function(canvas) {
 				 "uniform mat4 proj;",
 				 "uniform mat4 norm;",
 				 "uniform float blobbiness;",
+				 "uniform float zoom;",
 				 
 				 "varying vec3 vNormal;",
 				 "varying vec3 vWorldPos;",
 				 
 				 "void main(void){",
 					"vWorldPos = (view * vec4(aVertexPosition, 1.0)).xyz;",
-					"vec4 n = norm * vec4(aNormal, 0.0);",
+					"vec4 n = normalize(norm * vec4(aNormal, 0.0));",
 					"vec4 pos = view * vec4(aVertexPosition, 1.0);",
 					"vNormal = n.xyz;",
-					"gl_Position = proj * (pos + (n * blobbiness)); // +*/ sin(pos.y * 3.14159 * blobbiness)); // * blobbiness);",
+					"gl_Position = proj * (pos + (n * zoom * blobbiness)); // +*/ sin(pos.y * 3.14159 * blobbiness)); // * blobbiness);",
 				 "}",
 				 ].join("\n");
 	
@@ -94,6 +95,7 @@ PhongRendererExt = function(canvas) {
 	prog.unifShininess = gl.getUniformLocation(prog, "matShininess");
 	
 	prog.unifBlobbiness = gl.getUniformLocation(prog, "blobbiness");
+	prog.unifZoom = gl.getUniformLocation(prog, "zoom");
 	
 	// Set black background
 	gl.clearColor(0.0, 0.0, 0.0, 0.0);
@@ -164,6 +166,7 @@ PhongRendererExt = function(canvas) {
 	var ambient = [0.2, 0.2, 0.2];
 	var shininess = 20;
 	var scale = 1.0;
+	var zoom = 1.0;
 	
 	this.setSpecular = function(vec) {
 		specular[0] = vec[0];
@@ -185,6 +188,9 @@ PhongRendererExt = function(canvas) {
 	}
 	this.setScale = function(val) {
 		scale = val;
+	}
+	this.setZoom = function(val) {
+		zoom = val;
 	}
 	
 	var lightPos = [0, 0, 0];
@@ -231,6 +237,7 @@ PhongRendererExt = function(canvas) {
 		gl.uniform3fv(prog.unifAmbient, ambient);
 		gl.uniform1f(prog.unifShininess, shininess);
 		gl.uniform1f(prog.unifBlobbiness, blobbiness);
+		gl.uniform1f(prog.unifZoom, zoom);
 		
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
 		gl.drawElements(gl.TRIANGLES, indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);

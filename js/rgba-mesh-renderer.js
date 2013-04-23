@@ -88,7 +88,10 @@ MeshRenderer = function(canvas) {
 	
 	var cor = vec3.create([0, 0, 0]),
 		pos = vec3.create([0, 0, 0]);
-	
+	var scale = 1.0;
+	this.setScale = function(val) {
+		scale = val;
+	}
 	this.setCenterOfRotation = function(vec) {
 		cor[0] = vec[0];
 		cor[1] = vec[1];
@@ -110,8 +113,8 @@ MeshRenderer = function(canvas) {
 		
 		mat4.identity(mvMatrix);
 		mat4.translate(mvMatrix, pos);
-		// mat4.scale(mvMatrix, vec3.create([0.125, 0.125, -0.125]));
 		mat4.multiply(mvMatrix, pcRotationMatrix);
+		mat4.scale(mvMatrix, [scale, scale, scale]);
 		mat4.translate(mvMatrix, cor);
 		
 		gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);

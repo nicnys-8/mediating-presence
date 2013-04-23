@@ -362,10 +362,12 @@
 				for (var i = 0, len = colors.length; i < len; i++) {
 					colors[i] = model.colors[i];
 				}
-				return {pos:pos,
+				return {
+					pos:pos,
 					normals:normals,
 					faces:faces,
-					colors:colors,};
+					colors:colors,
+				};
 			}
 			
 			function loadJSONModel(model) {
@@ -413,10 +415,10 @@
 						renderer.setDiffuse(diffuse);
 						renderer.setAmbient(ambient);
 						renderer.setShininess(shininess);
-						renderer.setScale(baseScale * zoom);
 						renderer.setLightPos(lightPos);
+						renderer.setZoom(zoom);
 					}
-					
+					renderer.setScale(baseScale * zoom);
 					// renderer.setPosition([0, 0, distance * zoom]);
 					
 					renderer.render();
