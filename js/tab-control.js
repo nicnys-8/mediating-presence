@@ -36,9 +36,10 @@ TabControl = function() {
 		// Add listeners for video and depth data here
 	}
 	
-	var onNewKinectData = function(videoData, depthData) {
+	var onNewKinectData = function(videoData, depthData, rawVideo, rawDepth) {
 		// Called when a new frame of video is
 		// available from the Kinect
+		// rawVideo and rawDepth are undecoded data from the plugin
 	}
 	
 	var onLocalStreamInit = function(stream) {

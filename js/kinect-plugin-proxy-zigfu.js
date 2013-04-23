@@ -59,32 +59,45 @@ KinectPluginProxy = function() {
 		
 		plugin = document.getElementById("ZigPlugin");
 		
-		if (!plugin) {
+		if (plugin) {
+			
+			// Start the video streams
+			plugin.requestStreams({updateDepth:true, updateImage:true});
+			// Start updating the canvases every new kinect frame
+			plugin.addEventListener("NewFrame", onNewKinectData);
+
+		} else {
+		
 			console.warn("Zigfu plugin not detected, did you forget to add the tag in your html?");
+			
 			return;
 		}
-		
-		// Start the video streams
-		plugin.requestStreams({updateDepth:true, updateImage:true});
-		// Start updating the canvases every new kinect frame
-		plugin.addEventListener("NewFrame", onNewKinectData);
 		
 		if (TabControl) {
 			TabControl.onKinectInit(this);
 		}
+		
         initTouchController();
+	};
+	
+	var decodeVideo = function(input, output) {
+		KinectDecoder.decodeRGB(input, output);
+	};
+	
+	var decodeDepth = function(input, output) {
+		KinectDecoder.decodeDepth(input, output);
 	};
 	
 	var onNewKinectData = function() {
 		
 		// Decode the video data
-		KinectDecoder.decodeRGB(plugin.imageMap, videoData.data);
+		decodeVideo(plugin.imageMap, videoData.data);
 		
 		// Decode the depth data
-		KinectDecoder.decodeDepth(plugin.depthMap, depthData);
+		decodeDepth(plugin.depthMap, depthData);
 		
 		if (TabControl) {
-			TabControl.onNewKinectData(videoData, depthData);
+			TabControl.onNewKinectData(videoData, depthData, plugin.imageMap, plugin.depthMap);
 		}
 		
 		for (var i = 0; i < listeners.length; i++) {
@@ -115,8 +128,11 @@ KinectPluginProxy = function() {
 	// Return public API
 	return {
         initPlugin			: initPlugin,
-    initTouchController: initTouchController,
+		initTouchController : initTouchController,
 		requestStreams		: requestStreams,
+		
+		decodeVideo			: decodeVideo,
+		decodeDepth			: decodeDepth,
 		
 		RGB_DATA_WIDTH		: RGB_DATA_WIDTH,
 		RGB_DATA_HEIGHT		: RGB_DATA_HEIGHT,

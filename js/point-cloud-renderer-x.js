@@ -175,14 +175,16 @@ PointCloudRendererX = function(canvas) {
 			return;
 		}
 		
-		var newX = event.clientX;
-		var newY = event.clientY;
+		this.moveCursor(event.clientX, event.clientY);
+	}
+	
+	this.moveCursor = function(x, y) {
 		
-		var deltaX = newX - lastMouseX;
+		var deltaX = x - lastMouseX;
 		
 		if (deltaX > 30) {
-			lastMouseX = newX;
-			lastMouseY = newY;
+			lastMouseX = x;
+			lastMouseY = y;
 			return;
 		}
 		
@@ -190,7 +192,7 @@ PointCloudRendererX = function(canvas) {
 		mat4.identity(newRotationMatrix);
 		mat4.rotate(newRotationMatrix, degToRad(deltaX / 5), [0, 1, 0]);
 		
-		var deltaY = newY - lastMouseY;
+		var deltaY = y - lastMouseY;
 		mat4.rotate(newRotationMatrix, degToRad(deltaY / 5), [1, 0, 0]);
 		
 		mat4.multiply(newRotationMatrix, pcRotationMatrix, pcRotationMatrix);
@@ -200,8 +202,15 @@ PointCloudRendererX = function(canvas) {
 		hasDataToSend = true;
 		// ************************
 		
-		lastMouseX = newX;
-		lastMouseY = newY;
+		lastMouseX = x;
+		lastMouseY = y;
+	}
+	
+	this.resetCursor = function() {
+		mouseDown = false;
+		lastMouseX = null;
+		lastMouseY = null;
+		mat4.identity(pcRotationMatrix);
 	}
 	
 	this.updateModelRotation = function(mat) {
