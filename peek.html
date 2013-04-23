@@ -23,6 +23,8 @@
 			const KINECT_RGB_WIDTH = 160, KINECT_RGB_HEIGHT = 120;
             const KINECT_DEPTH_WIDTH = 160, KINECT_DEPTH_HEIGHT = 120;
 			
+			var isActive = false;
+			
 			var pluginProxy;
 			var senderIds = [];
 			var displayedStreams = {};
@@ -41,28 +43,29 @@
 			}
 			
 			TabControl.onActivate = function() {
-				// drawThumbs();
+				isActive = true;
 			}
 			
 			TabControl.onDeactivate = function() {
-				// clearTimeout(timer);
-				// timer = null;
+				isActive = false;
 			}
 			
 			TabControl.onLocalStreamInit = function(stream) {
 			}
 			
 			TabControl.onStreamAdded = function(stream) {
+				// Create PeekDisplay
 			}
 			
 			TabControl.onStreamRemoved = function(stream) {
+				// Remove PeekDisplay
 			}
 			
 			TabControl.onMessageReceived = function(senderId, type, data) {
 				
 				if (type == "kinect") {
 					
-					if (pluginProxy) {
+					if (isActive && pluginProxy) {
 						
 						var pd = displayedStreams[senderId];
 						
@@ -89,31 +92,26 @@
 			
 			TabControl.onNewKinectData = function(videoData, depthData, rawVideo, rawDepth) {
 				
+				// TODO: Send data even when tab is inactive?
+				if (!isActive) {
+					return;
+				}
+				
 				// DEBUG: show the video in a separate canvas
 				// canvas.getContext("2d").putImageData(videoData, 0, 0);
+				
 				// DEBUG: render local Kinect stream
 				displayVideo("me", videoData, depthData);
+				
 				// Send the Kinect data
 				TabControl.sendMessage("peek", "kinect", {video:rawVideo, depth:rawDepth});
             }
 			
             TabControl.onLoad = function() {
-                
 				var pd = new PeekDisplay();
 				senderIds.push("me");
 				displayedStreams["me"] = pd;
 				document.getElementById("container").appendChild(pd.canvas);
-				
-				/*
-                glCanvas = MediaExt.createCanvas(VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
-                glCanvas.style.margin = "20px auto";
-                document.getElementById("container").appendChild(glCanvas);
-				
-				canvas = MediaExt.createCanvas(KINECT_RGB_WIDTH, KINECT_RGB_HEIGHT);
-				document.body.appendChild(canvas);
-				
-				renderer = new PointCloudRendererX(glCanvas);
-				 */
             }
             
 			
