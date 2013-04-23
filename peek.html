@@ -81,7 +81,7 @@
 						pluginProxy.decodeVideo(data.video, pd.videoData);
 						pluginProxy.decodeDepth(data.depth, pd.depthBuffer);
 						
-						displayVideo(senderId, pd.videoData, pd.depthBuffer);
+						updateScene(senderId, pd.videoData, pd.depthBuffer);
 					}
 				}
 			}
@@ -101,7 +101,7 @@
 				// canvas.getContext("2d").putImageData(videoData, 0, 0);
 				
 				// DEBUG: render local Kinect stream
-				displayVideo("me", videoData, depthData);
+				updateScene("me", videoData, depthData);
 				
 				// Send the Kinect data
 				TabControl.sendMessage("peek", "kinect", {video:rawVideo, depth:rawDepth});
@@ -113,9 +113,8 @@
 				displayedStreams["me"] = pd;
 				document.getElementById("container").appendChild(pd.canvas);
             }
-            
 			
-			function displayVideo(senderId, video, depth) {
+			function updateScene(senderId, video, depth) {
 				
 				var pd = displayedStreams[senderId];
 				
@@ -199,7 +198,7 @@
 			</object>
         </div>
         
-        <h1>Point Cloud Generation</h1>
+        <h1>Peek!</h1>
         <div id="container">
         </div>
 		

@@ -489,6 +489,8 @@ var Ply = function() {
 				}
 			}
 		}
+		// Truncate the array
+		result.length = index;
 		
 		return new Uint16Array(result);
 	};
