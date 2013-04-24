@@ -377,11 +377,9 @@
 			
             TabControl.onLoad = function() {
 				initLynckia(TabControl);
-                // Added by Nicke ====
                 // Get the Lynckia room from the URL parameter
                 var roomId = window.location.search.replace( "?", "" );
-                accessRoom(roomId);
-                //=====
+                LynckiaClient.accessRoom(roomId);
 
 				currentTabID = "#chat";
 				
