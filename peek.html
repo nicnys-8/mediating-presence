@@ -88,6 +88,28 @@
 			
 			TabControl.onKinectInit = function(proxy) {
 				pluginProxy = proxy;
+				console.log("HEEEJ");
+				// Zigfu specific head tracking
+
+				var engager = zig.EngageUsersWithSkeleton(1);
+				
+				engager.addEventListener('userengaged', function(user) {
+										 console.log('User engaged: ' + user.id);
+										 
+										 user.addEventListener('userupdate', function(user) {
+															   var headPos = user.skeleton[zig.Joint.Head].position;
+															   for (var i = 0; i < senderIds.length; i++) {
+																	var pd = displayedStreams[senderIds[i]];
+																	console.log(headPos);
+																	pd.renderer.headMoved(headPos);
+															   }
+															   });
+										 });
+				engager.addEventListener('userdisengaged', function(user) {
+										 console.log('User disengaged: ' + user.id);
+										 });
+				zig.addListener(engager);
+				
 			}
 			
 			TabControl.onNewKinectData = function(videoData, depthData, rawVideo, rawDepth) {
@@ -104,7 +126,7 @@
 				updateScene("me", videoData, depthData);
 				
 				// Send the Kinect data
-				TabControl.sendMessage("peek", "kinect", {video:rawVideo, depth:rawDepth});
+				// TabControl.sendMessage("peek", "kinect", {video:rawVideo, depth:rawDepth});
             }
 			
             TabControl.onLoad = function() {
@@ -124,7 +146,7 @@
 				
 				var renderer = pd.renderer;
 				
-				var maxDepth = 3000;
+				var maxDepth = 4000;
 				var pos = [];
 				
 				var zScale = 1.0 / parseFloat(document.getElementById("zScale").value);
@@ -180,7 +202,7 @@
 				renderer.setBrightness(brightness);
 				renderer.setScale([1.0, -1.0, -zScale]);
                 renderer.setCenterOfRotation([-80, -60, -1000]);
-				renderer.setPosition([0, 0, -250]);
+				renderer.setPosition([0, 0, -200]);
 				renderer.bufferData(pos);
 				
                 renderer.render();

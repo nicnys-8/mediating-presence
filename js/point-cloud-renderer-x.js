@@ -31,7 +31,7 @@ PointCloudRendererX = function(canvas) {
 					"}",
 				
 					"uv = vec2(x / 160.0, y / 120.0);",
-					"gl_PointSize = -(pos.z / pos.w - 1.0) * 5.0;", // * pointSize
+					"gl_PointSize = -(pos.z / pos.w - 1.0) * 7.0;", // * pointSize
 					"gl_Position = pos;",
 				 "}",
 				 ].join("\n");
@@ -78,6 +78,8 @@ PointCloudRendererX = function(canvas) {
 	
 	var mvMatrix = mat4.create();
 	var pMatrix = mat4.create();
+	
+	var eye = vec3.create([0, 0, 0]);
 	
 	var degToRad = function(degrees) {
 		return degrees * Math.PI / 180;
@@ -133,6 +135,7 @@ PointCloudRendererX = function(canvas) {
 		mat4.perspective(45, canvas.width / canvas.height, 50.0, 1000.0, pMatrix);
 		
 		mat4.identity(mvMatrix);
+		mat4.lookAt(eye, pos, [0, 1, 0], mvMatrix);
 		mat4.translate(mvMatrix, pos);
 		mat4.rotateY(mvMatrix, rotX);
 		mat4.rotateX(mvMatrix, rotY);
@@ -194,6 +197,21 @@ PointCloudRendererX = function(canvas) {
 	}
 	
 	this.moveCursor = moveCursor;
+	
+	var prevHeadPos = null;
+	this.headMoved = function(headPos) {
+		
+		if (prevHeadPos != null) {
+			var delta = vec3.create();
+			var delta = vec3.subtract(headPos, prevHeadPos, delta);
+			// vec3.scale(delta, 1.0 / 5.0);
+			delta[2] = 0; // *= 0.1;
+			vec3.add(eye, delta);
+			vec3.set(headPos, prevHeadPos);
+		} else {
+			prevHeadPos = vec3.create(headPos);
+		}
+	}
 	
 	this.resetCursor = function() {
 		mouseDown = false;
