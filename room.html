@@ -46,7 +46,7 @@
 			}
 			
 			#menu {
-				width:500px;
+				width:600px;
 				height:100px;
 				margin:0 auto 0 auto;
 				clear:both;
@@ -128,6 +128,10 @@
 				background-image:url('images/play-top.png');
 			}
 			
+			#peekbutton {
+				background-image:url('images/peek-top.png');
+			}
+			
 			#audiobutton {
 				background-image:url('images/audio-top.png');
 			}
@@ -206,7 +210,7 @@
 			var enableVideo = true;
 			var enableAudio = true;
 			
-			var tabOrder = [ "#chat", "#share", "#play" ];
+			var tabOrder = [ "#chat", "#share", "#play", "#peek" ];
 			var tabControllers = {};
 			
 			var streamIDs = [];
@@ -616,6 +620,8 @@
 					onmousedown="switchToTab('#share');"></div></li><!--
 				--><li><div class="linkbutton" id="playbutton"
 					onmousedown="switchToTab('#play');"></div></li><!--
+				--><li><div class="linkbutton" id="peekbutton"
+					onmousedown="switchToTab('#peek');"></div></li><!--
 				--><li><div class="linkbutton disabled" id="audiobutton"
 					onmousedown="toggleAudio();"></div></li><!--
 				--><li><div class="linkbutton disabled" id="videobutton"
@@ -635,6 +641,7 @@
 				<iframe id="chat" src="chat.html" seamless>GAH!</iframe>
 				<iframe id="share" src="share.html" seamless>GAH!</iframe>
 				<iframe id="play" src="play.html" seamless>GAH!</iframe>
+				<iframe id="peek" src="peek.html" seamless>GAH!</iframe>
 				 
 			</div>
 			
