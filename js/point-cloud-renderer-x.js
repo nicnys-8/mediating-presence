@@ -31,7 +31,7 @@ PointCloudRendererX = function(canvas) {
 					"}",
 				
 					"uv = vec2(x / 160.0, y / 120.0);",
-					"gl_PointSize = -(pos.z / pos.w - 1.0) * 7.0;", // * pointSize
+					"gl_PointSize = -(pos.z / pos.w - 1.0) * 8.0;", // * pointSize
 					"gl_Position = pos;",
 				 "}",
 				 ].join("\n");

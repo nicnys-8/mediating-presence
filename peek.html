@@ -100,7 +100,7 @@
 															   var headPos = user.skeleton[zig.Joint.Head].position;
 															   for (var i = 0; i < senderIds.length; i++) {
 																	var pd = displayedStreams[senderIds[i]];
-																	console.log(headPos);
+																	// console.log(headPos);
 																	pd.renderer.headMoved(headPos);
 															   }
 															   });
@@ -124,6 +124,9 @@
 				
 				// DEBUG: render local Kinect stream
 				updateScene("me", videoData, depthData);
+				
+				// console.log(rawVideo);
+				// console.log(rawDepth);
 				
 				// Send the Kinect data
 				// TabControl.sendMessage("peek", "kinect", {video:rawVideo, depth:rawDepth});
