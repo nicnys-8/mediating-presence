@@ -43,8 +43,10 @@
             var rooms;
             var roomDictionary = {};
             var roomTable;
+            var username;
             
             var loginButtonClicked = function() {
+                username = $("#loginField").val();
                 $("#loginDiv").hide();
                 $("#roomDiv").show();
             };
@@ -79,9 +81,22 @@
                 roomTable = document.getElementById("roomTable");
                 
                 // Ask for a list of all rooms
-                getRooms(onGotRooms);
+                LynckiaClient.getRooms(displayRooms, onServerResponse);
                 // Ask for new the room list every two seconds, just to be safe...
                 //setInterval(updateRoomList, 10000);
+            };
+            
+            /**
+             Handles server responses to user requests
+             */
+            var onServerResponse = function(message) {
+                if (message.length >= 5 &&
+                    message.substring(0, 7) == "Error: ") {
+                    alert(message.substring(7));
+                } else {
+                    console.log("Received the following answer from the server: " + message);
+                }
+                $(":button").removeAttr("disabled");
             };
             
             /**
@@ -89,13 +104,13 @@
              for when they are received
              */
             var updateRoomList = function() {
-                getRooms(onGotRooms);
+                LynckiaClient.getRooms(displayRooms);
             };
             
             /**
              Displays all rooms returned from the server
              */
-            var onGotRooms = function(roomList) {
+            var displayRooms = function(roomList) {
                 rooms = JSON.parse(roomList);
                 for (var i = 0; i < rooms.length; i++) {
                     var room = rooms[i];
@@ -133,7 +148,7 @@
                 // Make the button send the user to the main page,
                 // with the room ID passed as a URL argument
                 joinButton.onclick = function() {
-                    window.location.href = "/room.html?" + room._id;
+                    window.location.href = "/room.html?username=" + username + "&roomId=" + room._id;
                 }
                 joinCell.appendChild(joinButton);
                 
@@ -142,14 +157,9 @@
                 deleteButton.innerHTML = "Delete";
                 // Definition of the function for handling room deletion
                 deleteButton.onclick = function() {
-                    // If the rooms exists:
-                    if (roomDictionary[room._id]) {
-                        // (deleteRoom is defined in lynckia-client.js)
-                        deleteRoom(room.name);
-                    } else {
-                        console.log("Attempting to delete nontexistent room");
-                    }
-                }
+                    LynckiaClient.deleteRoom(room.name, onServerResponse);
+                    $(":button").attr("disabled", true); // Disable all buttons
+                };
                 deleteCell.appendChild(deleteButton);
             };
             
@@ -168,7 +178,9 @@
              */
             var createRoomButtonClicked = function() {
                 var roomName = document.getElementById("roomName").value;
-                createRoom(roomName); // second argument is the callback function
+                // second argument is the callback function
+                LynckiaClient.createRoom(roomName, onServerResponse);
+                $(":button").attr("disabled", true); // Disable all buttons
             };
             
             /**

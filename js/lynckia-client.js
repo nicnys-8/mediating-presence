@@ -7,6 +7,129 @@ var serverUrl = "/";
 var localStream, room;
 var tabController;
 
+var LynckiaClient = LynckiaClient || {};
+
+/**
+ Creates the key used to get access to a Lynckia room
+ @param username Not useful at the moment
+ @param role Not useful at the moment
+ @param roomId A number identifying the room the caller wishes to access
+ @param callback A function that will be called with the servers response
+ to the request, in string form, as input
+ */
+
+LynckiaClient.createToken = function(username, role, roomId, callback) {
+    var req = new XMLHttpRequest();
+    var url = serverUrl + "createToken/";
+    var body = {username: username, role: role, roomId: roomId};
+    
+    req.onreadystatechange = function() {
+        if (req.readyState === 4) {
+            console.log("Response from server:");
+            callback(req.responseText);
+        }
+    };
+    req.open("POST", url, true);
+    req.setRequestHeader("Content-Type", "application/json");
+    req.send(JSON.stringify(body));
+};
+
+/**
+ Create a Lynckia room
+ @param roomName The name of the new room, in string form
+ */
+LynckiaClient.createRoom = function(roomName, callback) {
+    console.log("Sending a request to the server to create a new room");
+    var req = new XMLHttpRequest();
+    var url = serverUrl + "createRoom/";
+    var body = {roomName: roomName};
+    
+    /*
+    req.onreadystatechange = function() {
+        if (req.readyState === 4) {
+            handleServerMessage(req.responseText);
+        }
+    };*/
+    
+    req.onreadystatechange = function() {
+        if (req.readyState === 4) {
+            callback(req.responseText);
+        }
+    };
+    
+    req.open("POST", url, true);
+    req.setRequestHeader("Content-Type", "application/json");
+    req.send(JSON.stringify(body));
+};
+
+/**
+ Delete a Lynckia room
+ @param roomName The name of the room that is to be deleted, in string form
+ */
+LynckiaClient.deleteRoom = function(roomName, callback) {
+    console.log("Asking server to delete room named " + roomName);
+    var req = new XMLHttpRequest();
+    var url = serverUrl + "deleteRoom/";
+    var body = {roomName: roomName};
+    req.onreadystatechange = function() {
+        if (req.readyState === 4) {
+            callback(req.responseText);
+        }
+    };
+    /*req.onreadystatechange = function() {
+        if (req.readyState === 4) {
+            handleServerMessage(req.responseText);
+        }
+    };*/
+    req.open("POST", url, true);
+    req.setRequestHeader("Content-Type", "application/json");
+    req.send(JSON.stringify(body));
+};
+
+/**
+ Get the specified Lynckia room
+ @param roomName A string with the name of the room
+ */
+LynckiaClient.getRoom = function(roomName) {
+    alert("Hey, turns out we're using this function!"); //Just checking if this is ever used... :p
+    var req = new XMLHttpRequest();
+    var url = serverUrl + "getRoom/";
+    var body = {roomName: roomName};
+    
+    req.onreadystatechange = function() {
+        if (req.readyState === 4) {
+            console.log(req.responseText);
+        }
+    };
+    req.open("POST", url, true);
+    req.setRequestHeader("Content-Type", "application/json");
+    req.send(JSON.stringify(body));
+};
+
+/**
+ Get a list of the available Lynckia rooms
+ @param callBack Method called when the server responds
+ */
+LynckiaClient.getRooms = function(callback) {
+    var req = new XMLHttpRequest();
+    var url = serverUrl + "getRooms/";
+    req.onreadystatechange = function() {
+        if (req.readyState === 4) {
+            callback(req.responseText);
+        }
+    };
+    req.open("GET", url, true);
+    req.setRequestHeader("Content-Type", "application/json");
+    req.send();
+};
+
+/**
+ Used by the Hindex file to access a room
+ */
+LynckiaClient.accessRoom = function(username, roomId) {
+    LynckiaClient.createToken(username, "role", roomId, onTokenCreated);
+};
+
 /**
  Subscribe to current users' streams
  */
@@ -30,108 +153,12 @@ var onDataReceived = function(event) {
 };
 
 /**
- Create the key used to get access to a room
- */
-var createToken = function(userName, role, roomId, callback) {
-    var req = new XMLHttpRequest();
-    var url = serverUrl + "createToken/";
-    var body = {username: userName, role: role, roomId: roomId};
-    
-    req.onreadystatechange = function() {
-        if (req.readyState === 4) {
-            console.log("Response from server:");
-            callback(req.responseText);
-        }
-    };
-    req.open("POST", url, true);
-    req.setRequestHeader("Content-Type", "application/json");
-    req.send(JSON.stringify(body));
-};
-
-/**
- Create a Lynckia room
- */
-var createRoom = function(roomName) {
-    console.log("Sending a request to the server to create a new room");
-    var req = new XMLHttpRequest();
-    var url = serverUrl + "createRoom/";
-    var body = {roomName: roomName};
-    
-    req.onreadystatechange = function() {
-        if (req.readyState === 4) {
-            console.log("Received the following answer from the server: " + req.responseText);
-        }
-    };
-    req.open("POST", url, true);
-    req.setRequestHeader("Content-Type", "application/json");
-    req.send(JSON.stringify(body));
-};
-
-/**
- Delete a Lynckia room
- */
-var deleteRoom = function(roomName) {
-    console.log("Asking server to delete room named " + roomName);
-    var req = new XMLHttpRequest();
-    var url = serverUrl + "deleteRoom/";
-    var body = {roomName: roomName};
-    req.onreadystatechange = function() {
-        if (req.readyState === 4) {
-            if (req.responseText) {
-                console.log("Server message: " + req.responseText);
-                // This isn't a very pretty solution...
-                if (req.responseText == "Attempting to delete nontexistent room") alert("lol" + req.responseText);
-            }
-        }
-    };
-    req.open("POST", url, true);
-    req.setRequestHeader("Content-Type", "application/json");
-    req.send(JSON.stringify(body));
-}
-
-/**
- Get the specified Lynckia room
- */
-var getRoom = function(roomName) {
-    var req = new XMLHttpRequest();
-    var url = serverUrl + "getRoom/";
-    var body = {roomName: roomName};
-    
-    req.onreadystatechange = function() {
-        if (req.readyState === 4) {
-            console.log("Result from call to 'getRoom': ");
-            console.log(req.responseText);
-        }
-    };
-    req.open("POST", url, true);
-    req.setRequestHeader("Content-Type", "application/json");
-    req.send(JSON.stringify(body));
-}
-
-/**
- Get a list of the available Lynckia rooms
- @param callBack Method called when the server responds
- */
-var getRooms = function(callback) {
-    var req = new XMLHttpRequest();
-    var url = serverUrl + "getRooms/";
-    
-    req.onreadystatechange = function() {
-        if (req.readyState === 4) {
-            callback(req.responseText);
-        }
-    };
-    req.open("GET", url, true);
-    req.setRequestHeader("Content-Type", "application/json");
-    req.send(); // TODO: WHAT?! req.send(JSON.stringify(body));
-}
-
-/**
  Called when a user access token is created-
  A Lynckia room is created, and the user is
  asked to grant access to the local user media
  */
 var onTokenCreated = function(token) {
+    console.log("Received token: " + token);
     room = Erizo.Room({token: token});
     // Add listeners for responding to the media access request
     localStream.addEventListener("access-accepted", onMediaAccessGranted);
@@ -155,7 +182,11 @@ var onMediaAccessDenied = function() {
  */
 var onMediaAccessGranted = function() {
     console.log("Access to webcam and microphone accepted");
-    room.addEventListener("room-connected", function (roomEvent) {tabController.setLocalStream(localStream);
+    
+    room.addEventListener("room-connected", function (roomEvent) {
+                          localStream.room = room; //BLAAAH
+                          tabController.setLocalStream(localStream);
+                          // After this, it doesn't work
                           room.publish(localStream);
                           subscribeToStreams(roomEvent.streams);
                           });
@@ -176,20 +207,14 @@ var onMediaAccessGranted = function() {
 };
 
 /**
- Connect to a Lynckia room
+ ...........
  */
 initLynckia = function(tabControllerArg) {
     tabController = tabControllerArg;
     localStream = Erizo.Stream({audio: true, video: true, data: true});
-    //createToken("user", "role", "lule", onTokenCreated);
 };
 
-/**
- To be used by the Hindex file to access a room
- */
-accessRoom = function(roomId) {
-    createToken("user", "role", roomId, onTokenCreated);
-};
+
 
 
 

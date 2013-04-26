@@ -1,7 +1,7 @@
 
 <!-- :hover doesn't work with the doctype tag..?
-<!DOCTYPE html>
--->
+ <!DOCTYPE html>
+ -->
 
 <html>
     <head>
@@ -9,7 +9,7 @@
         <title>Kinect Telepresence</title>
 		
 		<!--
-		<link rel="stylesheet" type="text/css" href="css/pb.css"/>
+         <link rel="stylesheet" type="text/css" href="css/pb.css"/>
 		 -->
 		<style type="text/css">
 			
@@ -191,7 +191,7 @@
 				
 			}
 			
-		</style>
+            </style>
 		
 		<script type="text/javascript" src="js/lib/jquery.js"></script>
         <script type="text/javascript" src="js/lib/sylvester.js"></script>
@@ -203,7 +203,7 @@
 		<script type="text/javascript" src="js/kinect-plugin-proxy-zigfu.js"></script>
 		<script type="text/javascript" src="js/lib/erizo.js"></script>
 		<script type="text/javascript" src="js/lynckia-client.js"></script>
-
+        
 		<script>
 			
 			var currentTabID;
@@ -217,6 +217,8 @@
 			var streams = {};
 			var thumbs = {};
 			var currentStreamID = null;
+            var username;
+            //var usernames = {}; // A dictionary linking streamIDs to usernames
 			
 			function addVideoStream(stream) {
 				var streamID = stream.local ? "myStream" : stream.getID();
@@ -232,9 +234,10 @@
 				thumbs[streamID] = thumb;
 				
 				document.getElementById("sidebar-right").appendChild(thumb);
-				
+                console.log('XXXXX:');
+                console.log(stream);
+                console.log(document.getElementById(thumb.id));
 				stream.show(thumb.id);
-				
 				setCurrentStream(streamID);
 			}
 			
@@ -281,7 +284,8 @@
 			};
 			
 			TabControl.onLocalStreamInit = function(stream) {
-				
+                console.log('logging stream:');
+                console.log(stream);
 				addVideoStream(stream);
 				
 				for (var tabName in tabControllers) {
@@ -292,9 +296,7 @@
 			}
 			
 			TabControl.onStreamAdded = function(stream) {
-				
 				addVideoStream(stream);
-				
 				// Just propagate the message to the tabs
 				for (var tabName in tabControllers) {
 					if (tabControllers[tabName]) {
@@ -318,28 +320,27 @@
 			TabControl.onMessageReceived = function(senderId, type, packet) {
 				
 				/*
-				console.log("Received messsage");
-				console.log(packet);
+                 console.log("Received messsage");
+                 console.log(packet);
 				 */
 				
 				var destination = packet.dst;
 				var messageType = packet.type;
 				var data = packet.data;
-
+                
 				if (destination == "index") {
 					
 					switch (messageType) {
-						
 						case "invite":
-							// Invitation to Klotski game
-							handleKlotskiInvite(senderId, data);
-							break;
+                        // Invitation to Klotski game
+                        handleKlotskiInvite(senderId, data);
+                        break;
 						case "share":
-							// Someone wants to share a 3D model
-							handleShared3DModel(senderId, data);
-							break;
+                        // Someone wants to share a 3D model
+                        handleShared3DModel(senderId, data);
+                        break;
 						default:
-							break;
+                        break;
 					}
 					
 				} if (destination == "all") {
@@ -358,9 +359,9 @@
 					}
 				}
 			};
-
+            
 			TabControl.onKinectInit = function(proxy) {
-
+                
 				// Important! This needs to happen after TabControl.onLoad
 				// TODO: Make sure it does! :)
 				for (var tabName in tabControllers) {
@@ -381,10 +382,18 @@
 			
             TabControl.onLoad = function() {
 				initLynckia(TabControl);
-                // Get the Lynckia room from the URL parameter
-                var roomId = window.location.search.replace( "?", "" );
-                LynckiaClient.accessRoom(roomId);
-
+                // Get the Lynckia room from the URL parameter                
+                var paramString = window.location.search.replace("?", "");
+                var params = paramString.split("&");
+                
+                var tempArray = params[0].split("=");
+                username = tempArray[1];
+                
+                var tempArray = params[1].split("=");
+                var roomId = tempArray[1];
+                
+                LynckiaClient.accessRoom(username, roomId);
+                
 				currentTabID = "#chat";
 				
 				// If a tab is specified in the url, make it the current tab
@@ -404,8 +413,8 @@
 				var tabs = $("iframe");
 				
 				tabs.each(function() {
-							tabControllers["#" + this.id] = this.contentWindow.TabControl;
-							deactivateTab(this.id);
+                          tabControllers["#" + this.id] = this.contentWindow.TabControl;
+                          deactivateTab(this.id);
 						  });
 				
 				activateTab(currentTabID);
@@ -452,22 +461,22 @@
 				
 				deactivateTab(currentTabID);
 				currentTab.animate({
-									left:"-=" + startPos,
-									opacity:0.0,
-									}, 500, function() {
-										// Animation complete.
-										$(this).hide();
-									});
-
+                                   left:"-=" + startPos,
+                                   opacity:0.0,
+                                   }, 500, function() {
+                                   // Animation complete.
+                                   $(this).hide();
+                                   });
+                
 				nextTab.show();
 				nextTab.css("left", startPos);
 				nextTab.css("opacity", 0.0);
 				nextTab.animate({
-								 left:"-=" + startPos,
-								 opacity:1.0,
-								 }, 500, function() {
-									activateTab(this.id);
-								 });
+                                left:"-=" + startPos,
+                                opacity:1.0,
+                                }, 500, function() {
+                                activateTab(this.id);
+                                });
 				
 				$(currentTabID + "button").toggleClass("selected");
 				$(nextTabID +"button").toggleClass("selected");
@@ -480,10 +489,10 @@
 				
 				var audiobutton = $("#audiobutton");
 				if (audiobutton.hasClass("disabled"))
-					return;
+                return;
 				
 				audiobutton.css("background-image", enableAudio ? "url('images/noaudio-top.png')" : "url('images/audio-top.png')");
-
+                
 				enableAudio = !enableAudio;
 			}
 			
@@ -491,13 +500,13 @@
 				
 				var videobutton = $("#videobutton");
 				if (videobutton.hasClass("disabled"))
-					return;
+                return;
 				
 				videobutton.css("background-image", enableVideo ? "url('images/novideo-top.png')" : "url('images/video-top.png')");
 				
 				enableVideo = !enableVideo;
 			}
-		
+            
 			/*
 			 crappy shrink animation of popup:
 			 $('#popupDiv').animate({
@@ -511,6 +520,14 @@
 			 });
 			 */
 			
+            /**
+             Store a mapping between a remote user's streamID and username
+             
+            function handleRemoteUsername(senderId, data) {
+                var username = data.username;
+                usernames[senderId] = username;
+            }*/
+            
 			function handleKlotskiInvite(senderId, data) {
 				$("#sharePopup").hide();
 				$("#klotskiPopup").show();
@@ -519,7 +536,7 @@
 			function acceptKlotskiInvite() {
 				hidePopup();
 				switchToTab("#play");
-
+                
 				TabControl.sendMessage("play", "inviteAccepted", { turn : false });
 				// Send a fake message to self to start the local klotski game as well
 				tabControllers["#play"].onMessageReceived(null, "inviteAccepted", {turn : true });
@@ -569,7 +586,7 @@
 				blanket.animate({ opacity:0.0, },
 								500, function() { $(this).hide(); });
 			}
-		</script>
+            </script>
         
     </head>
 	
@@ -580,16 +597,16 @@
 				<param name="onload" value="zigPluginLoaded">
 					</object>
 		</div>
-			
+        
 		<a href="http://www.ltu.se" target="_blank"><img src="images/ltu_logo_small.png" style="position:absolute; left:5px; top:5px;"></a>
 		<!--
-		<a href="http://www.ltu.se" target="_blank"><img src="images/ltu_logo_small.png" style="position:absolute; left:5px; bottom:5px;"></a>
-		-->
+         <a href="http://www.ltu.se" target="_blank"><img src="images/ltu_logo_small.png" style="position:absolute; left:5px; bottom:5px;"></a>
+         -->
 		
 		<a href="http://www.ltu.se" target="_blank"><img src="images/ltu_logo_small.png" style="position:absolute; right:5px; top:5px;"></a>
 		<!--
-		<a href="http://www.ltu.se" target="_blank"><img src="images/ltu_logo_small.png" style="position:absolute; right:5px; bottom:5px;"></a>
-		-->
+         <a href="http://www.ltu.se" target="_blank"><img src="images/ltu_logo_small.png" style="position:absolute; right:5px; bottom:5px;"></a>
+         -->
 		
 		<div id="blanket">
 			<div id="popupDiv">
@@ -613,28 +630,28 @@
 			</div>
 		</div>
 		<div id="menu"><!-- These comments are only here to avoid whitespace between the divs :)
-			--><ul><!--
-				--><li><div class="linkbutton" id="chatbutton"
-					onmousedown="switchToTab('#chat');"></div></li><!--
-				--><li><div class="linkbutton" id="sharebutton"
-					onmousedown="switchToTab('#share');"></div></li><!--
-				--><li><div class="linkbutton" id="playbutton"
-					onmousedown="switchToTab('#play');"></div></li><!--
-				--><li><div class="linkbutton" id="peekbutton"
-					onmousedown="switchToTab('#peek');"></div></li><!--
-				--><li><div class="linkbutton disabled" id="audiobutton"
-					onmousedown="toggleAudio();"></div></li><!--
-				--><li><div class="linkbutton disabled" id="videobutton"
-					onmousedown="toggleVideo();"></div></li><!--
-			--></ul><!--
-		--></div>
+                        --><ul><!--
+                                --><li><div class="linkbutton" id="chatbutton"
+                                    onmousedown="switchToTab('#chat');"></div></li><!--
+                                                                                    --><li><div class="linkbutton" id="sharebutton"
+                                                                                        onmousedown="switchToTab('#share');"></div></li><!--
+                                                                                                                                         --><li><div class="linkbutton" id="playbutton"
+                                                                                                                                             onmousedown="switchToTab('#play');"></div></li><!--
+                                                                                                                                                                                             --><li><div class="linkbutton" id="peekbutton"
+                                                                                                                                                                                                 onmousedown="switchToTab('#peek');"></div></li><!--
+                                                                                                                                                                                                                                                 --><li><div class="linkbutton disabled" id="audiobutton"
+                                                                                                                                                                                                                                                     onmousedown="toggleAudio();"></div></li><!--
+                                                                                                                                                                                                                                                                                              --><li><div class="linkbutton disabled" id="videobutton"
+                                                                                                                                                                                                                                                                                                  onmousedown="toggleVideo();"></div></li><!--
+                                                                                                                                                                                                                                                                                                                                           --></ul><!--
+                                                                                                                                                                                                                                                                                                                                                    --></div>
 		
 		<div id="wrap">
 			
 			<!--
-			<div id="sidebar-left">
-			</div>
-			-->
+             <div id="sidebar-left">
+             </div>
+             -->
 			
 			<div id="content">
 				
@@ -642,7 +659,7 @@
 				<iframe id="share" src="share.html" seamless>GAH!</iframe>
 				<iframe id="play" src="play.html" seamless>GAH!</iframe>
 				<iframe id="peek" src="peek.html" seamless>GAH!</iframe>
-				 
+                
 			</div>
 			
 			
@@ -650,7 +667,7 @@
 			</div>
 			
 		</div>
-			
+        
     </body>
 	
 </html>

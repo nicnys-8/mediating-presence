@@ -20,7 +20,6 @@
                 <script type="text/javascript" src="js/geometry.js"></script>
                 <script type="text/javascript" src="js/lib/subdivision-modifier.js"></script>
                 <script type="text/javascript" src="js/timer.js"></script>
-                <!--></!-->
                 <link rel="stylesheet" type="text/css" href="css/pb.css"/>
                 
                 <script>
@@ -36,6 +35,7 @@
                     var inviteButton;
                     var turnInfo;
                     var playerColorSpan;
+                    var inviteButtonsDiv;
                     
                     var streamIds = [];
                     var friendId;
@@ -70,10 +70,15 @@
                     
                     TabControl.onMessageReceived = function(senderId, type, packet) {
                         if (type == "inviteAccepted") {
-                            // Store the ID of the other user's stream
-                            friendId = senderId;
-                            // Display the game and game messages
-                            startGame(packet.turn);
+                            // Check if the message was meant for you
+                            //TODO:
+                            alert("Retrieve username from local stream!!!!!");
+                            if (packet.dst == "yoyoyo") {
+                                // Store the ID of the other user's stream
+                                friendId = senderId;
+                                // Display the game and game messages
+                                startGame(packet.turn);
+                            }
                         }
                         else if (type == "inviteDeclined") {
                             alert("Invite declined!");
@@ -105,6 +110,7 @@
                         klotskiContainer = document.getElementById("klotskiContainer");
                         startDiv = document.getElementById("startScreen");
                         turnButton = document.getElementById("turnButton");
+                        inviteButtonsDiv = document.getElementById("inviteButtonsDiv");
                         inviteButton = document.getElementById("inviteButton");
                         inviteButton.disabled = true;
                         
@@ -122,11 +128,11 @@
                     };
                     
                     /**
-                     Sends a game invitation to another player
+                     Sends a game invitation to the player specified by 'username'
                      */
-                    function invitePlayer() {
+                    function invitePlayer(username) {
                         inviteButton.disabled = true;
-                        TabControl.sendMessage("index", "invite", {});
+                        TabControl.sendMessage("index", "invite", {dst: username});
                     }
                     
                     /**
@@ -170,7 +176,8 @@
                     }
                     
                     /**
-                     Called when a Klotski block snaps to an even grid point
+                     Called when a Klotski block snaps to an even grid point-
+                     Sends a message through TabControl informing the other player of the move
                      */
                     function blockSnapped(id, x, y) {
                         var data = {id:id, x:x, y:y};
@@ -230,7 +237,6 @@
                         event.preventDefault();
                         
                         //TODO: Remove this ugly code:
-                        
                         var element = document.elementFromPoint(event.clientX, event.clientY);
                         if (element.id == "inviteButton") invitePlayer();
                         if (element.id == "nextLevelButton") nextLevelClicked();
@@ -253,6 +259,29 @@
                         if (klotski) klotski.onMouseUp(event.clientX, event.clientY);
                     };
                     
+                    /**
+                     Adds a button that lets you invite a remote user
+                     */
+                    addInviteButton = function(username) {
+                        var button = document.createElement("button");
+                        inviteButtonsDiv.appendChild(button);
+                        button.innerHTML = "Invite " + username;
+                        button.onclick = invitePlayer(username);
+                    };
+                    
+                    /**
+                     Removes the invite button corresponding to the
+                     specified user
+                     */
+                    removeInviteButton = function(username) {
+                        for (i = 0; i < inviteButtonsDiv.childNodes.length; i++) {
+                            var button = inviteButtonsDiv.childNodes[i];
+                            if (button.innerHTML == username) {
+                                inviteButtonsDiv.removeChild(button);
+                            }
+                        }
+                    };
+                    
                     </script>
                 </head>
     
@@ -265,9 +294,13 @@
                 level. You can only move some of the blocks, so you'll need help
                 from a friend to finish the levels!
             </div>
-            <button id="inviteButton" onclick="invitePlayer()" style="width:20%; height:60px">
-                Invite friend
-            </button>
+            
+            <div id="inviteButtonsDiv">
+                <button id="inviteButton" onclick="invitePlayer()" style="width:20%; height:60px">
+                    Invite friend
+                </button>
+            </div>
+            
             <div id="waitMessage" style="display:none">
                 Waiting for other user to response
             </div>
