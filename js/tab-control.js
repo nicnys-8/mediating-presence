@@ -62,7 +62,7 @@ TabControl = function() {
 			// TODO: queue the message and wait for a stream?
 			// Maybe add a timeout and discard messages from
 			// the queue after a while
-			console.warn("Trying to send message of type '" + type + "' to frame '" + dst +"', but no local stream is available.");
+			// console.warn("Trying to send message of type '" + type + "' to frame '" + dst +"', but no local stream is available.");
 		}
 	}
 	

@@ -32,9 +32,9 @@
 KinectPluginProxy = function() {
 	
 	const	RGB_DATA_WIDTH = 160,
-    RGB_DATA_HEIGHT = 120,
-    DEPTH_DATA_WIDTH = 160,
-    DEPTH_DATA_HEIGHT = 120;
+			RGB_DATA_HEIGHT = 120,
+			DEPTH_DATA_WIDTH = 160,
+			DEPTH_DATA_HEIGHT = 120;
 	
 	var plugin;
 	var depthData;
@@ -42,14 +42,13 @@ KinectPluginProxy = function() {
 	var listeners = [];
     var touchController;
 	
+	var engager;
+	var headPosListeners = [];
+	
+	/**
+	 Embeds and initialzies plugin object
+	 */
 	var initPlugin = function() {
-		
-		var ctx = document.createElement("canvas").getContext("2d");
-		videoData = ctx.createImageData(RGB_DATA_WIDTH, RGB_DATA_HEIGHT);
-		
-		depthData = new Array(DEPTH_DATA_WIDTH * DEPTH_DATA_HEIGHT);
-		
-		// plugin = document.getElementById("ZigPlugin");
 		
 		// Embed the Zigfu plugin object
 		zig.embed();
@@ -61,20 +60,40 @@ KinectPluginProxy = function() {
 			return;
 		}
 		
+		// Get the plugin object
 		plugin = zig.findZigObject();
 		
+		// Request video and depth streams
 		if (plugin) {
-			
-			// Start the video streams
 			plugin.requestStreams({updateDepth:true, updateImage:true});
-			// Start updating the canvases every new kinect frame
 			plugin.addEventListener("NewFrame", onNewKinectData);
-
 		} else {
 			console.warn("Hmm... Something wrong with Zigfu?!");
 			return;
 		}
 		
+		// Create Engager for head tracking
+		engager = zig.EngageUsersWithSkeleton(1);
+		engager.addEventListener("userengaged", function(user) {
+								 console.log("User engaged: " + user.id);
+								 user.addEventListener("userupdate", function(user) {
+													   var headPos = user.skeleton[zig.Joint.Head].position;
+													   for (var i = 0; i < headPosListeners.length; i++) {
+															headPosListeners[i](headPos);
+													   }});
+								 });
+		engager.addEventListener("userdisengaged", function(user) {
+								 console.log("User disengaged: " + user.id);
+								 });
+		zig.addListener(engager);
+		
+		
+		// Create buffers for video and depth data
+		var ctx = document.createElement("canvas").getContext("2d");
+		videoData = ctx.createImageData(RGB_DATA_WIDTH, RGB_DATA_HEIGHT);
+		depthData = new Array(DEPTH_DATA_WIDTH * DEPTH_DATA_HEIGHT);
+		
+		// Signal initialization to TabControl
 		if (TabControl) {
 			TabControl.onKinectInit(this);
 		}
@@ -82,6 +101,9 @@ KinectPluginProxy = function() {
         initTouchController();
 	};
 	
+	/**
+	 Called from the plugin when new depth and video data is available
+	 */
 	var onNewKinectData = function() {
 		
 		// Decode the video data
@@ -103,10 +125,23 @@ KinectPluginProxy = function() {
         }
 	};
 	
+	/**
+	 Can be used to add new listeners to Kinect data
+	 */
 	var requestStreams = function(callback) {
 		listeners.push(callback);
 	}
     
+	/**
+	 Add listener for head position of engaged user
+	 */
+	var addHeadPositionListener = function(callback) {
+		headPosListeners.push(callback);
+	}
+	
+	/**
+	 Initializes touch controller if calibration data is available
+	 */
     var initTouchController = function() {
         
         // Set up mandatory parameters for the touch controller constructor
@@ -128,8 +163,8 @@ KinectPluginProxy = function() {
 		codexInt[i] = codexStr.indexOf(String.fromCharCode(i));
 	}
 	
-	/*
-	 Takes raw Kinect RGB data and stores a decoded version in the output array
+	/**
+	 Decodes Base64 encoded video data to RGBA
 	 */
 	var decodeVideo = function(input, output) {
 		var inLength = input.length,
@@ -147,8 +182,8 @@ KinectPluginProxy = function() {
 		}
 	};
 	
-	/*
-	 Takes raw Kinect depth data and stores a decoded version in the output array
+	/**
+	 Decodes Base64 encoded depth data
 	 */
 	var decodeDepth = function(input, output) {
 
@@ -178,6 +213,8 @@ KinectPluginProxy = function() {
         initPlugin			: initPlugin,
 		initTouchController : initTouchController,
 		requestStreams		: requestStreams,
+		
+		addHeadPositionListener : addHeadPositionListener,
 		
 		decodeVideo			: decodeVideo,
 		decodeDepth			: decodeDepth,

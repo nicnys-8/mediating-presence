@@ -85,27 +85,13 @@
 			}
 			
 			TabControl.onKinectInit = function(proxy) {
+				proxy.addHeadPositionListener(function(headPos) {
+											  for (var i = 0; i < senderIds.length; i++) {
+												var pd = displayedStreams[senderIds[i]];
+												// console.log(headPos);
+												pd.renderer.headMoved(headPos);
+											  }});
 				pluginProxy = proxy;
-				
-				var engager = zig.EngageUsersWithSkeleton(1);
-				
-				// Zigfu specific head tracking
-				engager.addEventListener('userengaged', function(user) {
-										 console.log('User engaged: ' + user.id);
-										 
-										 user.addEventListener('userupdate', function(user) {
-															   var headPos = user.skeleton[zig.Joint.Head].position;
-															   for (var i = 0; i < senderIds.length; i++) {
-																	var pd = displayedStreams[senderIds[i]];
-																	// console.log(headPos);
-																	pd.renderer.headMoved(headPos);
-															   }
-															   });
-										 });
-				engager.addEventListener('userdisengaged', function(user) {
-										 console.log('User disengaged: ' + user.id);
-										 });
-				zig.addListener(engager);
 			}
 			
 			TabControl.onNewKinectData = function(videoData, depthData, rawVideo, rawDepth) {
