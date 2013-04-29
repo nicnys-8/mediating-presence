@@ -78,7 +78,7 @@
 							document.getElementById("container").appendChild(pd.canvas);
 						}
 						
-						pluginProxy.decodeVideo(data.video, pd.videoData);
+						pluginProxy.decodeVideo(data.video, pd.videoData.data);
 						pluginProxy.decodeDepth(data.depth, pd.depthBuffer);
 						
 						updateScene(senderId, pd.videoData, pd.depthBuffer);
@@ -129,7 +129,7 @@
 				// console.log(rawDepth);
 				
 				// Send the Kinect data
-				// TabControl.sendMessage("peek", "kinect", {video:rawVideo, depth:rawDepth});
+				TabControl.sendMessage("peek", "kinect", {video:rawVideo, depth:rawDepth});
             }
 			
             TabControl.onLoad = function() {
