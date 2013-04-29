@@ -57,7 +57,19 @@ KinectPluginProxy = function() {
 		
 		depthData = new Array(DEPTH_DATA_WIDTH * DEPTH_DATA_HEIGHT);
 		
-		plugin = document.getElementById("ZigPlugin");
+		// plugin = document.getElementById("ZigPlugin");
+		
+		// Embed the Zigfu plugin object
+		zig.embed();
+		
+		// Make sure the plugin is installed
+		if (!zig.pluginInstalled) {
+			console.warn("Zigfu plugin not installed!");
+			// Alert or something?
+			return;
+		}
+		
+		plugin = zig.findZigObject();
 		
 		if (plugin) {
 			
@@ -67,9 +79,7 @@ KinectPluginProxy = function() {
 			plugin.addEventListener("NewFrame", onNewKinectData);
 
 		} else {
-		
-			console.warn("Zigfu plugin not detected, did you forget to add the tag in your html?");
-			
+			console.warn("Hmm... Something wrong with Zigfu?!");
 			return;
 		}
 		
@@ -146,9 +156,19 @@ KinectPluginProxy = function() {
  top level window (not in an iframe).
  */
 if (window.self === window.top) {
+	
+	var s = document.createElement("script");
+	s.src = "js/lib/zig.js"; // http://cdn.zigfu.com/zigjs/zig.min.js";
+	s.onload = function() {
+		KinectPluginProxy.initPlugin();
+	};
+	document.head.appendChild(s);
+	
+	/*
 	window.addEventListener("load", function() {
                             KinectPluginProxy.initPlugin();
 							}, false);
+	 */
 }
 
 
