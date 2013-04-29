@@ -99,7 +99,6 @@
                     };
                     
                     TabControl.onLoad = function() {
-                        
                         // Store the DOM elements for use later
                         gameDiv = document.getElementById("gameDiv");
                         clearedDiv = document.getElementById("levelCleared");
@@ -115,9 +114,11 @@
                         gameDiv.style.display = "none";
                         clearedDiv.style.display = "none";
                         
+                        /*
                         document.addEventListener('mousedown', onMouseDown, false);
                         document.addEventListener('mousemove', onMouseMove, false);
                         document.addEventListener('mouseup', onMouseUp, false);
+                         */
                         tick();
                     };
                     
@@ -217,7 +218,7 @@
                     
                     /**
                      Give up control of the game to your opponent
-                     */
+                    x */
                     function giveUpTurn() {
                         klotski.setHasTurn(false);
                         turnButton.disabled = true;
@@ -234,19 +235,13 @@
                      */
                     onMouseDown = function(event) {
                         if (klotski) klotski.onMouseDown(event.clientX, event.clientY);
-                        event.preventDefault();
                         
                         //TODO: Remove this ugly code:
                         var element = document.elementFromPoint(event.clientX, event.clientY);
-                        if (element.id == "inviteButton")       inviteButtonClicked();
-                        if (element.id == "nextLevelButton")    nextLevelClicked();
-                        if (element.id == "turnButton")         giveUpTurn();
-                        if (element.id == "endButton")          endGame();
-                        
-                        /*
-                        if (element.id == "userSelect") {
-                            
-                        }*/
+                        if (element.id == "inviteButton") inviteButtonClicked();
+                        else if (element.id == "nextLevelButton") nextLevelClicked();
+                        else if (element.id == "turnButton") giveUpTurn();
+                        else if (element.id == "endButton") endGame();
                     };
                     
                     /**
