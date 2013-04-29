@@ -90,14 +90,6 @@ KinectPluginProxy = function() {
         initTouchController();
 	};
 	
-	var decodeVideo = function(input, output) {
-		KinectDecoder.decodeRGB(input, output);
-	};
-	
-	var decodeDepth = function(input, output) {
-		KinectDecoder.decodeDepth(input, output);
-	};
-	
 	var onNewKinectData = function() {
 		
 		// Decode the video data
@@ -135,6 +127,60 @@ KinectPluginProxy = function() {
         }
     };
 	
+	// Base64 decoding
+	var numDepthPoints = DEPTH_DATA_WIDTH * DEPTH_DATA_HEIGHT;
+	var tempDepth = new Array(numDepthPoints * 2);
+	var codexStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+	var codexInt = [];
+	for (var i = 0; i < 256; i++) {
+		codexInt[i] = codexStr.indexOf(String.fromCharCode(i));
+	}
+	
+	/*
+	 Takes raw Kinect RGB data and stores a decoded version in the output array
+	 */
+	var decodeVideo = function(input, output) {
+		var inLength = input.length,
+			enc1, enc2, enc3, enc4;
+		for (var i = 0; i < inLength; i += 4) {
+			enc1 = codexInt[input.charCodeAt(i + 0)];
+			enc2 = codexInt[input.charCodeAt(i + 1)];
+			enc3 = codexInt[input.charCodeAt(i + 2)];
+			enc4 = codexInt[input.charCodeAt(i + 3)];
+			
+			output[i + 0] = (enc1 << 2) | (enc2 >> 4);
+			output[i + 1] = ((enc2 & 15) << 4) | (enc3 >> 2);
+			output[i + 2] = ((enc3 & 3) << 6) | enc4;
+			output[i + 3] = 255; // Full opacity
+		}
+	};
+	
+	/*
+	 Takes raw Kinect depth data and stores a decoded version in the output array
+	 */
+	var decodeDepth = function(input, output) {
+
+		var inLength = input.length, j = 0;
+		for (var i = 0; i < inLength;) {
+			
+			var enc1 = codexInt[input.charCodeAt(i++)];
+			var enc2 = codexInt[input.charCodeAt(i++)];
+			var enc3 = codexInt[input.charCodeAt(i++)];
+			var enc4 = codexInt[input.charCodeAt(i++)];
+			
+			tempDepth[j++] = (enc1 << 2) | (enc2 >> 4);
+			tempDepth[j++] = ((enc2 & 15) << 4) | (enc3 >> 2);
+			tempDepth[j++] = ((enc3 & 3) << 6) | enc4;
+		}
+		
+		var leftBits, rightBits;
+		for (var i = 0; i < numDepthPoints; i++) {
+			leftBits = tempDepth[2 * i + 1] << 8;
+			rightBits = tempDepth[2 * i];
+			output[i] =  leftBits | rightBits;
+		}
+	};
+	
 	// Return public API
 	return {
         initPlugin			: initPlugin,
@@ -157,6 +203,7 @@ KinectPluginProxy = function() {
  */
 if (window.self === window.top) {
 	
+	// Inject the Zigfu script
 	var s = document.createElement("script");
 	s.src = "js/lib/zig.js"; // http://cdn.zigfu.com/zigjs/zig.min.js";
 	s.onload = function() {

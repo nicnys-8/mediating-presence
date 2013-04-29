@@ -1,5 +1,8 @@
 /**
  Functions for decoding the raw video data retrieved from the Kinect
+ 
+ This is a Base64 decoder with some Zigfu specific stuff.
+ The code has been moved to kinect-plugin-proxy-zigfu.js!
  */
 
 
@@ -15,11 +18,10 @@ var KinectDecoder = function() {
         codexInt[i] = idx;
     }
     
-    
     /*
      Takes raw Kinect RGB data and stores a decoded version in the output array
      */
-    var decodeRGB = function(input, output)     {
+    var decodeRGB = function(input, output) {
         var inLength = input.length;
         var enc1, enc2, enc3, enc4;
         for (var i = 0; i < inLength; i += 4) {
@@ -71,48 +73,10 @@ var KinectDecoder = function() {
         }
     };
     
-    
-    /**
-     Given an array with touch data, a 2D-point is returned,
-     specifying where a touch occured.
-     */
-    var getTouchPoint = function(touchData, width, height) {
-        
-        // Threshold value: at least this many touch points are
-        // needed for a touch to occur
-        var minTouches = 5;
-        var nrOfTouchPoints = 0;
-        var xTotal = 0;
-        var yTotal = 0;
-        
-        for (var currentRow = 0; currentRow < height; currentRow++) {
-            for (var currentCol = 0; currentCol < width; currentCol++) {
-                
-                if (touchData[currentRow * width + currentCol]) {
-                    nrOfTouchPoints++;
-                    xTotal += currentCol;
-                    yTotal += currentRow;
-                }
-            }
-        }
-        
-        // If fewer touch points than the specified minimum
-        // were found, return undefined
-        if (nrOfTouchPoints < minTouches) {
-            return;
-        }
-        // Otherwise, return a 2D-point with the average x
-        // and y values of the touch points
-        else {
-            var xValue = Math.round(xTotal / nrOfTouchPoints);
-            var yValue = Math.round(yTotal / nrOfTouchPoints);
-            
-            var point2D = {x: xValue, y: yValue};
-            return point2D;
-        }
-    };
-    
-    return {decodeRGB: decodeRGB, decodeDepth: decodeDepth, getTouchPoint: getTouchPoint};
+    return {
+		decodeRGB: decodeRGB,
+		decodeDepth: decodeDepth,
+	};
     
     
 }();
