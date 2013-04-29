@@ -3,7 +3,7 @@
  */
 
 MouseInterface = function(container, cameraArg) {
-
+    
     var projector = new THREE.Projector();
     var camera = cameraArg;
     

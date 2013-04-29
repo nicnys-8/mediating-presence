@@ -213,7 +213,6 @@ KinectTouchController.prototype.getTouchAtPoint = function(x, y) {
         
         // Check if index is out of bounds
         if (index < 0 || index > this.touchData.length) {
-            console.log("undefined");
             continue;
         }
         
@@ -273,7 +272,6 @@ KinectTouchController.prototype.simulateMouseEvent = function(touchPoint, eventT
     // Decide the target that will dispatch the event;
     // it can be either an iFrame or the main element
     var target;
-
     if (element.tagName == "IFRAME") {
         var elementX = $(element).offset().left;
         var elementY = $(element).offset().top;
@@ -281,18 +279,15 @@ KinectTouchController.prototype.simulateMouseEvent = function(touchPoint, eventT
         touchPoint.x = touchPoint.x - elementX;
         touchPoint.y = touchPoint.y - elementY;
         target = element.contentDocument;
-        
     } else {
         target = element;
     }
+     
     event.initMouseEvent(eventType, true, true,
                          window, 0, 0, 0,
                          touchPoint.x,
                          touchPoint.y,
                          false, false, false,
                          false, 0, null);
-    target.dispatchEvent(event);
+    target.dispatchEvent(event);    
 };
-
-
-

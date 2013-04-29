@@ -5,7 +5,6 @@
         <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
                 
-                <script type="text/javascript" src="js/lib/zig.js"></script>
                 <script type="text/javascript" src="js/lib/jquery.js"></script>
                 <script type="text/javascript" src="js/lib/three.js"></script>
                 <script type="text/javascript" src="js/lib/subdivision-modifier.js"></script>
@@ -13,7 +12,6 @@
                 <script type="text/javascript" src="js/mouse-interface.js"></script>
                 <script type="text/javascript" src="js/klotski3D.js"></script>
                 <script type="text/javascript" src="js/klotski-blocks.js"></script>
-                <script type="text/javascript" src="js/kinect-decoder.js"></script>
                 <script type="text/javascript" src="js/image-handling.js"></script>
                 <script type="text/javascript" src="js/kinect-touch-controller.js"></script>
                 <script type="text/javascript" src="js/geometry.js"></script>
@@ -101,8 +99,9 @@
                     };
                     
                     TabControl.onLoad = function() {
+                        
                         // Store the DOM elements for use later
-                        gameDiv = document.getElementById("game");
+                        gameDiv = document.getElementById("gameDiv");
                         clearedDiv = document.getElementById("levelCleared");
                         clearedMessageDiv = document.getElementById("clearedMessage");
                         waitMessageDiv = document.getElementById("waitMessage");
@@ -119,7 +118,6 @@
                         document.addEventListener('mousedown', onMouseDown, false);
                         document.addEventListener('mousemove', onMouseMove, false);
                         document.addEventListener('mouseup', onMouseUp, false);
-                        
                         tick();
                     };
                     
@@ -244,6 +242,11 @@
                         if (element.id == "nextLevelButton")    nextLevelClicked();
                         if (element.id == "turnButton")         giveUpTurn();
                         if (element.id == "endButton")          endGame();
+                        
+                        /*
+                        if (element.id == "userSelect") {
+                            
+                        }*/
                     };
                     
                     /**
@@ -261,7 +264,7 @@
                     };
                     
                     /**
-                     Adds a button that lets you invite a remote user
+                     Adds a user to the list of users that can be invited
                      */
                     addInviteOption = function(username) {
                         var select = document.getElementById("userSelect");
@@ -290,7 +293,7 @@
                 from a friend to finish the levels!
             </div>
             
-            <select id="userSelect" style="width:20">
+            <select id="userSelect">
             </select>
             
             <button id="inviteButton" onclick="inviteButtonClicked()">
@@ -302,7 +305,7 @@
             </div>
         </div>
         
-        <div id ="game" style="text-align:center; height:100%; width:100%">
+        <div id ="gameDiv" style="text-align:center; height:100%; width:100%">
             <div id ="klotskiContainer" style="height:100%; width:100%; margin:10px auto; position:absolute; left:0; top:0;">
             </div>
             
