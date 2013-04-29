@@ -234,9 +234,6 @@
 				thumbs[streamID] = thumb;
 				
 				document.getElementById("sidebar-right").appendChild(thumb);
-                console.log('XXXXX:');
-                console.log(stream);
-                console.log(document.getElementById(thumb.id));
 				stream.show(thumb.id);
 				setCurrentStream(streamID);
 			}
@@ -284,10 +281,7 @@
 			};
 			
 			TabControl.onLocalStreamInit = function(stream) {
-                console.log('logging stream:');
-                console.log(stream);
 				addVideoStream(stream);
-				
 				for (var tabName in tabControllers) {
 					if (tabControllers[tabName]) {
 						tabControllers[tabName].setLocalStream(stream);
@@ -381,8 +375,7 @@
 			};
 			
             TabControl.onLoad = function() {
-				initLynckia(TabControl);
-                // Get the Lynckia room from the URL parameter                
+                // Get the Lynckia room from the URL parameter
                 var paramString = window.location.search.replace("?", "");
                 var params = paramString.split("&");
                 
@@ -392,6 +385,7 @@
                 var tempArray = params[1].split("=");
                 var roomId = tempArray[1];
                 
+                LynckiaClient.setTabControl(TabControl);
                 LynckiaClient.accessRoom(username, roomId);
                 
 				currentTabID = "#chat";
@@ -523,15 +517,19 @@
             /**
              Store a mapping between a remote user's streamID and username
              
-            function handleRemoteUsername(senderId, data) {
-                var username = data.username;
-                usernames[senderId] = username;
-            }*/
+             function handleRemoteUsername(senderId, data) {
+             var username = data.username;
+             usernames[senderId] = username;
+             }*/
             
 			function handleKlotskiInvite(senderId, data) {
-				$("#sharePopup").hide();
-				$("#klotskiPopup").show();
-				showPopup();
+                if (data.dst == username) {
+                    $("#sharePopup").hide();
+                    // TODO: Make the user name of the other user show in the message
+                    // $("#inviteMessage").text(otherUser + " invited you to a Klotski game!");
+                    $("#klotskiPopup").show();
+                    showPopup();
+                }
 			}
 			function acceptKlotskiInvite() {
 				hidePopup();
@@ -613,7 +611,9 @@
 				
 				<div id="klotskiPopup" class="popup-content">
 					<img style="display:float; width:90px; height:75px;" src="images/play-icon.png"></img>
-					You have been invited to play a game of Klotski!
+					<span id="inviteMessage">
+                        You have been invited to play a game of Klotski!
+                    </span>
 					<br>
 					<button onclick="acceptKlotskiInvite();">Accept</button>
 					<button onclick="declineKlotskiInvite();">Decline</button>

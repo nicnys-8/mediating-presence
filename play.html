@@ -5,21 +5,22 @@
         <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
                 
-                <script type="text/javascript" src="js/tab-control.js"></script>
+                <script type="text/javascript" src="js/lib/zig.js"></script>
+                <script type="text/javascript" src="js/lib/jquery.js"></script>
                 <script type="text/javascript" src="js/lib/three.js"></script>
+                <script type="text/javascript" src="js/lib/subdivision-modifier.js"></script>
+                
                 <script type="text/javascript" src="js/mouse-interface.js"></script>
                 <script type="text/javascript" src="js/klotski3D.js"></script>
                 <script type="text/javascript" src="js/klotski-blocks.js"></script>
-                <script type="text/javascript" src="js/particles.js"></script>
-                <script type="text/javascript" src="js/lib/zig.js"></script>
-                
-                <script type="text/javascript" src="js/lib/jquery.js"></script>
                 <script type="text/javascript" src="js/kinect-decoder.js"></script>
                 <script type="text/javascript" src="js/image-handling.js"></script>
                 <script type="text/javascript" src="js/kinect-touch-controller.js"></script>
                 <script type="text/javascript" src="js/geometry.js"></script>
-                <script type="text/javascript" src="js/lib/subdivision-modifier.js"></script>
                 <script type="text/javascript" src="js/timer.js"></script>
+                <script type="text/javascript" src="js/tab-control.js"></script>
+                <script type="text/javascript" src="js/particles.js"></script>
+                
                 <link rel="stylesheet" type="text/css" href="css/pb.css"/>
                 
                 <script>
@@ -35,9 +36,8 @@
                     var inviteButton;
                     var turnInfo;
                     var playerColorSpan;
-                    var inviteButtonsDiv;
+                    var localUsername;
                     
-                    var streamIds = [];
                     var friendId;
                     
                     TabControl.onActivate = function() {
@@ -48,44 +48,43 @@
                         if (klotski) klotski.shouldRender = false;
                     };
                     
+                    TabControl.onLocalStreamInit = function(stream) {
+                        localUsername = stream.getAttributes().username;
+                    };
+                    
                     TabControl.onStreamAdded = function(stream) {
-                        // Add the stream ID to the list
-                        streamIds.push(stream.getID());
-                        inviteButton.disabled = false;
+                        var newUsername = stream.getAttributes().username;
+                        if (newUsername != localUsername) {
+                            console.log("Registered new user named " + newUsername);
+                            addInviteOption(newUsername);
+                        }
                     };
                     
                     TabControl.onStreamRemoved = function(stream) {
-                        // Remove the stream ID from the list
+                        // If the user who left was playing with you, end the game
                         var id = stream.getID();
                         if (id == friendId) {
                             friendId = null;
                             endGame();
                         }
-                        for (var i = 0; i < streamIds.length; i++) {
-                            if (id == streamIds[i]) {
-                                streamIds.splice(i,1);
-                            }
-                        }
+                        // Remove the invite button of the user
+                        var removedUser = stream.getAttributes().removedUser;
+                        removeInviteButton(removedUser);
                     };
                     
-                    TabControl.onMessageReceived = function(senderId, type, packet) {
+                    TabControl.onMessageReceived = function(senderId, type, data) {
                         if (type == "inviteAccepted") {
-                            // Check if the message was meant for you
-                            //TODO:
-                            alert("Retrieve username from local stream!!!!!");
-                            if (packet.dst == "yoyoyo") {
-                                // Store the ID of the other user's stream
-                                friendId = senderId;
-                                // Display the game and game messages
-                                startGame(packet.turn);
-                            }
+                            // Store the ID of the other user's stream
+                            friendId = senderId;
+                            // Display the game and game messages
+                            startGame(data.turn);
                         }
                         else if (type == "inviteDeclined") {
                             alert("Invite declined!");
-                            inviteButton.disabled = false;
+                            $("#inviteButton").removeAttr("disabled");
                         }
                         else if (type == "update") {
-                            klotski.onReceivedMove(packet);
+                            klotski.onReceivedMove(data);
                         }
                         else if (type == "nextLevel") {
                             nextLevel();
@@ -110,9 +109,6 @@
                         klotskiContainer = document.getElementById("klotskiContainer");
                         startDiv = document.getElementById("startScreen");
                         turnButton = document.getElementById("turnButton");
-                        inviteButtonsDiv = document.getElementById("inviteButtonsDiv");
-                        inviteButton = document.getElementById("inviteButton");
-                        inviteButton.disabled = true;
                         
                         turnInfo = document.getElementById("turnInfo");
                         playerColorSpan = document.getElementById("playerColorSpan");
@@ -130,9 +126,16 @@
                     /**
                      Sends a game invitation to the player specified by 'username'
                      */
-                    function invitePlayer(username) {
-                        inviteButton.disabled = true;
-                        TabControl.sendMessage("index", "invite", {dst: username});
+                    function inviteButtonClicked() {
+                        invitedUser = $("#userSelect").val();
+                        if (!invitedUser) {
+                            console.log("No user is selected");
+                            return;
+                        }
+                        console.log("Sending invite to " + invitedUser);
+                        // sendMessage(destination, type, data)
+                        TabControl.sendMessage("index", "invite", {dst: invitedUser});
+                        $("#inviteButton").attr("disabled", true);
                     }
                     
                     /**
@@ -164,7 +167,6 @@
                     function endGame() {
                         startDiv.style.display = "block";
                         gameDiv.style.display = "none";
-                        if (streamIds.length > 0) inviteButton.disabled = false;
                     }
                     
                     /**
@@ -238,11 +240,10 @@
                         
                         //TODO: Remove this ugly code:
                         var element = document.elementFromPoint(event.clientX, event.clientY);
-                        if (element.id == "inviteButton") invitePlayer();
-                        if (element.id == "nextLevelButton") nextLevelClicked();
-                        if (element.id == "turnButton") giveUpTurn();
-                        if (element.id == "endButton") endGame();
-                        
+                        if (element.id == "inviteButton")       inviteButtonClicked();
+                        if (element.id == "nextLevelButton")    nextLevelClicked();
+                        if (element.id == "turnButton")         giveUpTurn();
+                        if (element.id == "endButton")          endGame();
                     };
                     
                     /**
@@ -262,11 +263,9 @@
                     /**
                      Adds a button that lets you invite a remote user
                      */
-                    addInviteButton = function(username) {
-                        var button = document.createElement("button");
-                        inviteButtonsDiv.appendChild(button);
-                        button.innerHTML = "Invite " + username;
-                        button.onclick = invitePlayer(username);
+                    addInviteOption = function(username) {
+                        var select = document.getElementById("userSelect");
+                        select.options[select.options.length] = new Option(username, username);
                     };
                     
                     /**
@@ -274,12 +273,8 @@
                      specified user
                      */
                     removeInviteButton = function(username) {
-                        for (i = 0; i < inviteButtonsDiv.childNodes.length; i++) {
-                            var button = inviteButtonsDiv.childNodes[i];
-                            if (button.innerHTML == username) {
-                                inviteButtonsDiv.removeChild(button);
-                            }
-                        }
+                        //var button = document.getElementById(username + "Button");
+                        //inviteButtonsDiv.removeChild(button);
                     };
                     
                     </script>
@@ -295,11 +290,12 @@
                 from a friend to finish the levels!
             </div>
             
-            <div id="inviteButtonsDiv">
-                <button id="inviteButton" onclick="invitePlayer()" style="width:20%; height:60px">
-                    Invite friend
-                </button>
-            </div>
+            <select id="userSelect" style="width:20">
+            </select>
+            
+            <button id="inviteButton" onclick="inviteButtonClicked()">
+                Invite
+            </button>
             
             <div id="waitMessage" style="display:none">
                 Waiting for other user to response

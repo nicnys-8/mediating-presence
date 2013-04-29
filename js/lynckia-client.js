@@ -17,7 +17,6 @@ var LynckiaClient = LynckiaClient || {};
  @param callback A function that will be called with the servers response
  to the request, in string form, as input
  */
-
 LynckiaClient.createToken = function(username, role, roomId, callback) {
     var req = new XMLHttpRequest();
     var url = serverUrl + "createToken/";
@@ -91,7 +90,7 @@ LynckiaClient.deleteRoom = function(roomName, callback) {
  @param roomName A string with the name of the room
  */
 LynckiaClient.getRoom = function(roomName) {
-    alert("Hey, turns out we're using this function!"); //Just checking if this is ever used... :p
+    alert('Hey, turns out we are using this function!'); //Just checking if this is ever used... :p
     var req = new XMLHttpRequest();
     var url = serverUrl + "getRoom/";
     var body = {roomName: roomName};
@@ -124,9 +123,14 @@ LynckiaClient.getRooms = function(callback) {
 };
 
 /**
- Used by the Hindex file to access a room
+ Sets up the localstream and ask the server for a Lynckia token, which will be used
+ to gain access to a room
+ @param username The username (string)
+ @param roomId Unique identifier of the Lynckia room (number)
  */
 LynckiaClient.accessRoom = function(username, roomId) {
+    // Set up the local stream
+    localStream = Erizo.Stream({audio: true, video: true, data: true, attributes: {username: username}});
     LynckiaClient.createToken(username, "role", roomId, onTokenCreated);
 };
 
@@ -207,11 +211,10 @@ var onMediaAccessGranted = function() {
 };
 
 /**
- ...........
+ Set the clients tabControl object
  */
-initLynckia = function(tabControllerArg) {
+LynckiaClient.setTabControl = function(tabControllerArg) {
     tabController = tabControllerArg;
-    localStream = Erizo.Stream({audio: true, video: true, data: true});
 };
 
 
