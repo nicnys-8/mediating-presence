@@ -1,0 +1,656 @@
+
+<html>
+    <head>
+        
+        <title>Point Cloud Rendering Test</title>
+        
+		<script src="https://rawgithub.com/mrdoob/three.js/master/build/three.js"></script>
+			
+		<script type="text/javascript" src="js/tab-control.js"></script>
+        <script type="text/javascript" src="js/mediaext.js"></script>
+        <script type="text/javascript" src="js/lib/webgl-utils.js"></script>
+        <script type="text/javascript" src="js/lib/glMatrix-0.9.5.min.js"></script>
+        <script type="text/javascript" src="js/point-cloud-renderer.js"></script>
+		<script type="text/javascript" src="js/phong-renderer.js"></script>
+		<script type="text/javascript" src="js/phong-renderer-ext.js"></script>
+		<script type="text/javascript" src="js/rgba-mesh-renderer.js"></script>
+		<script type="text/javascript" src="js/ply-parser.js"></script>
+		
+        <link rel="stylesheet" type="text/css" href="css/pb.css"/>
+        <link rel="stylesheet" type="text/css" href="css/pointcloud.css"/>
+        
+        <script type="text/javascript">
+
+			const kWidth = 640, kHeight = 480;
+            
+			var glCanvas,
+				renderer = null,
+				model = null;
+			
+			var shareButton,
+				clearButton;
+			
+			var sendRotTimer = null;
+			var resumeSend = false;
+			
+			TabControl.onActivate = function() {
+				
+				requestAnimFrame(drawScene);
+				
+				if (resumeSend) {
+					sendRotation();
+				}
+			}
+			
+			TabControl.onDeactivate = function() {
+				cancelAnimFrame(drawScene);
+				if (sendRotTimer) {
+					clearTimeout(sendRotTimer);
+					resumeSend = true;
+					sendRotTimer = null;
+				}
+			}
+			
+			TabControl.onStreamAdded = function(stream) {}
+			TabControl.onStreamRemoved = function(stream) {}
+			
+			TabControl.onMessageReceived = function(senderId, type, packet) {
+				
+				switch (type) {
+					case "inviteAccepted":
+						onShareAccepted();
+						break;
+					case "inviteDeclined":
+						onShareDeclined();
+						break;
+					case "model":
+						loadJSONModel(packet);
+						sendRotation();
+						break;
+					case "rotate":
+						if (renderer) {
+							renderer.updateModelRotation(packet.matrix);
+						}
+						break;
+					case "modelReceived":
+						console.log("Received model load confirmation");
+						sendRotation();
+						break;
+				}
+			}
+			
+			TabControl.onKinectInit = function(proxy) {}
+			TabControl.onNewKinectData = function(videoData, depthData) {}
+			
+			function updateInputs(name, values) {
+				document.getElementById(name + "Color").value = crapRGBtoHex(values);
+				document.getElementById(name + "0").value = values[0] * 255;
+				document.getElementById(name + "1").value = values[1] * 255;
+				document.getElementById(name + "2").value = values[2] * 255;
+			}
+			
+            TabControl.onLoad = function() {
+                
+				var specularPicker = document.getElementById("specularColor");
+				specularPicker.value = crapRGBtoHex(specular);
+				specularPicker.onchange = function() {
+					crapHexToRGB(this.value, specular);
+					updateInputs("specular", specular);
+				}
+				var diffusePicker = document.getElementById("diffuseColor");
+				diffusePicker.value = crapRGBtoHex(diffuse);
+				diffusePicker.onchange = function() {
+					crapHexToRGB(this.value, diffuse);
+					updateInputs("diffuse", diffuse);
+				}
+				var ambientPicker = document.getElementById("ambientColor");
+				ambientPicker.value = crapRGBtoHex(ambient);
+				ambientPicker.onchange = function() {
+					crapHexToRGB(this.value, ambient);
+					updateInputs("ambient", ambient);
+				}
+				
+				scene3 = new THREE.Scene();
+				camera3 = new THREE.PerspectiveCamera(45, kWidth / kHeight, 0.1, 1000);
+				renderer3 = new THREE.WebGLRenderer();
+				renderer3.setSize(kWidth, kHeight);
+				
+				var light = new THREE.PointLight(0xffffff);
+				scene3.add(light);
+				
+				document.body.appendChild(renderer3.domElement);
+				
+				geometry3 = new THREE.BufferGeometry();
+				material3 = new THREE.MeshPhongMaterial();
+				material3.shininess = shininess;
+				material3.specular = new THREE.Color(crapHexToRGB(specular));
+				material3.diffuse = new THREE.Color(crapHexToRGB(diffuse));
+				material3.ambient = new THREE.Color(crapHexToRGB(ambient));
+				
+				glCanvas = MediaExt.createCanvas(kWidth, kHeight);
+                glCanvas.style.display = "none";
+                glCanvas.style.margin = "20px auto";
+                document.getElementById("container").appendChild(glCanvas);
+				
+				shareButton = document.getElementById("shareButton");
+				clearButton = document.getElementById("clearButton");
+				
+				for (var i = 0; i < 3; i++) {
+					document.getElementById("specular" + i).value = specular[i] * 255;
+					document.getElementById("diffuse" + i).value = diffuse[i] * 255;
+					document.getElementById("ambient" + i).value = ambient[i] * 255;
+				}
+				document.getElementById("shininess").value = shininess;
+				
+
+				// **********************
+                // Drag and drop with File API
+                var dropbox = document.getElementById("dropbox"),
+                dropboxContainer = document.getElementById("container"),
+				state = document.getElementById("status");
+                
+                if (typeof window.FileReader === "undefined") {
+                    state.className = "fail";
+                    state.innerHTML = "File API unavailable, change browser!!!! :)";
+                } else {
+                    state.className = "success";
+                }
+                
+                dropboxContainer.ondragenter = function () {
+                    dropbox.className = "hover";
+                    return false;
+                };
+                dropboxContainer.ondragleave = function () {
+                    dropbox.className = "";
+                    return false;
+                };
+                dropboxContainer.ondragover = function () {
+                    dropbox.className = "hover";
+                    return false;
+                };
+                dropboxContainer.ondragend = function () {
+                    return false;
+                };
+                dropboxContainer.ondrop = function (e) {
+                    
+                    dropbox.className = "";
+                    
+                    e.preventDefault();
+                    readFiles(e.dataTransfer.files);
+                    
+                    return false;
+                };
+                // **********************
+                
+                document.getElementById("fileSelect").addEventListener("change", function () { readFiles(this.files); }, false);
+            }
+            
+            function readFiles(files) {
+                
+                var file = files[0];
+                
+                var splitName = file.name.split(".");
+                if (splitName.length < 2 || splitName[1] !== "ply") {
+                    alert("I ONLY ACCEPT .ply FILES! ." + splitName[1] + " FILES ANGER ME! >:(");
+                    return;
+                }
+                // or maybe:
+                /*
+                 if (file.name.substring(file.name.length - 4) !== ".ply") {
+                 }
+                 */
+                
+                var progress = document.getElementById("percentBar");
+                var dropbox = document.getElementById("dropbox");
+                
+                var reader = new FileReader();
+                reader.onerror = errorHandler;
+                reader.onprogress = updateProgress;
+                reader.onabort = function(e) {
+                    alert("File read cancelled");
+                };
+                reader.onloadstart = function(e) {
+                    document.getElementById("progressBar").className = "loading";
+                };
+                reader.onload = function (event) {
+                    // Ensure that the progress bar displays 100% at the end.
+                    progress.style.width = "100%";
+                    progress.textContent = "100%";
+                    setTimeout("document.getElementById('progressBar').className='';", 2000);
+                    
+                    dropbox.style.display = "none";
+                    glCanvas.style.display = "block";
+                    
+					try {
+						model = Ply.parse(event.target.result);
+						console.log(model);
+					} catch (error) {
+						alert("Error parsing model. " + error);
+						return;
+					}
+					
+					var rendererConstructor = model.renderer;
+					if (rendererConstructor) {
+						
+						renderer = new rendererConstructor(glCanvas);
+						
+						if (rendererConstructor == PhongRenderer || rendererConstructor == PhongRendererExt) {
+							renderer.bufferData(model.pos, model.normals, model.faces);
+							
+							geometry3.attributes = {
+								index: {
+									itemSize:1,
+									array:model.faces,
+									numItems:model.faces.length,
+								},
+								position: {
+									itemSize:3,
+									array:model.pos,
+									numItems:model.pos.length / 3,
+								},
+								normal: {
+									itemSize:3,
+									array:model.normals,
+									numItems:model.normals.length / 3,
+								},
+								/*
+								color: {
+									itemSize: 3,
+									array: new Float32Array( triangles * 3 * 3 ),
+									numItems: triangles * 3 * 3
+								 */
+							};
+							geometry3.offsets = [{
+												 start:0,
+												 index:0,
+												 count:model.faces.length,
+												 }];
+							geometry3.computeBoundingSphere();
+							mesh3 = new THREE.Mesh(geometry3, material3);
+							scene3.add(mesh3);
+							
+						} else if (rendererConstructor == MeshRenderer) {
+							renderer.bufferData(model.pos, model.colors, model.faces);
+						} else if (rendererConstructor == PointCloudRenderer) {
+							renderer.bufferData(model.pos, model.colors);
+						}
+						
+						positionModel(model);
+						
+						clearButton.disabled = false;
+						shareButton.disabled = false;
+					}
+					// drawScene();
+                };
+                
+                console.log(file);
+                
+                // reader.readAsDataURL(file);
+                // reader.readAsText(file);
+				reader.readAsArrayBuffer(file);
+            }
+			
+			function downloadFile(url, success) {
+				var req = new XMLHttpRequest();
+				req.open('GET', url, true);
+				req.responseType = "arraybuffer";
+				req.onreadystatechange = function () {
+					if (xhr.readyState == 4) {
+						if (success) success(xhr.response);
+					}
+				};
+				req.send(null);
+			}
+            
+            function updateProgress(evt) {
+                
+                var progress = document.getElementById("percentBar");
+                
+                // evt is an ProgressEvent.
+                if (evt.lengthComputable) {
+                    var percentLoaded = Math.round((evt.loaded / evt.total) * 100);
+                    // Increase the progress bar length.
+                    if (percentLoaded < 100) {
+                        progress.style.width = percentLoaded + "%";
+                        progress.textContent = percentLoaded + "%";
+                    }
+                }
+            }
+            
+            function errorHandler(evt) {
+                switch(evt.target.error.code) {
+                    case evt.target.error.NOT_FOUND_ERR:
+                    alert("File Not Found!");
+                    break;
+                    case evt.target.error.NOT_READABLE_ERR:
+                    alert("File is not readable");
+                    break;
+                    case evt.target.error.ABORT_ERR:
+                    break; // noop
+                    default:
+                    alert("An error occurred reading this file.");
+                };
+            }
+			
+			var specular = [0.8, 0.8, 0.8];
+			var diffuse = [0.6, 0.6, 0.6];
+			var ambient = [0.2, 0.2, 0.2];
+			var shininess = 20.0;
+			var lightPos = [0, 0, 0];
+			var baseScale = 1.0;
+			var distance = 0.0;
+			var zoom = 1.0;
+			
+			function positionModel(model) {
+				
+				if (model.pos) {
+					
+					// Calculate position for the object
+					var vertices = model.pos;
+					
+					var maxX = -Infinity,
+						maxY = -Infinity,
+						maxZ = -Infinity,
+						minX = Infinity,
+						minY = Infinity,
+						minZ = Infinity;
+					
+					for (var i = 0; i < vertices.length;) {
+						
+						var x = vertices[i++],
+							y = vertices[i++],
+							z = vertices[i++];
+						
+						maxX = Math.max(maxX, x);
+						maxY = Math.max(maxY, y);
+						maxZ = Math.max(maxZ, z);
+						
+						minX = Math.min(minX, x);
+						minY = Math.min(minY, y);
+						minZ = Math.min(minZ, z);
+					}
+					
+					var cx = (maxX + minX) / 2,
+						cy = (maxY + minY) / 2,
+						cz = (maxZ + minZ) / 2;
+					
+					baseScale = 1.0 / (maxX - minX);
+					distance = -1.0 / Math.atan(22.5 * Math.PI / 180);
+					
+					renderer.setScale(baseScale * zoom);
+					renderer.setCenterOfRotation([-cx, -cy, -cz]);
+					renderer.setPosition([0, 0, distance]);
+					
+					var m = new THREE.Matrix4();
+					var m1 = new THREE.Matrix4();
+					var m2 = new THREE.Matrix4();
+					var m3 = new THREE.Matrix4();
+					
+					m1.makeTranslation(0, 0, distance);
+					m2.makeScale(baseScale, baseScale, baseScale);
+					m3.makeTranslation(-cx, -cy, -cz);
+					m.multiplyMatrices(m1, m2);
+					m.multiply(m3);
+					
+					mesh3.matrixAutoUpdate = false;
+					mesh3.matrix = m;
+					
+					// mesh3.applyMatrix(m);
+					console.log(mesh3);
+				}
+			}
+			
+			function serializeModel(model) {
+				
+				var pos = model.pos ? new Array(model.pos.length) : [];
+				var normals = model.normals ? new Array(model.normals.length) : [];
+				var faces = model.faces ? new Array(model.faces.length) : [];
+				var colors = model.colors ? new Array(model.colors.length) : [];
+				
+				for (var i = 0, len = pos.length; i < len; i++) {
+					pos[i] = model.pos[i];
+				}
+				for (var i = 0, len = normals.length; i < len; i++) {
+					normals[i] = model.normals[i];
+				}
+				for (var i = 0, len = faces.length; i < len; i++) {
+					faces[i] = model.faces[i];
+				}
+				for (var i = 0, len = colors.length; i < len; i++) {
+					colors[i] = model.colors[i];
+				}
+				return {
+					pos:pos,
+					normals:normals,
+					faces:faces,
+					colors:colors,
+				};
+			}
+			
+			function loadJSONModel(model) {
+				
+				clearGLCanvas();
+				
+				// Select renderer
+				if (model.pos) {
+					if (!model.faces) {
+						// No faces means it's a point cloud
+						if (model.colors) {
+							renderer = new PointCloudRenderer(glCanvas);
+							renderer.bufferData(new Float32Array(model.pos),
+												new Float32Array(model.colors));
+						}
+					} else {
+						if (model.normals) {
+							renderer = new PhongRenderer(glCanvas);
+							renderer.bufferData(new Float32Array(model.pos),
+												new Float32Array(model.normals),
+												new Uint16Array(model.faces));
+						} else if (model.colors) {
+							renderer = new MeshRenderer(glCanvas);
+							renderer.bufferData(new Float32Array(model.pos),
+												new Float32Array(model.colors));
+						}
+					}
+				}
+				
+				positionModel(model);
+				
+				if (renderer) {
+					dropbox.style.display = "none";
+					glCanvas.style.display = "block";
+					TabControl.sendMessage("share", "modelReceived", {});
+				}
+			}
+			
+			function drawScene() {
+				requestAnimFrame(drawScene);
+				if (renderer) {
+					
+					if (renderer.setSpecular) {
+						renderer.setSpecular(specular);
+						renderer.setDiffuse(diffuse);
+						renderer.setAmbient(ambient);
+						renderer.setShininess(shininess);
+						renderer.setLightPos(lightPos);
+						renderer.setZoom(zoom);
+					}
+					renderer.setScale(baseScale * zoom);
+					// renderer.setPosition([0, 0, distance * zoom]);
+					
+					renderer.render();
+					renderer3.render(scene3, camera3);
+				}
+			}
+            
+			function sendShareInvite() {
+				TabControl.sendMessage("index", "share", {});
+				shareButton.disabled = true;
+			}
+			
+			function onShareAccepted() {
+				if (model) {
+					
+					console.log("Sending model");
+					console.log(model);
+					
+					TabControl.sendMessage("share", "model", serializeModel(model));
+
+					console.log("Waiting for confirmation...");
+				}
+			}
+			
+			function onShareDeclined() {
+				
+				// TODO: display message
+				
+				clearTimeout(sendRotTimer);
+				sendRotTimer = null;
+				shareButton.disabled = false;
+			}
+			
+			function sendRotation() {
+				if (renderer) {
+					
+					var sendRot = renderer.getRotationMatrix();
+					if (sendRot) {
+						TabControl.sendMessage("share", "rotate", {matrix:sendRot});
+					}
+					setTimeout(sendRotation, 100);
+				}
+			}
+			
+			function clearGLCanvas() {
+				
+				// Remove the renderer
+				renderer = null;
+				
+				// Setting width and height clears the canvas
+				glCanvas.width = glCanvas.width;
+				glCanvas.height = glCanvas.height;
+				
+				dropbox.style.display = "block";
+				glCanvas.style.display = "none";
+				
+				clearButton.disabled = true;
+			}
+			
+			
+			var haxHex = "0123456789abcdef";
+			
+			function crapHexToRGB(value, dst) {
+				
+				var R = ((haxHex.indexOf(value[1])) << 4 | haxHex.indexOf(value[2])) / 255.0;
+				var G = ((haxHex.indexOf(value[3])) << 4 | haxHex.indexOf(value[4])) / 255.0;
+				var B = ((haxHex.indexOf(value[5])) << 4 | haxHex.indexOf(value[6])) / 255.0;
+				
+				if (!dst) {
+					dst = [];
+				}
+				
+				dst[0] = R;
+				dst[1] = G;
+				dst[2] = B;
+				
+				return dst;
+			}
+			function crapRGBtoHex(rgb) {
+				const maskUpper = 240; // 0xf0
+				const maskLower = 15; // 0x0f
+				var R = Math.round(rgb[0] * 255);
+				var G = Math.round(rgb[1] * 255);
+				var B = Math.round(rgb[2] * 255);
+				
+				var hex = "#" + haxHex[(R & maskUpper) >> 4] + haxHex[R & maskLower] +
+								haxHex[(G & maskUpper) >> 4] + haxHex[G & maskLower] +
+								haxHex[(B & maskUpper) >> 4] + haxHex[B & maskLower];
+				return hex;
+			}
+			
+            </script>
+        
+    </head>
+	
+	<body>
+        
+        <h1>Share 3D models</h1>
+		
+		<div id="controls" style="padding:0px 20px 20px 20px; border:1px solid black; border-radius:5px; position:absolute; left:20px; top:60px;">
+			
+			<h2>Material</h2>
+			<h3>Specular <input id="specularColor" type="color"/></h3>
+			<div style="text-align:right;">
+				Red <input id="specular0" type="range" min=0 max=255 value=127
+				onchange="specular[0] = Number(this.value / 255.0); updateInputs('specular', specular);"/><br>
+				Green <input id="specular1" type="range" min=0 max=255 value=127
+				onchange="specular[1] = Number(this.value / 255.0); updateInputs('specular', specular);"/><br>
+				Blue <input id="specular2" type="range" min=0 max=255 value=127
+				onchange="specular[2] = Number(this.value / 255.0); updateInputs('specular', specular);"/><br>
+			</div>
+			
+			<h3>Diffuse <input id="diffuseColor" type="color"/></h3>
+			<div style="text-align:right;">
+				Red <input id="diffuse0" type="range" min=0 max=255 value=127
+				onchange="diffuse[0] = Number(this.value / 255.0); updateInputs('diffuse', diffuse);"/><br>
+				Green <input id="diffuse1" type="range" min=0 max=255 value=127
+				onchange="diffuse[1] = Number(this.value / 255.0); updateInputs('diffuse', diffuse);"/><br>
+				Blue <input id="diffuse2" type="range" min=0 max=255 value=127
+				onchange="diffuse[2] = Number(this.value / 255.0); updateInputs('diffuse', diffuse);"/><br>
+			</div>
+			
+			<h3>Ambient <input id="ambientColor" type="color"/></h3>
+			<div style="text-align:right;">
+				Red <input id="ambient0" type="range" min=0 max=255 value=127
+				onchange="ambient[0] = Number(this.value / 255.0); updateInputs('ambient', ambient);"/><br>
+				Green <input id="ambient1" type="range" min=0 max=255 value=127
+				onchange="ambient[1] = Number(this.value / 255.0); updateInputs('ambient', ambient);"/><br>
+				Blue <input id="ambient2" type="range" min=0 max=255 value=127
+				onchange="ambient[2] = Number(this.value / 255.0); updateInputs('ambient', ambient);"/><br>
+			</div>
+			
+			<h3>Shininess</h3>
+			<div style="text-align:right;">
+				<input id="shininess" type="range" min=0 max=255 value=127
+				onchange="shininess = Number(this.value);"/><br>
+			</div>
+			
+			<h3>Zoom</h3>
+			<div style="text-align:right;">
+				<input type="range" min=0 max=2 value=1 step=0.01
+				onchange="zoom = Number(this.value);"/><br>
+			</div>
+		</div>
+
+		<div id="controls" style="padding:0px 20px 20px 20px; border:1px solid black; border-radius:5px; position:absolute; right:20px; top:60px;">
+			
+			<h2>Light</h2>
+			<h3>Position</h3>
+			<div style="text-align:right;">
+				x <input type="range" min=-5 max=5 value=0 step=0.05
+				onchange="lightPos[0] = Number(this.value);"/><br>
+				y <input type="range" min=-5 max=5 value=0 step=0.05
+				onchange="lightPos[1] = Number(this.value);"/><br>
+				z <input type="range" min=-5 max=5 value=0 step=0.05
+				onchange="lightPos[2] = Number(this.value);"/><br>
+				
+				BLOB! <input type="range" min=-0.125 max=0.125 value=0 step=0.00125
+				onchange="renderer.setBlobbiness(this.value);"/><br>
+			</div>
+			
+		</div>
+
+        <div id="container">
+            <div id="dropbox">
+                <p id="status">Drop a .ply file here, or use this fine button:<br><br><input type="file" id="fileSelect"></p>
+                <div id="progressBar">
+                    <div id="percentBar">0%</div>
+                </div>
+            </div>
+        </div>
+		
+		<button id="shareButton" onclick="sendShareInvite();" style="padding:1em; margin:0em;" disabled=true>Share!</button>
+		<button id="clearButton" onclick="clearGLCanvas();" style="padding:1em; margin:0em;" disabled=true>Clear</button>
+	
+	</body>
+    
+</html>
