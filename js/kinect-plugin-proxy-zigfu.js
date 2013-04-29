@@ -26,15 +26,7 @@
  // *********
  
  Required scripts:
- kinect-decoder.js
  kinect-touch-controller.js (maybe)
- 
- In the html:
- <div id="pluginContainer">
- <object id="ZigPlugin" type="application/x-zig" width="0" height="0">
- <param name="onload" value="zigPluginLoaded">
- </object>
- </div>
  */
 
 KinectPluginProxy = function() {
