@@ -42,10 +42,12 @@
 			
 			TabControl.onActivate = function() {
 				isActive = true;
+				requestAnimFrame(drawScene);
 			}
 			
 			TabControl.onDeactivate = function() {
 				isActive = false;
+				cancelAnimFrame(drawScene);
 			}
 			
 			TabControl.onLocalStreamInit = function(stream) {
@@ -122,7 +124,7 @@
 				// DEBUG: show the video in a separate canvas
 				// canvas.getContext("2d").putImageData(videoData, 0, 0);
 				
-				// Render local Kinect stream, if no other streams are available
+				// Update local Kinect stream, if no other streams are available
 				if (senderIds.length == 1) {
 					updateScene("me", videoData, depthData);
 				}
@@ -210,7 +212,16 @@
 				renderer.setPosition([0, 0, -200]);
 				renderer.bufferData(pos);
 				
-                renderer.render();
+                // renderer.render();
+			}
+			
+			function drawScene() {
+				
+				var first = (senderIds.length > 1) ? 1 : 0;
+				for (var i = first; i < senderIds.length; i++) {
+					var pd = displayedStreams[senderIds[i]];
+					pd.renderer.render();
+				}
 			}
 			
             </script>
