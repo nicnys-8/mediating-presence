@@ -87,7 +87,6 @@ KinectPluginProxy = function() {
 								 });
 		zig.addListener(engager);
 		
-		
 		// Create buffers for video and depth data
 		var ctx = document.createElement("canvas").getContext("2d");
 		videoData = ctx.createImageData(RGB_DATA_WIDTH, RGB_DATA_HEIGHT);
@@ -235,16 +234,14 @@ if (window.self === window.top) {
 	// Inject the Zigfu script
 	var s = document.createElement("script");
 	s.src = "js/lib/zig.js"; // http://cdn.zigfu.com/zigjs/zig.min.js";
-	s.onload = function() {
-		KinectPluginProxy.initPlugin();
-	};
+	/*s.onload = function() {
+		// KinectPluginProxy.initPlugin();
+	};*/
 	document.head.appendChild(s);
 	
-	/*
 	window.addEventListener("load", function() {
                             KinectPluginProxy.initPlugin();
 							}, false);
-	 */
 }
 
 

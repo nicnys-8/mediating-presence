@@ -196,9 +196,8 @@
 		<script type="text/javascript" src="js/lib/jquery.js"></script>
         <script type="text/javascript" src="js/lib/sylvester.js"></script>
         <script type="text/javascript" src="js/geometry.js"></script>
-        <script type="text/javascript" src="js/image-handling.js"></script>
 		<script type="text/javascript" src="js/tab-control.js"></script>
-		<script type="text/javascript" src="js/kinect-decoder.js"></script>
+		<script type="text/javascript" src="js/image-handling.js"></script>
         <script type="text/javascript" src="js/kinect-touch-controller.js"></script>
 		<script type="text/javascript" src="js/kinect-plugin-proxy-zigfu.js"></script>
 		<script type="text/javascript" src="js/lib/erizo.js"></script>
@@ -366,10 +365,10 @@
 			};
 			
             var first = true;
-			TabControl.onNewKinectData = function(videoData, depthData) {
+			TabControl.onNewKinectData = function(videoData, depthData, rawVideo, rawDepth) {
 				for (var tabName in tabControllers) {
 					if (tabControllers[tabName]) {
-						tabControllers[tabName].onNewKinectData(videoData, depthData);
+						tabControllers[tabName].onNewKinectData(videoData, depthData, rawVideo, rawDepth);
 					}
 				}
 			};
@@ -589,12 +588,6 @@
     </head>
 	
 	<body>
-		
-		<div id="pluginContainer">
-			<object id="ZigPlugin" type="application/x-zig" width="0" height="0">
-				<param name="onload" value="zigPluginLoaded">
-					</object>
-		</div>
         
 		<a href="http://www.ltu.se" target="_blank"><img src="images/ltu_logo_small.png" style="position:absolute; left:5px; top:5px;"></a>
 		<!--
