@@ -109,6 +109,9 @@
 				pluginProxy = proxy;
 			}
 			
+			const SEND_RATE = 6;
+			var sendTick = 0;
+			
 			TabControl.onNewKinectData = function(videoData, depthData, rawVideo, rawDepth) {
 				
 				// TODO: Send data even when tab is inactive?
@@ -124,8 +127,11 @@
 					updateScene("me", videoData, depthData);
 				}
 				
-				// Send the Kinect data
-				TabControl.sendMessage("peek", "kinect", {video:rawVideo, depth:rawDepth});
+				if (sendTick % SEND_RATE == 0) {
+					// Send the Kinect data
+					TabControl.sendMessage("peek", "kinect", {video:rawVideo, depth:rawDepth});
+				}
+				sendTick++;
             }
 			
             TabControl.onLoad = function() {
