@@ -216,7 +216,7 @@
 			}
 			
 			function drawScene() {
-				
+				requestAnimFrame(drawScene);
 				var first = (senderIds.length > 1) ? 1 : 0;
 				for (var i = first; i < senderIds.length; i++) {
 					var pd = displayedStreams[senderIds[i]];
