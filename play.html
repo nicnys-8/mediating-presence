@@ -80,9 +80,9 @@
                         }
                         else if (type == "yourTurn") {
                             klotski.setHasTurn(true);
-                            turnButton.disabled = false;
-                            turnInfo.innerHTML = "Your turn";
-                            turnInfo.style.color= 'blue';
+                            $("#turnButton").removeAttr("disabled");
+                            $("#turnInfo").text("Your turn");
+                            $("#turnInfo").css("color", "blue");
                         }
                         else {
                             console.log("Received unreadable message");
@@ -209,9 +209,10 @@
                     x */
                     function giveUpTurn() {
                         klotski.setHasTurn(false);
-                        turnButton.attr("disabled", true);
+                        $("#turnButton").attr("disabled", true);
                         turnInfo.innerHTML = "Friend's turn";
-                        turnInfo.style.color = 'blue';
+                        // TODO: FIX LINE BELOW
+                        // turnInfo.style.color = 'blue';
                         TabControl.sendMessage("play", "yourTurn", {});
                     }
                     
@@ -288,7 +289,7 @@
                     Time passed: 00:00
                 </div>
                 
-                <div id="turnInfo" style="font-size:200%;" style="color:red">Your turn</div>
+                <span id="turnInfo" style="font-size:200%;" style="color:red">Your turn</span>
                 <div>
                     You can move
                     <span id="playerColorSpan" style="color:red">red</span>
