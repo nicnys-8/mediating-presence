@@ -138,12 +138,12 @@
                         } else {
                             $("#turnButton").attr("disabled", true);
                         }
-                        $("#turnInfo").innerHTML((hasTurn) ? "Your turn" : "Friend's turn");
-                        klotski.startGame(hasTurn);
                         
+                        $("#turnInfo").text((hasTurn) ? "Your turn" : "Friend's turn");
+                        klotski.startGame(hasTurn);
                         $("#turnInfo").css("color", klotski.playerColor);
                         $("#playerColorSpan").css("color", klotski.playerColor);
-                        $("#playerColorSpan").innerHTML(klotski.playerColor);
+                        $("#playerColorSpan").text(klotski.playerColor);
                     }
                     
                     /**
@@ -182,7 +182,7 @@
                         $("#gameDiv").css("display", "none");
                         $("#clearedDiv").css("display", "block");
                         var levelNumber = levelIndex + 1;
-                        $("#clearedDiv").innerHTML("Level " + levelNumber + " cleared! Finish time: " + finishTime);
+                        $("#clearedMessage").text("Level " + levelNumber + " cleared! Finish time: " + finishTime);
                     }
                     
                     /**
@@ -210,7 +210,7 @@
                     function giveUpTurn() {
                         klotski.setHasTurn(false);
                         $("#turnButton").attr("disabled", true);
-                        turnInfo.innerHTML = "Friend's turn";
+                        turnInfo.text("Friend's turn");
                         // TODO: FIX LINE BELOW
                         // turnInfo.style.color = 'blue';
                         TabControl.sendMessage("play", "yourTurn", {});
