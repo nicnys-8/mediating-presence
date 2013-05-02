@@ -79,10 +79,7 @@
                             nextLevel();
                         }
                         else if (type == "yourTurn") {
-                            klotski.setHasTurn(true);
-                            $("#turnButton").removeAttr("disabled");
-                            $("#turnInfo").text("Your turn");
-                            $("#turnInfo").css("color", "blue");
+                            setHasTurn(true);
                         }
                         else {
                             console.log("Received unreadable message");
@@ -132,18 +129,12 @@
                         }
                         $("#startDiv").css("display", "none");
                         $("#gameDiv").css("display", "block");
-                                                
-                        if (hasTurn) {
-                            $("#turnButton").removeAttr("disabled");
-                        } else {
-                            $("#turnButton").attr("disabled", true);
-                        }
                         
-                        $("#turnInfo").text((hasTurn) ? "Your turn" : "Friend's turn");
-                        klotski.startGame(hasTurn);
-                        $("#turnInfo").css("color", klotski.playerColor);
                         $("#playerColorSpan").css("color", klotski.playerColor);
                         $("#playerColorSpan").text(klotski.playerColor);
+                        
+                        setHasTurn(hasTurn);
+                        klotski.startGame(hasTurn);
                     }
                     
                     /**
@@ -208,12 +199,22 @@
                      Give up control of the game to your opponent
                     x */
                     function giveUpTurn() {
-                        klotski.setHasTurn(false);
-                        $("#turnButton").attr("disabled", true);
-                        $("#turnInfo").text("Friend's turn");
-                        // TODO: FIX LINE BELOW
-                        // turnInfo.style.color = 'blue';
+                        setHasTurn(false);
                         TabControl.sendMessage("play", "yourTurn", {});
+                    }
+                    
+                    /**
+                     ...
+                     */
+                    function setHasTurn(hasTurn) {
+                        klotski.setHasTurn(hasTurn);
+                        if (hasTurn) {
+                            $("#turnButton").removeAttr("disabled");
+                            $("#turnInfo").text("Your turn");
+                        } else {
+                            $("#turnButton").attr("disabled", true);
+                            $("#turnInfo").text("Friend's turn");
+                        }
                     }
                     
                     /*---------------------
