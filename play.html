@@ -127,15 +127,15 @@
                                                   klotskiContainer
                                                   );
                         }
+                        klotski.startGame(hasTurn);
+                        // Display the game
                         $("#startDiv").css("display", "none");
                         $("#gameDiv").css("display", "block");
-                        
-                        setHasTurn(hasTurn);
-                        klotski.startGame(hasTurn);
                         // Now that the game is started, we can inform the user
                         // of what color he/she has been assigned
                         $("#playerColorSpan").css("color", klotski.playerColor);
                         $("#playerColorSpan").text(klotski.playerColor);
+                        setHasTurn(hasTurn);
                     }
                     
                     /**
