@@ -385,7 +385,7 @@
 						}
 					} else {
 						if (model.normals) {
-							renderer = new PhongRenderer(glCanvas);
+							renderer = new PhongRendererExt(glCanvas);
 							renderer.bufferData(new Float32Array(model.pos),
 												new Float32Array(model.normals),
 												new Uint16Array(model.faces));

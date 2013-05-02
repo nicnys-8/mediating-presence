@@ -213,6 +213,10 @@ PointCloudRendererX = function(canvas) {
 		}
 	}
 	
+	this.resetCamera = function() {
+		vec3.set([0, 0, 0], eye);
+	}
+	
 	this.resetCursor = function() {
 		mouseDown = false;
 		lastMouseX = null;

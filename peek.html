@@ -132,7 +132,8 @@
 					updateScene("me", videoData, depthData);
 				}
 				
-				if (sendTick % SEND_RATE == 0) {
+				var doSend = document.getElementById("streamData").checked;
+				if (doSend && sendTick % SEND_RATE == 0) {
 					// Send the Kinect data
 					TabControl.sendMessage("peek", "kinect", {video:rawVideo, depth:rawDepth});
 				}
@@ -227,6 +228,13 @@
 				}
 			}
 			
+			function resetCameras() {
+				for (var i = 0; i < senderIds.length; i++) {
+					var pd = displayedStreams[senderIds[i]];
+					pd.renderer.resetCamera();
+				}
+			}
+			
             </script>
         
     </head>
@@ -237,6 +245,7 @@
         <div id="container">
         </div>
 		
+		<button onclick="resetCameras();">Reset camera</button>
 		<table style="margin:0px auto;">
 			<tr>
 				<td style="text-align:right;">Z-Scale:</td>
@@ -247,6 +256,10 @@
 			</tr><tr>
 				<td style="text-align:right;">Interpolate:</td>
 				<td><input id="lerp" type="checkbox"></td>
+			</tr>
+			</tr><tr>
+				<td style="text-align:right;">Stream:</td>
+				<td><input id="streamData" type="checkbox" checked="true"></td>
 			</tr>
 		</table>
 			
