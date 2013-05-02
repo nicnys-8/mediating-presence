@@ -243,7 +243,7 @@
 				bufferCanvas = document.createElement("canvas");
 				bufferContext = bufferCanvas.getContext("2d");
 				
-				
+
 				var textArea = document.getElementById("chat-input");
 
 				textArea.onkeypress = function(evt) {
@@ -291,7 +291,10 @@
 							bufferCanvas.height = imageData.height;
 						}
 						bufferContext.putImageData(imageData, 0, 0);
-						ctx.drawImage(bufferCanvas, 0, 0, canvas.width, canvas.width * 0.75);
+						var h = Math.min(canvas.width * 0.75, canvas.height);
+						var w = h * 4.0 / 3.0;
+						var x = (canvas.width - w) / 2.0;
+						ctx.drawImage(bufferCanvas, x, 0, w, h);
 					}
 				}
 				
