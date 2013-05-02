@@ -58,7 +58,7 @@
                         }
                         // Remove the invite button of the user
                         var removedUser = stream.getAttributes().removedUser;
-                        //TODO: Remove option
+                        //TODO: Remove user from the list of users you can invite
                     };
                     
                     TabControl.onMessageReceived = function(senderId, type, data) {
@@ -127,10 +127,15 @@
                                                   klotskiContainer
                                                   );
                         }
-                        klotski.startGame(hasTurn);
-                        // Display the game
+                        // Display the game div
                         $("#startDiv").css("display", "none");
                         $("#gameDiv").css("display", "block");
+                        /*
+                         Start the game *after* displaying the div,
+                         since the 'setView' function will adapt
+                         the game's size when the game is started
+                         */
+                        klotski.startGame(hasTurn);
                         // Now that the game is started, we can inform the user
                         // of what color he/she has been assigned
                         $("#playerColorSpan").css("color", klotski.playerColor);
@@ -151,7 +156,7 @@
                      */
                     function tick() {
                         requestAnimationFrame(tick);
-                        //if (gameDiv.style.display == "block") 
+                        //if (gameDiv.style.display == "block")
                         //TODO: Check if this works!
                         if ($("#gameDiv").css("display") == "block") klotski.updateScene();
                     }
@@ -198,7 +203,7 @@
                     
                     /**
                      Give up control of the game to your opponent
-                    x */
+                     x */
                     function giveUpTurn() {
                         setHasTurn(false);
                         TabControl.sendMessage("play", "yourTurn", {});
