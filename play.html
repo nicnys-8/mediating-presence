@@ -210,7 +210,7 @@
                     function giveUpTurn() {
                         klotski.setHasTurn(false);
                         $("#turnButton").attr("disabled", true);
-                        turnInfo.text("Friend's turn");
+                        $("#turnInfo").text("Friend's turn");
                         // TODO: FIX LINE BELOW
                         // turnInfo.style.color = 'blue';
                         TabControl.sendMessage("play", "yourTurn", {});
