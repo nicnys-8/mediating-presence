@@ -230,6 +230,7 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
     var startGame = function(playerStarts) {
         this.setHasTurn(playerStarts);
         this.playerColor = (hasTurn) ? "red" : 'blue';
+        this.friendColor = (hasTurn) ? 'blue' : "red";
         levelIndex = 0;
         loadLevel(levelIndex);
         // Set the view correctly
@@ -414,6 +415,7 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
      ==| Public variables |==
      ----------------------*/
     this.playerColor;
+    this.friendColor;
     this.shouldRender = true;
 };
 

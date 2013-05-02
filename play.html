@@ -212,9 +212,11 @@
                         if (hasTurn) {
                             $("#turnButton").removeAttr("disabled");
                             $("#turnInfo").text("Your turn");
+                            $("#turnInfo").css("color", klotski.playerColor);
                         } else {
                             $("#turnButton").attr("disabled", true);
                             $("#turnInfo").text("Friend's turn");
+                            $("#turnInfo").css("color", klotski.friendColor);
                         }
                     }
                     
