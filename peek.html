@@ -61,6 +61,9 @@
 				senderIds.push(streamId);
 				// Add its canvas element
 				document.getElementById("container").appendChild(pd.canvas);
+				
+				var myPD = displayedStreams["me"];
+				myPD.canvas.style.display = "none";
 			}
 			
 			TabControl.onStreamRemoved = function(stream) {
@@ -111,7 +114,7 @@
 				pluginProxy = proxy;
 			}
 			
-			const SEND_RATE = 6;
+			const SEND_RATE = 3;
 			var sendTick = 0;
 			
 			TabControl.onNewKinectData = function(videoData, depthData, rawVideo, rawDepth) {
