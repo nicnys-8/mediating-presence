@@ -140,7 +140,7 @@
 				background-image:url('images/video-top.png');
 			}
 			
-			#blanket {
+			#popupBlanket {
 				background-color:rgba(0, 0, 0, 0.5);
 				/* *background:none;*/
 				position:absolute;
@@ -156,7 +156,7 @@
 				display:none;
 			}
 			
-			#popupDiv {
+			#popupContainer {
 				font-family:monospace;
 				font-size:150%;
 				position:relative;
@@ -175,16 +175,20 @@
 				display:none;
 			}
 			
-			#popupDiv .popup-content {
-				display:none;
+			#popupContainer .popup-content {
+				/*display:none;*/
 				position:absolute;
 				width:60%;
 				height:60%;
 				top:20%;
 				left:20%;
 			}
-			
-			#popupDiv button {
+			#popupContainer .popup-icon {
+				display:float;
+				width:90px;
+				height:75px;
+			}
+			#popupContainer button {
 				font-size:100%;
 				padding:0.5em;
 				margin:1em 0.25em;
@@ -202,6 +206,8 @@
 		<script type="text/javascript" src="js/kinect-plugin-proxy-zigfu.js"></script>
 		<script type="text/javascript" src="js/lib/erizo.js"></script>
 		<script type="text/javascript" src="js/lynckia-client.js"></script>
+        
+		<script type="text/javascript" src="js/popup-manager.js"></script>
         
 		<script>
 			
@@ -312,11 +318,6 @@
 			
 			TabControl.onMessageReceived = function(senderId, type, packet) {
 				
-				/*
-                 console.log("Received messsage");
-                 console.log(packet);
-				 */
-				
 				var destination = packet.dst;
 				var messageType = packet.type;
 				var data = packet.data;
@@ -364,7 +365,6 @@
 				}
 			};
 			
-            var first = true;
 			TabControl.onNewKinectData = function(videoData, depthData, rawVideo, rawDepth) {
 				for (var tabName in tabControllers) {
 					if (tabControllers[tabName]) {
@@ -374,19 +374,25 @@
 			};
 			
             TabControl.onLoad = function() {
-                // Get the Lynckia room from the URL parameter
-                var paramString = window.location.search.replace("?", "");
-                var params = paramString.split("&");
+				
+                // Try parsing the Lynckia room and username from the URL
+				try {
+					var paramString = window.location.search.replace("?", "");
+					var params = paramString.split("&");
+					
+					var tempArray = params[0].split("=");
+					username = tempArray[1];
+					
+					tempArray = params[1].split("=");
+					var roomId = tempArray[1];
+					
+					LynckiaClient.setTabControl(TabControl);
+					LynckiaClient.accessRoom(username, roomId);
                 
-                var tempArray = params[0].split("=");
-                username = tempArray[1];
-                
-                var tempArray = params[1].split("=");
-                var roomId = tempArray[1];
-                
-                LynckiaClient.setTabControl(TabControl);
-                LynckiaClient.accessRoom(username, roomId);
-                
+				} catch (err) {
+					alert("Failed parsing parameters, continuing anyway...");
+				}
+				
 				currentTabID = "#chat";
 				
 				// If a tab is specified in the url, make it the current tab
@@ -412,8 +418,21 @@
 				
 				activateTab(currentTabID);
 				
-				// handleKlotskiInvite();
+				/*
+				 
+				 // Testing PopupManager
+				 
+				var popupTest1 = PopupManager.createPopup("Helo plx?", "images/play-icon.png",
+														 {text:"OK"}, {text:"Cancel"});
+				var popupTest3 = PopupManager.createPopup("aaaand then?!", null,
+														  {text:"GO AWAY!"});
+				var popupTest2 = PopupManager.createPopup("yes thx?", "ltu_logo_small.png",
+														 {text:"No"}, {text:"Maybe", func:function() {PopupManager.showPopup(popupTest3);}});
 				
+				PopupManager.showPopup(popupTest1);
+				PopupManager.showPopup(popupTest2);
+				PopupManager.showPopup(popupTest3);
+				 */
 			};
 			
 			function activateTab(tabName) {
@@ -482,7 +501,7 @@
 				
 				var audiobutton = $("#audiobutton");
 				if (audiobutton.hasClass("disabled"))
-                return;
+					return;
 				
 				audiobutton.css("background-image", enableAudio ? "url('images/noaudio-top.png')" : "url('images/audio-top.png')");
                 
@@ -493,26 +512,13 @@
 				
 				var videobutton = $("#videobutton");
 				if (videobutton.hasClass("disabled"))
-                return;
+					return;
 				
 				videobutton.css("background-image", enableVideo ? "url('images/novideo-top.png')" : "url('images/video-top.png')");
 				
 				enableVideo = !enableVideo;
 			}
-            
-			/*
-			 crappy shrink animation of popup:
-			 $('#popupDiv').animate({
-			 width:0,
-			 height:0,
-			 marginTop:0,
-			 fontSize:0,
-			 }, 200, function() {
-			 // Animation complete.
-			 $(this).hide();
-			 });
-			 */
-			
+
             /**
              Store a mapping between a remote user's streamID and username
              
@@ -566,8 +572,8 @@
 			
 			function showPopup() {
 				
-				var popup = $("#popupDiv");
-				var blanket = $("#blanket");
+				var popup = $("#popupContainer");
+				var blanket = $("#popupBlanket");
 				
 				popup.show();
 				popup.animate({ top:"50%", /* opacity:1.0, */}, 500, function() {});
@@ -576,8 +582,8 @@
 			}
 			
 			function hidePopup() {
-				var popup = $("#popupDiv");
-				var blanket = $("#blanket");
+				var popup = $("#popupContainer");
+				var blanket = $("#popupBlanket");
 				popup.animate({ top:"100%", /* opacity:0.0, */},
 							  500, function() { $(this).hide(); });
 				blanket.animate({ opacity:0.0, },
@@ -593,17 +599,18 @@
 		<!--
          <a href="http://www.ltu.se" target="_blank"><img src="images/ltu_logo_small.png" style="position:absolute; left:5px; bottom:5px;"></a>
          -->
-		
+		<!--
 		<a href="http://www.ltu.se" target="_blank"><img src="images/ltu_logo_small.png" style="position:absolute; right:5px; top:5px;"></a>
+		 -->
 		<!--
          <a href="http://www.ltu.se" target="_blank"><img src="images/ltu_logo_small.png" style="position:absolute; right:5px; bottom:5px;"></a>
          -->
 		
-		<div id="blanket">
-			<div id="popupDiv">
+		<div id="popupBlanket">
+			<div id="popupContainer"><!--
 				
 				<div id="klotskiPopup" class="popup-content">
-					<img style="display:float; width:90px; height:75px;" src="images/play-icon.png"></img>
+					<img class="popup-icon" src="images/play-icon.png"></img>
 					<span id="inviteMessage">
                         You have been invited to play a game of Klotski!
                     </span>
@@ -613,31 +620,32 @@
 				</div>
 				
 				<div id="sharePopup" class="popup-content">
-					<img style="display:float; width:90px; height:75px;" src="images/share-icon.png"></img>
+					<img class="popup-icon" src="images/share-icon.png"></img>
 					Someone wants to share a 3D model with you!
 					<br>
 					<button onclick="acceptShared3DModel();">Accept</button>
 					<button onclick="declineShared3DModel();">Decline</button>
 				</div>
 				
-			</div>
+			--></div>
 		</div>
+		
 		<div id="menu"><!-- These comments are only here to avoid whitespace between the divs :)
-                        --><ul><!--
-                                --><li><div class="linkbutton" id="chatbutton"
-                                    onmousedown="switchToTab('#chat');"></div></li><!--
-                                                                                    --><li><div class="linkbutton" id="sharebutton"
-                                                                                        onmousedown="switchToTab('#share');"></div></li><!--
-                                                                                                                                         --><li><div class="linkbutton" id="playbutton"
-                                                                                                                                             onmousedown="switchToTab('#play');"></div></li><!--
-                                                                                                                                                                                             --><li><div class="linkbutton" id="peekbutton"
-                                                                                                                                                                                                 onmousedown="switchToTab('#peek');"></div></li><!--
-                                                                                                                                                                                                                                                 --><li><div class="linkbutton disabled" id="audiobutton"
-                                                                                                                                                                                                                                                     onmousedown="toggleAudio();"></div></li><!--
-                                                                                                                                                                                                                                                                                              --><li><div class="linkbutton disabled" id="videobutton"
-                                                                                                                                                                                                                                                                                                  onmousedown="toggleVideo();"></div></li><!--
-                                                                                                                                                                                                                                                                                                                                           --></ul><!--
-                                                                                                                                                                                                                                                                                                                                                    --></div>
+			--><ul><!--
+				--><li><div class="linkbutton" id="chatbutton"
+						onmousedown="switchToTab('#chat');"></div></li><!--
+				--><li><div class="linkbutton" id="sharebutton"
+						onmousedown="switchToTab('#share');"></div></li><!--
+				--><li><div class="linkbutton" id="playbutton"
+						onmousedown="switchToTab('#play');"></div></li><!--
+				--><li><div class="linkbutton" id="peekbutton"
+						onmousedown="switchToTab('#peek');"></div></li><!--
+				--><li><div class="linkbutton disabled" id="audiobutton"
+						onmousedown="toggleAudio();"></div></li><!--
+				--><li><div class="linkbutton disabled" id="videobutton"
+						onmousedown="toggleVideo();"></div></li><!--
+			--></ul><!--
+		--></div>
 		
 		<div id="wrap">
 			
