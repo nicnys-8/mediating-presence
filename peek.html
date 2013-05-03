@@ -24,7 +24,7 @@
 			var isActive = false;
 			
 			var pluginProxy;
-			var senderIds = [];
+			var streamIDs = [];
 			var displayedStreams = {};
 			
 			var PeekDisplay = function() {
@@ -54,11 +54,13 @@
 			}
 			
 			TabControl.onStreamAdded = function(stream) {
+				
 				// Create a PeekDisplay to render the Kinect data
 				var streamId = stream.getID();
 				var pd = new PeekDisplay();
 				displayedStreams[streamId] = pd;
-				senderIds.push(streamId);
+				streamIDs.push(streamId);
+				
 				// Add its canvas element
 				document.getElementById("container").appendChild(pd.canvas);
 				
@@ -81,9 +83,9 @@
 					
 					// Remove the stream and PeekDisplay from lists
 					delete displayedStreams[streamId];
-					var index = senderIds.indexOf(streamId);
+					var index = streamIDs.indexOf(streamId);
 					if (index != -1) {
-						senderIds.splice(index, 1);
+						streamIDs.splice(index, 1);
 					}
 				}
 			}
@@ -106,8 +108,8 @@
 			
 			TabControl.onKinectInit = function(proxy) {
 				proxy.addHeadPositionListener(function(headPos) {
-											  for (var i = 0; i < senderIds.length; i++) {
-												var pd = displayedStreams[senderIds[i]];
+											  for (var i = 0; i < streamIDs.length; i++) {
+												var pd = displayedStreams[streamIDs[i]];
 												// console.log(headPos);
 												pd.renderer.headMoved(headPos);
 											  }});
@@ -128,7 +130,7 @@
 				// canvas.getContext("2d").putImageData(videoData, 0, 0);
 				
 				// Update local Kinect stream, if no other streams are available
-				if (senderIds.length == 1) {
+				if (streamIDs.length == 1) {
 					updateScene("me", videoData, depthData);
 				}
 				
@@ -142,7 +144,7 @@
 			
             TabControl.onLoad = function() {
 				var pd = new PeekDisplay();
-				senderIds.push("me");
+				streamIDs.push("me");
 				displayedStreams["me"] = pd;
 				document.getElementById("container").appendChild(pd.canvas);
             }
@@ -215,22 +217,20 @@
                 renderer.setCenterOfRotation([-80, -60, -1000]);
 				renderer.setPosition([0, 0, -200]);
 				renderer.bufferData(pos);
-				
-                // renderer.render();
 			}
 			
 			function drawScene() {
 				requestAnimFrame(drawScene);
-				var first = (senderIds.length > 1) ? 1 : 0;
-				for (var i = first; i < senderIds.length; i++) {
-					var pd = displayedStreams[senderIds[i]];
+				var first = (streamIDs.length > 1) ? 1 : 0;
+				for (var i = first; i < streamIDs.length; i++) {
+					var pd = displayedStreams[streamIDs[i]];
 					pd.renderer.render();
 				}
 			}
 			
 			function resetCameras() {
-				for (var i = 0; i < senderIds.length; i++) {
-					var pd = displayedStreams[senderIds[i]];
+				for (var i = 0; i < streamIDs.length; i++) {
+					var pd = displayedStreams[streamIDs[i]];
 					pd.renderer.resetCamera();
 				}
 			}
@@ -242,26 +242,39 @@
 	<body>
         
         <h1>Peek!</h1>
+		
+		<div id="controls"
+			style="padding:0px 20px 20px 20px; 
+					border:1px solid black; 
+					border-radius:5px; 
+					position:absolute; 
+					left:20px; 
+					top:60px;">
+			
+			<h2>Controls</h2>
+			<table style="margin:0px auto;">
+				<tr>
+					<td style="text-align:right;">Z-Scale:</td>
+					<td><input id="zScale" type="range" min="1" max="20" value="5" step="0.05"></td>
+				</tr><tr>
+					<td style="text-align:right;">Brightness:</td>
+					<td><input id="brightness" type="range" min="0" max="5" step="0.01" value="1"></td>
+				</tr><tr>
+					<td style="text-align:right;">Interpolate:</td>
+					<td><input id="lerp" type="checkbox"></td>
+				</tr>
+				</tr><tr>
+					<td style="text-align:right;">Stream:</td>
+					<td><input id="streamData" type="checkbox" checked="true"></td>
+				</tr>
+			</table>
+			
+			<button onclick="resetCameras();">Reset camera</button>
+			
+		</div>
+		
         <div id="container">
         </div>
-		
-		<button onclick="resetCameras();">Reset camera</button>
-		<table style="margin:0px auto;">
-			<tr>
-				<td style="text-align:right;">Z-Scale:</td>
-				<td><input id="zScale" type="range" min="1" max="20" value="5" step="0.05"></td>
-			</tr><tr>
-				<td style="text-align:right;">Brightness:</td>
-				<td><input id="brightness" type="range" min="0" max="5" step="0.01" value="1"></td>
-			</tr><tr>
-				<td style="text-align:right;">Interpolate:</td>
-				<td><input id="lerp" type="checkbox"></td>
-			</tr>
-			</tr><tr>
-				<td style="text-align:right;">Stream:</td>
-				<td><input id="streamData" type="checkbox" checked="true"></td>
-			</tr>
-		</table>
-			
+
 </html>
 
