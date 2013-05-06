@@ -176,6 +176,37 @@
                 // **********************
                 
                 document.getElementById("fileSelect").addEventListener("change", function () { readFiles(this.files); }, false);
+				
+				/*
+				<div id="sharePopup" class="popup-content">
+				<img class="popup-icon" src="images/share-icon.png"></img>
+				Someone wants to share a 3D model with you!
+				<br>
+				<button onclick="acceptShared3DModel();">Accept</button>
+				<button onclick="declineShared3DModel();">Decline</button>
+				</div>
+				
+				var popupTest2 = PopupManager.createPopup("Someone wants to share a 3D model with you!",
+														  "images/share-icon.png",
+														  {text:"Accept", func:onShareAccepted},
+														  {text:"Decline", func:onShareDeclined});
+				
+				function acceptKlotskiInvite() {
+					hidePopup();
+					switchToTab("#play");
+					
+					TabControl.sendMessage("play", "inviteAccepted", { turn : false });
+					// Send a fake message to self to start the local klotski game as well
+					tabControllers["#play"].onMessageReceived(null, "inviteAccepted", {turn : true });
+				}
+				
+				function declineKlotskiInvite() {
+					hidePopup();
+					TabControl.sendMessage("play", "inviteDeclined", {});
+				}
+				
+				PopupManager.showPopup(popupTest1);
+				 */
             }
             
             function readFiles(files) {
