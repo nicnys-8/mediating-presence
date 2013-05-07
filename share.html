@@ -7,6 +7,8 @@
         <title>Point Cloud Rendering Test</title>
         
 		<script type="text/javascript" src="js/tab-control.js"></script>
+		<script type="text/javascript" src="js/popup-manager.js"></script>
+		
         <script type="text/javascript" src="js/mediaext.js"></script>
         <script type="text/javascript" src="js/lib/webgl-utils.js"></script>
         <script type="text/javascript" src="js/lib/glMatrix-0.9.5.min.js"></script>
@@ -33,68 +35,9 @@
 			var sendRotTimer = null;
 			var resumeSend = false;
 			
-			TabControl.onActivate = function() {
-				requestAnimFrame(drawScene);
-				
-				if (resumeSend) {
-					sendRotation();
-				}
-			}
+			var invitePopup;
 			
-			TabControl.onDeactivate = function() {
-				cancelAnimFrame(drawScene);
-				if (sendRotTimer) {
-					clearTimeout(sendRotTimer);
-					resumeSend = true;
-					sendRotTimer = null;
-				}
-			}
-			
-			TabControl.onStreamAdded = function(stream) {
-			}
-			
-			TabControl.onStreamRemoved = function(stream) {
-			}
-			
-			TabControl.onMessageReceived = function(senderId, type, packet) {
-				
-				switch (type) {
-					case "inviteAccepted":
-						onShareAccepted();
-						break;
-					case "inviteDeclined":
-						onShareDeclined();
-						break;
-					case "model":
-						loadJSONModel(packet);
-						sendRotation();
-						break;
-					case "rotate":
-						if (renderer) {
-							renderer.updateModelRotation(packet.matrix);
-						}
-						break;
-					case "modelReceived":
-						console.log("Received model load confirmation");
-						sendRotation();
-						break;
-				}
-			}
-			
-			TabControl.onKinectInit = function(proxy) {
-			}
-			
-			TabControl.onNewKinectData = function(videoData, depthData) {
-			}
-			
-			function updateInputs(name, values) {
-				document.getElementById(name + "Color").value = crapRGBtoHex(values);
-				document.getElementById(name + "0").value = values[0] * 255;
-				document.getElementById(name + "1").value = values[1] * 255;
-				document.getElementById(name + "2").value = values[2] * 255;
-			}
-			
-            TabControl.onLoad = function() {
+			TabControl.onLoad = function() {
                 
 				var specularPicker = document.getElementById("specularColor");
 				specularPicker.value = crapRGBtoHex(specular);
@@ -116,8 +59,8 @@
 				}
 				
 				/*
-				for (var prop in colorSel)
-					console.log(prop);
+				 for (var prop in colorSel)
+				 console.log(prop);
 				 */
 				
 				glCanvas = MediaExt.createCanvas(kWidth, kHeight);
@@ -135,7 +78,7 @@
 				}
 				document.getElementById("shininess").value = shininess;
 				
-
+				
 				// **********************
                 // Drag and drop with File API
                 var dropbox = document.getElementById("dropbox"),
@@ -149,66 +92,120 @@
                     state.className = "success";
                 }
                 
-                dropboxContainer.ondragenter = function () {
-                    dropbox.className = "hover";
-                    return false;
-                };
-                dropboxContainer.ondragleave = function () {
-                    dropbox.className = "";
-                    return false;
-                };
-                dropboxContainer.ondragover = function () {
-                    dropbox.className = "hover";
-                    return false;
-                };
-                dropboxContainer.ondragend = function () {
-                    return false;
-                };
+                dropboxContainer.ondragenter = function () { dropbox.className = "hover"; return false; };
+                dropboxContainer.ondragleave = function () { dropbox.className = ""; return false; };
+                dropboxContainer.ondragover = function () { dropbox.className = "hover"; return false; };
+                dropboxContainer.ondragend = function () { return false; };
                 dropboxContainer.ondrop = function (e) {
-                    
                     dropbox.className = "";
-                    
                     e.preventDefault();
                     readFiles(e.dataTransfer.files);
-                    
                     return false;
                 };
                 // **********************
                 
                 document.getElementById("fileSelect").addEventListener("change", function () { readFiles(this.files); }, false);
 				
-				/*
-				<div id="sharePopup" class="popup-content">
-				<img class="popup-icon" src="images/share-icon.png"></img>
-				Someone wants to share a 3D model with you!
-				<br>
-				<button onclick="acceptShared3DModel();">Accept</button>
-				<button onclick="declineShared3DModel();">Decline</button>
-				</div>
-				
-				var popupTest2 = PopupManager.createPopup("Someone wants to share a 3D model with you!",
-														  "images/share-icon.png",
-														  {text:"Accept", func:onShareAccepted},
-														  {text:"Decline", func:onShareDeclined});
-				
-				function acceptKlotskiInvite() {
-					hidePopup();
-					switchToTab("#play");
-					
-					TabControl.sendMessage("play", "inviteAccepted", { turn : false });
-					// Send a fake message to self to start the local klotski game as well
-					tabControllers["#play"].onMessageReceived(null, "inviteAccepted", {turn : true });
-				}
-				
-				function declineKlotskiInvite() {
-					hidePopup();
-					TabControl.sendMessage("play", "inviteDeclined", {});
-				}
-				
-				PopupManager.showPopup(popupTest1);
-				 */
+				invitePopup = PopupManager.createPopup("Someone wants to share a 3D model with you!",
+													   "images/share-icon.png",
+													   {text:"Accept", func:acceptShared3DModel},
+													   {text:"Decline", func:declineShared3DModel});
             }
+			
+			TabControl.onActivate = function() {
+				requestAnimFrame(drawScene);
+				
+				if (resumeSend) {
+					sendRotation();
+				}
+			}
+			
+			TabControl.onDeactivate = function() {
+				cancelAnimFrame(drawScene);
+				if (sendRotTimer) {
+					clearTimeout(sendRotTimer);
+					resumeSend = true;
+					sendRotTimer = null;
+				}
+			}
+			
+			TabControl.onStreamAdded = function(stream) {};
+			TabControl.onStreamRemoved = function(stream) {};
+			
+			TabControl.onMessageReceived = function(senderId, type, packet) {
+				
+				switch (type) {
+					case "rotate":
+						if (renderer) {
+							renderer.updateModelRotation(packet.matrix);
+						}
+						break;
+					case "invite":
+						PopupManager.showPopup(invitePopup);
+						break;
+					case "inviteAccepted":
+						onShareAccepted();
+						break;
+					case "inviteDeclined":
+						onShareDeclined();
+						break;
+					case "model":
+						loadJSONModel(packet);
+						sendRotation();
+						break;
+					case "modelReceived":
+						console.log("Received model load confirmation");
+						sendRotation();
+						break;
+				}
+			}
+			
+			TabControl.onKinectInit = function(proxy) {
+			}
+			
+			TabControl.onNewKinectData = function(videoData, depthData) {
+			}
+			
+			function updateInputs(name, values) {
+				document.getElementById(name + "Color").value = crapRGBtoHex(values);
+				document.getElementById(name + "0").value = values[0] * 255;
+				document.getElementById(name + "1").value = values[1] * 255;
+				document.getElementById(name + "2").value = values[2] * 255;
+			}
             
+			function sendShareInvite() {
+				TabControl.sendMessage("share", "invite", {/*thumbnail of the 3D model, name of the file, ...*/});
+				shareButton.disabled = true;
+			}
+			
+			function onShareAccepted() {
+				if (model) {
+					console.log("Sending model");
+					console.log(model);
+					
+					// Send the model
+					TabControl.sendMessage("share", "model", serializeModel(model));
+					
+					console.log("Waiting for confirmation...");
+				}
+			}
+			
+			function onShareDeclined() {
+				// TODO: display message
+				clearTimeout(sendRotTimer);
+				sendRotTimer = null;
+				shareButton.disabled = false;
+			}
+			
+			function acceptShared3DModel() {
+				TabControl.sendMessage("share", "inviteAccepted", {});
+			}
+			
+			function declineShared3DModel() {
+				TabControl.sendMessage("share", "inviteDeclined", {});
+			}
+			
+			
             function readFiles(files) {
                 
                 var file = files[0];
@@ -456,32 +453,6 @@
 				}
 			}
             
-			function sendShareInvite() {
-				TabControl.sendMessage("index", "share", {});
-				shareButton.disabled = true;
-			}
-			
-			function onShareAccepted() {
-				if (model) {
-					
-					console.log("Sending model");
-					console.log(model);
-					
-					TabControl.sendMessage("share", "model", serializeModel(model));
-
-					console.log("Waiting for confirmation...");
-				}
-			}
-			
-			function onShareDeclined() {
-				
-				// TODO: display message
-				
-				clearTimeout(sendRotTimer);
-				sendRotTimer = null;
-				shareButton.disabled = false;
-			}
-			
 			function sendRotation() {
 				if (renderer) {
 					
