@@ -83,14 +83,14 @@ Block.prototype.isSnapped = function() {
 KlotskiWall = function(column, row, width, height) {
     Block.call(this, column, row, width, height);
     // Set the texture
-    var texture = THREE.ImageUtils.loadTexture("../images/rock-small.png");
-    this.material.map = texture;
+    this.material.map = KlotskiWall.texture;
     this.material.map.wrapS = THREE.RepeatWrapping;
     this.material.map.wrapT = THREE.RepeatWrapping;
     this.material.map.repeat.set(width, height);
 }
 
 KlotskiWall.prototype = Object.create(Block.prototype);
+KlotskiWall.texture = THREE.ImageUtils.loadTexture("../images/rock-small.png");
 
 
 /**
