@@ -1,7 +1,7 @@
 
 /**
  
- ***** KinectPluginProxy *****
+ ***** KinectProxy *****
  
  If this script is included in the html, the Kinect plugin is
  loaded and initialized automatically. Should another plugin be
@@ -29,26 +29,32 @@
  kinect-touch-controller.js (maybe)
  */
 
-KinectPluginProxy = function() {
+KinectProxy = function() {
 	
 	const	RGB_DATA_WIDTH = 160,
 			RGB_DATA_HEIGHT = 120,
 			DEPTH_DATA_WIDTH = 160,
 			DEPTH_DATA_HEIGHT = 120;
 	
-	var plugin;
-	var depthData;
-	var videoData;
-	var listeners = [];
-    var touchController;
-	
-	var engager;
-	var headPosListeners = [];
+	var plugin,
+		depthData,
+		videoData,
+		listeners = [],
+		touchController,
+		sensorConnected = false,
+		engager,
+		headPosListeners = [];
 	
 	/**
 	 Embeds and initialzies plugin object
 	 */
 	var initPlugin = function() {
+
+		/*
+		 if (!sensorConnected) {
+			do something?
+		 }
+		 */
 		
 		// Embed the Zigfu plugin object
 		zig.embed();
@@ -92,10 +98,13 @@ KinectPluginProxy = function() {
 		videoData = ctx.createImageData(RGB_DATA_WIDTH, RGB_DATA_HEIGHT);
 		depthData = new Array(DEPTH_DATA_WIDTH * DEPTH_DATA_HEIGHT);
 		
-		// Signal initialization to TabControl
-		if (TabControl) {
-			TabControl.onKinectInit(this);
-		}
+		// Wait for the plugin to load before firing the init event
+		zig.addEventListener("loaded", function() {
+								// Signal initialization to TabControl
+								if (TabControl) {
+									TabControl.onKinectInit(KinectProxy);
+								}
+							 });
 		
         initTouchController();
 	};
@@ -153,6 +162,10 @@ KinectPluginProxy = function() {
         }
     };
 	
+	var sensorConnected = function() {
+		return zig.sensorConnected;
+	};
+	
 	// Base64 decoding
 	var numDepthPoints = DEPTH_DATA_WIDTH * DEPTH_DATA_HEIGHT;
 	var tempDepth = new Array(numDepthPoints * 2);
@@ -209,15 +222,16 @@ KinectPluginProxy = function() {
 	
 	// Return public API
 	return {
+		// Functions
         initPlugin			: initPlugin,
 		initTouchController : initTouchController,
 		requestStreams		: requestStreams,
-		
 		addHeadPositionListener : addHeadPositionListener,
-		
 		decodeVideo			: decodeVideo,
 		decodeDepth			: decodeDepth,
-		
+		sensorConnected		: sensorConnected,
+
+		// Constants
 		RGB_DATA_WIDTH		: RGB_DATA_WIDTH,
 		RGB_DATA_HEIGHT		: RGB_DATA_HEIGHT,
 		DEPTH_DATA_WIDTH	: DEPTH_DATA_WIDTH,
@@ -235,12 +249,12 @@ if (window.self === window.top) {
 	var s = document.createElement("script");
 	s.src = "js/lib/zig.js"; // http://cdn.zigfu.com/zigjs/zig.min.js";
 	/*s.onload = function() {
-		// KinectPluginProxy.initPlugin();
+		// KinectProxy.initPlugin();
 	};*/
 	document.head.appendChild(s);
 	
 	window.addEventListener("load", function() {
-                            KinectPluginProxy.initPlugin();
+                            KinectProxy.initPlugin();
 							}, false);
 }
 
