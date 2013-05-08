@@ -283,8 +283,8 @@
                      Called whenever the left mouse button is clicked
                      */
                     onMouseDown = function(event) {
-                        mouseX = mouse.clientX;
-                        mouseY = mouse.clientY;
+                        mouseX = event.clientX;
+                        mouseY = event.clientY;
                         if (klotski) klotski.onMouseDown(mouseX, mouseY);
                         
                         //TODO: Remove this ugly code:
@@ -299,8 +299,8 @@
                      Called whenever the mouse is moved
                      */
                     onMouseMove = function(event) {
-                        mouseX = mouse.clientX;
-                        mouseY = mouse.clientY;
+                        mouseX = event.clientX;
+                        mouseY = event.clientY;
                         if (klotski) klotski.onMouseMove(mouseX, mouseY);
                     };
                     
