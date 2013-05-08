@@ -75,6 +75,14 @@
 				/* background-color:lightblue; */
 				z-index:2;
 			}
+			.video-holder {
+				position:absolute;
+				top:-480;
+				left:0;
+				width:640;
+				height:480;
+				visibility:hidden;
+			}
 			.video-thumb {
 				position:relative;
 				display:block;
@@ -203,13 +211,17 @@
 		<script type="text/javascript" src="js/tab-control.js"></script>
 		<script type="text/javascript" src="js/image-handling.js"></script>
         <script type="text/javascript" src="js/kinect-touch-controller.js"></script>
-		<script type="text/javascript" src="js/kinect-plugin-proxy-zigfu.js"></script>
+		<script type="text/javascript" src="js/kinect-proxy-zigfu.js"></script>
 		<script type="text/javascript" src="js/lib/erizo.js"></script>
 		<script type="text/javascript" src="js/lynckia-client.js"></script>
-        
+		<script type="text/javascript" src="js/lib/webgl-utils.js"></script>
+		
 		<script type="text/javascript" src="js/popup-manager.js"></script>
         
 		<script>
+			
+			const VIDEO_RES_WIDTH = 640;
+			const VIDEO_RES_HEIGHT = 480;
 			
 			var currentTabID;
 			var enableVideo = true;
@@ -220,9 +232,13 @@
 			
 			var streamIDs = [];
 			var streams = {};
+			var videos = {};
 			var thumbs = {};
 			var currentStreamID = null;
             var username;
+			
+			var bufferCanvas, bufferContext;
+			
             //var usernames = {}; // A dictionary linking streamIDs to usernames
 			
 			function addVideoStream(stream) {
@@ -230,7 +246,9 @@
 				streams[streamID] = stream;
 				streamIDs.push(streamID);
 				
-				var thumb = document.createElement("div");
+				var thumb = document.createElement("canvas");
+				thumb.width = 160;
+				thumb.height = 120;
 				thumb.id = "thumb" + streamID;
 				thumb.className = "video-thumb";
 				thumb.onclick = function() {
@@ -238,8 +256,13 @@
 				}
 				thumbs[streamID] = thumb;
 				
+				var holder = document.createElement("div");
+				holder.id = "holder" + streamID;
+				holder.className = "video-holder";
+				videos[streamID] = holder;
+				
 				document.getElementById("sidebar-right").appendChild(thumb);
-				stream.show(thumb.id);
+				stream.show(holder.id);
 				setCurrentStream(streamID);
 			}
 			
@@ -247,6 +270,7 @@
 				
 				var streamID = stream.getID();
 				var thumb = thumbs[streamID];
+				var holder = videos[streamID];
 				var index = streamIDs.indexOf(streamID);
 				
 				// Remove the stream ID
@@ -257,6 +281,12 @@
 				// Remove the stream
 				streams[streamID].hide();
 				delete streams[streamID];
+				
+				// Remove the placeholder div
+				if (holder) {
+					holder.parentNode.removeChild(holder);
+					delete videos[streamID];
+				}
 				
 				// Remove the thumbnail div
 				if (thumb) {
@@ -433,6 +463,10 @@
 				PopupManager.showPopup(popupTest2);
 				PopupManager.showPopup(popupTest3);
 				 */
+				
+				bufferCanvas = document.createElement("canvas");
+				bufferContext = bufferCanvas.getContext("2d");
+				requestAnimFrame(drawThumbs);
 			};
 			
 			function activateTab(tabName) {
@@ -589,6 +623,29 @@
 				blanket.animate({ opacity:0.0, },
 								500, function() { $(this).hide(); });
 			}
+			
+			function drawThumbs() {
+				
+				requestAnimFrame(drawThumbs);
+			
+				for (var i = 0; i < streamIDs.length; i++) {
+					var streamID = streamIDs[i];
+					var canvas = thumbs[streamID];
+					var ctx = canvas.getContext("2d");
+					var imageData = streams[streamID].getVideoFrame();
+				 
+					if (imageData) {
+						if (bufferCanvas.width != imageData.width ||
+							bufferCanvas.height != imageData.height) {
+							bufferCanvas.width = imageData.width;
+							bufferCanvas.height = imageData.height;
+						}
+						bufferContext.putImageData(imageData, 0, 0);
+						ctx.drawImage(bufferCanvas, 0, 0, canvas.width, canvas.height);
+					}
+				}
+			}
+			
             </script>
         
     </head>
