@@ -157,7 +157,7 @@
                      */
                     function startGame(hasTurn) {
                         // Start periodically sending the mouse position to the remote user
-                        mouseLoopId = setTimeout(sendMousePosition, 100);
+                        mouseLoopId = setInterval(sendMousePosition, 100);
                         // Create the Klotski object
                         klotskiContainer = document.getElementById("klotskiContainer");
                         if (!klotski) {
@@ -268,7 +268,7 @@
                     }
                     
                     /**
-                     Seds the current position of the mouse to the remote player
+                     Sends the current position of the mouse to the remote player
                      */
                     function sendMousePosition() {
                         // Send the position of the local user's mouse to the remote player

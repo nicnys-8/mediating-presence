@@ -212,6 +212,7 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
     var bright = true;
     setLights(bright);
     
+    
     userParticles = new TouchParticleSystem();
     scene.add(userParticles);
     
@@ -234,8 +235,20 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
      */
     var startGame = function(playerStarts) {
         this.setHasTurn(playerStarts);
-        this.playerColor = (hasTurn) ? "red" : 'blue';
-        this.friendColor = (hasTurn) ? 'blue' : "red";
+        
+        if (playerStarts) {
+            this.playerColor = "red";
+            this.friendColor = 'blue';
+            userParticles.makeRed();
+        } else {
+            this.playerColor = 'blue';
+            this.friendColor = "red";
+            friendParticles.makeRed();
+        }
+        
+        console.log("Player color: " + this.playerColor);
+        console.log("Friend color: " + this.friendColor);
+        
         levelIndex = 0;
         loadLevel(levelIndex);
         // Set the view correctly

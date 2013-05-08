@@ -1,5 +1,5 @@
 const PARTICLE_COUNT = 32;
-const PARTICLE_SPEED = 0.0005;
+const PARTICLE_SPEED = 0.0003;
 const PARTICLE_TIMER = 40;
 
 function TouchParticleSystem() {
@@ -8,17 +8,16 @@ function TouchParticleSystem() {
 /**
  Particle constructor
  */
-TouchParticleSystem = function() {
+TouchParticleSystem = function(color) {
     this.active = false;
     var geometry = new THREE.Geometry();
+    // Set the color depending on
     var material = new THREE.ParticleBasicMaterial({color: 0xFFFFFF,
                                                    size: 0.004,
-                                                   map: THREE.ImageUtils.loadTexture(                                                                                      "../images/particle.png"
-                                                                                     ),
+                                                   map: THREE.ImageUtils.loadTexture("../images/particle.png"),
                                                    blending: THREE.AdditiveBlending,
                                                    transparent: true
                                                    });
-    
     THREE.ParticleSystem.call(this, geometry, material);
     
     // Set the point from which particles are emitted
@@ -42,6 +41,19 @@ TouchParticleSystem = function() {
 };
 
 TouchParticleSystem.prototype = Object.create(THREE.ParticleSystem.prototype);
+
+/**
+ Turns the emitted particles red
+ */
+TouchParticleSystem.prototype.makeRed = function() {
+    var redMaterial = new THREE.ParticleBasicMaterial({color: 0xFFFFFF,
+                                                   size: 0.004,
+                                                   map: THREE.ImageUtils.loadTexture("../images/particle2.png"),
+                                                   blending: THREE.AdditiveBlending,
+                                                   transparent: true
+                                                   });
+    this.material = redMaterial;
+};
 
 /**
  Move all particles, and reset them if their timers have expired
