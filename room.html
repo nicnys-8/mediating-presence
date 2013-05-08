@@ -613,7 +613,8 @@
 				requestAnimFrame(drawThumbs);
 			
 				for (var i = 0; i < streamIDs.length; i++) {
-					var stream = streams[streamIDs[i]];
+					var streamID = streamIDs[i];
+					var stream = streams[streamID];
 					if (stream && stream.video) {
 						var canvas = thumbs[streamID];
 						var ctx = canvas.getContext("2d");
