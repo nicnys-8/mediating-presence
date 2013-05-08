@@ -9,6 +9,9 @@
                 <script type="text/javascript" src="js/lib/three.js"></script>
                 <script type="text/javascript" src="js/lib/subdivision-modifier.js"></script>
                 
+				<script type="text/javascript" src="js/tab-control.js"></script>
+				<script type="text/javascript" src="js/popup-manager.js"></script>
+				
                 <script type="text/javascript" src="js/mouse-interface.js"></script>
                 <script type="text/javascript" src="js/klotski3D.js"></script>
                 <script type="text/javascript" src="js/klotski-blocks.js"></script>
@@ -16,18 +19,19 @@
                 <script type="text/javascript" src="js/kinect-touch-controller.js"></script>
                 <script type="text/javascript" src="js/geometry.js"></script>
                 <script type="text/javascript" src="js/timer.js"></script>
-                <script type="text/javascript" src="js/tab-control.js"></script>
                 <script type="text/javascript" src="js/particles.js"></script>
                 
                 <link rel="stylesheet" type="text/css" href="css/pb.css"/>
                 
                 <script>
                     
-                    var klotski;
-                    var klotskiContainer;
-                    var localUsername;
-                    var friendId;
-                    
+                    var klotski,
+						klotskiContainer,
+						localUsername,
+						friendId,
+						invitePopup,
+						inviteDeclinedPopup;
+					
                     TabControl.onActivate = function() {
                         if (klotski) klotski.shouldRender = true;
                     };
@@ -62,28 +66,36 @@
                     };
                     
                     TabControl.onMessageReceived = function(senderId, type, data) {
-                        if (type == "inviteAccepted") {
-                            // Store the ID of the other user's stream
-                            friendId = senderId;
-                            // Display the game and game messages
-                            startGame(data.turn);
-                        }
-                        else if (type == "inviteDeclined") {
-                            alert("Invite declined!");
-                            $("#inviteButton").removeAttr("disabled");
-                        }
-                        else if (type == "update") {
-                            klotski.onReceivedMove(data);
-                        }
-                        else if (type == "nextLevel") {
-                            nextLevel();
-                        }
-                        else if (type == "yourTurn") {
-                            setHasTurn(true);
-                        }
-                        else {
-                            console.log("Received unreadable message");
-                        }
+						
+						switch (type) {
+							case "update":
+								klotski.onReceivedMove(data);
+								break;
+							case "invite":
+								if (data.dst == username) {
+									PopupManager.showPopup(invitePopup);
+								}
+								break;
+							case "inviteAccepted":
+								// Store the ID of the other user's stream
+								friendId = senderId;
+								// Display the game and game messages
+								startGame(data.turn);
+								break;
+							case "inviteDeclined":
+								PopupManager.showPopup(inviteDeclinedPopup);
+								$("#inviteButton").removeAttr("disabled");
+								break;
+							case "nextLevel":
+								nextLevel();
+								break;
+							case "yourTurn":
+								setHasTurn(true);
+								break;
+							default:
+								console.log("Received unreadable message");
+								break;
+						}
                     };
                     
                     /**
@@ -98,8 +110,27 @@
                         document.addEventListener("mousemove", onMouseMove, false);
                         document.addEventListener("mouseup", onMouseUp, false);
                         tick();
+						
+						invitePopup = PopupManager.createPopup("You have been invited to play a game of Klotski!",
+															   "images/play-icon.png",
+															   {text:"Accept", func:acceptKlotskiInvite},
+															   {text:"Decline", func:declineKlotskiInvite});
+						
+						inviteDeclinedPopup = PopupManager.createPopup("Your invitation was declined!",
+																	   "images/play-icon.png", {text:"OK"});
                     };
-                    
+					
+					function acceptKlotskiInvite() {
+						// TODO: switchToTab("#play");
+						TabControl.sendMessage("play", "inviteAccepted", { turn : false });
+						// HAXX: a fake message to self to start the local klotski game as well
+						TabControl.onMessageReceived(null, "inviteAccepted", {turn : true });
+					}
+					
+					function declineKlotskiInvite() {
+						TabControl.sendMessage("play", "inviteDeclined", {});
+					}
+					
                     /**
                      Sends a game invitation to the player specified by 'username'
                      */
@@ -111,7 +142,7 @@
                         }
                         console.log("Sending invite to " + invitedUser);
                         // sendMessage(destination, type, data)
-                        TabControl.sendMessage("index", "invite", {dst: invitedUser});
+                        TabControl.sendMessage("play", "invite", {dst: invitedUser});
                         $("#inviteButton").attr("disabled", true);
                     }
                     
