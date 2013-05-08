@@ -18,19 +18,30 @@ PointCloudRendererX = function(canvas) {
 				  */
 				 
 				 "varying vec2 uv;",
+				 "varying vec2 uv2;",
 				 
 				 "void main(void) {",
+				 
 					"vec4 pos = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);",
 					"float x = aVertexPosition.x;",
 					"float y = aVertexPosition.y;",
+					"float z = aVertexPosition.z;",
 				 
 					"if (x < 80.0) {", // textureSize.width / 2.0
 						"x += 6.0 * x / 80.0;",
 					"} else {",
 						"x += 6.0 * (2.0 - x / 80.0);", // uvOffset
 					"}",
-				
+					
 					"uv = vec2(x / 160.0, y / 120.0);",
+					
+					"if (z < 1000.0) {",
+						"uv2 = vec2((z - 500.0) / 500.0, 0.0);",
+					"} else {",
+						"uv2 = vec2((z - 1000.0) / 2000.0, 0.0);",
+					"}",
+					
+					// "uv2 = vec2((z - 500.0) / 2000.0, 0.0);",
 					"gl_PointSize = -(pos.z / pos.w - 1.0) * 8.0;", // * pointSize
 					"gl_Position = pos;",
 				 "}",
@@ -40,10 +51,18 @@ PointCloudRendererX = function(canvas) {
 	var fsStr = [
 				 "precision mediump float;",
 				 "uniform sampler2D tex;",
+				 "uniform sampler2D hsvTex;",
+				 
+				 "uniform bool useVideo;",
 				 "uniform float brightness;",
 				 "varying vec2 uv;",
+				 "varying vec2 uv2;",
 				 "void main(void) {",
-					"gl_FragColor = vec4(texture2D(tex, uv).rgb * brightness, 1.0);",
+					"if (useVideo) {",
+						"gl_FragColor = vec4(texture2D(tex, uv).rgb * brightness, 1.0);",
+					"} else {",
+						"gl_FragColor = texture2D(hsvTex, uv2);",
+					"}",
 				 "}",
 				  ].join("\n");
 		
@@ -65,7 +84,9 @@ PointCloudRendererX = function(canvas) {
 	prog.unifMatrixP = gl.getUniformLocation(prog, "uPMatrix");
 	prog.unifMatrixMV = gl.getUniformLocation(prog, "uMVMatrix");
 	prog.unifTex = gl.getUniformLocation(prog, "tex");
+	prog.unifHSVTex = gl.getUniformLocation(prog, "hsvTex");
 	prog.unifBrightness = gl.getUniformLocation(prog, "brightness");
+	prog.unifUseVideo = gl.getUniformLocation(prog, "useVideo");
 	
 	// Set black background
 	gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -98,11 +119,61 @@ PointCloudRendererX = function(canvas) {
 		// gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
 	}
 	
+	var hsv2rgb = function(h, s, v) {
+		
+		var rgb, H, i, data;
+		
+		if (s === 0) {
+			rgb = [v, v, v];
+		} else {
+			
+			H = h / 60.0;
+			i = Math.floor(H);
+			data = [v * (1.0 - s),
+					v * (1.0 - s * (H - i)),
+					v * (1.0 - s * (1.0 - (H - i)))];
+			
+			switch(i) {
+				case 0: rgb = [v, data[2], data[0]]; break;
+				case 1: rgb = [data[1], v, data[0]]; break;
+				case 2: rgb = [data[0], v, data[2]]; break;
+				case 3: rgb = [data[0], data[1], v]; break;
+				case 4: rgb = [data[2], data[0], v]; break;
+				default: rgb = [v, data[0], data[1]]; break;
+			}
+		}
+		return rgb;
+	};
+	
+	var hsvTexData = function(width) {
+		var data = new Uint8Array(width * 4);
+		var h, s, v, rgb;
+		var scale = 360.0 / width;
+		for (var i = 0; i < width; i++) {
+			h = i * scale;
+			s = 1.0;
+			v = 1.0; // - i / width * 0.5;
+			rgb = hsv2rgb(h, s, v);
+			data[i * 4 + 0] = Math.round(255 * rgb[0]);
+			data[i * 4 + 1] = Math.round(255 * rgb[1]);
+			data[i * 4 + 2] = Math.round(255 * rgb[2]);
+			data[i * 4 + 3] = 255;
+		}
+		return data;
+	}(512);
+	
+	var hsvTexture = WebGLUtils.createTexture(gl);
+	gl.activeTexture(gl.TEXTURE1);
+	gl.bindTexture(gl.TEXTURE_2D, hsvTexture);
+	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 512, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, hsvTexData);
+	gl.activeTexture(gl.TEXTURE0);
+	
 	var cor = vec3.create([0, 0, 0]),
 		pos = vec3.create([0, 0, 0]),
 		scale = vec3.create([1, 1, 1]),
 		brightness = 1.0,
-		rotX = 0.0, rotY = 0.0;
+		rotX = 0.0, rotY = 0.0,
+		useVideo = false;
 	
 	this.setCenterOfRotation = function(vec) {
 		cor[0] = vec[0];
@@ -124,6 +195,10 @@ PointCloudRendererX = function(canvas) {
 	
 	this.setBrightness = function(value) {
 		brightness = value;
+	}
+	
+	this.setUseVideo = function(value) {
+		useVideo = value;
 	}
 	
 	// TODO: Add boolean parameter that specifies if requestAnimationFrame should be called?
@@ -152,6 +227,8 @@ PointCloudRendererX = function(canvas) {
 		gl.activeTexture(gl.TEXTURE0);
 		gl.bindTexture(gl.TEXTURE_2D, texture);
 		gl.uniform1i(prog.unifTex, 0);
+		gl.uniform1i(prog.unifHSVTex, 1);
+		gl.uniform1i(prog.unifUseVideo, useVideo);
 		
 		gl.drawArrays(gl.POINTS, 0, vertexBuffer.numItems);
 	}

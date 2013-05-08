@@ -9,7 +9,7 @@
         <script type="text/javascript" src="js/lib/webgl-utils.js"></script>
         <script type="text/javascript" src="js/lib/glMatrix-0.9.5.min.js"></script>
         <script type="text/javascript" src="js/image-handling.js"></script>
-		<script type="text/javascript" src="js/kinect-plugin-proxy-zigfu.js"></script>
+		<script type="text/javascript" src="js/kinect-proxy-zigfu.js"></script>
 		<script type="text/javascript" src="js/point-cloud-renderer-x.js"></script>
 		
         <link rel="stylesheet" type="text/css" href="css/pb.css"/>
@@ -165,8 +165,11 @@
 				var zScale = 1.0 / parseFloat(document.getElementById("zScale").value);
 				var brightness = parseFloat(document.getElementById("brightness").value);
 				var lerp = document.getElementById("lerp").checked;
+				var useVideo = document.getElementById("useVideo").checked;
 				
-				renderer.setTexture(video);
+				if (useVideo) {
+					renderer.setTexture(video);
+				}
 				
                 for (var y = 0, index = 0; y < KINECT_DEPTH_HEIGHT; y++) {
                     for (var x = 0; x < KINECT_DEPTH_WIDTH; x++, index++) {
@@ -212,6 +215,7 @@
                     }
                 }
 				
+				renderer.setUseVideo(useVideo);
 				renderer.setBrightness(brightness);
 				renderer.setScale([1.0, -1.0, -zScale]);
                 renderer.setCenterOfRotation([-80, -60, -1000]);
@@ -262,6 +266,10 @@
 				</tr><tr>
 					<td style="text-align:right;">Interpolate:</td>
 					<td><input id="lerp" type="checkbox"></td>
+				</tr>
+				</tr><tr>
+					<td style="text-align:right;">Video texture:</td>
+					<td><input id="useVideo" type="checkbox"></td>
 				</tr>
 				</tr><tr>
 					<td style="text-align:right;">Stream:</td>
