@@ -1631,8 +1631,8 @@ zig = (function() {
 
 	// some default controls, always available
 	// comment out if taking too much cpu
-	publicApi.singleUserSession = EngageFirstUserInSession();
-	publicApi.addListener(publicApi.singleUserSession);
+	// publicApi.singleUserSession = EngageFirstUserInSession();
+	// publicApi.addListener(publicApi.singleUserSession);
 
 	// is the plugin installed?
 	publicApi.pluginInstalled = hasPlugin("application/x-zig");
@@ -1646,7 +1646,7 @@ zigloaded = function() {
 
 
 // NOT SURE WHERE THESE ALL BELONG
-
+/*
 zig.toys = (function() {
 
 	function usersRadar(parentElement) {
@@ -1743,6 +1743,7 @@ zig.toys = (function() {
 		injectRadar : injectRadar,
 	}
 }());
-
+*/
+ 
 }()); // zig.js closure
 } // if (undefined === zig)
