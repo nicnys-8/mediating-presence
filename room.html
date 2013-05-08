@@ -261,7 +261,9 @@
 				holder.className = "video-holder";
 				videos[streamID] = holder;
 				
+				document.body.appendChild(holder);
 				document.getElementById("sidebar-right").appendChild(thumb);
+				
 				stream.show(holder.id);
 				setCurrentStream(streamID);
 			}
