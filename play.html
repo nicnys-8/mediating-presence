@@ -61,7 +61,7 @@
                             endGame();
                         }
                         // Remove the invite button of the user
-                        var removedUser = stream.getAttributes().removedUser;
+                        var removedUser = stream.getAttributes().username;
                         //TODO: Remove user from the list of users you can invite
                     };
                     
@@ -72,7 +72,7 @@
 								klotski.onReceivedMove(data);
 								break;
 							case "invite":
-								if (data.dst == username) {
+								if (data.dst == localUsername) {
 									PopupManager.showPopup(invitePopup);
 								}
 								break;
