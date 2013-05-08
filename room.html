@@ -75,21 +75,13 @@
 				/* background-color:lightblue; */
 				z-index:2;
 			}
-			.video-holder {
-				position:absolute;
-				top:-480;
-				left:0;
-				width:640;
-				height:480;
-				visibility:hidden;
-			}
 			.video-thumb {
 				position:relative;
 				display:block;
 				margin:20px auto;
 				width:160px;
 				height:120px;
-				/*background-color:lightyellow;*/
+				background-color:black;
 			}
 			
 			#content {
@@ -200,22 +192,17 @@
 				font-size:100%;
 				padding:0.5em;
 				margin:1em 0.25em;
-				
 			}
 			
             </style>
 		
 		<script type="text/javascript" src="js/lib/jquery.js"></script>
-        <script type="text/javascript" src="js/lib/sylvester.js"></script>
-        <script type="text/javascript" src="js/geometry.js"></script>
 		<script type="text/javascript" src="js/tab-control.js"></script>
-		<script type="text/javascript" src="js/image-handling.js"></script>
         <script type="text/javascript" src="js/kinect-touch-controller.js"></script>
 		<script type="text/javascript" src="js/kinect-proxy-zigfu.js"></script>
 		<script type="text/javascript" src="js/lib/erizo.js"></script>
 		<script type="text/javascript" src="js/lynckia-client.js"></script>
 		<script type="text/javascript" src="js/lib/webgl-utils.js"></script>
-		
 		<script type="text/javascript" src="js/popup-manager.js"></script>
         
 		<script>
@@ -232,20 +219,29 @@
 			
 			var streamIDs = [];
 			var streams = {};
-			var videos = {};
 			var thumbs = {};
 			var currentStreamID = null;
             var username;
 			
 			var bufferCanvas, bufferContext;
 			
-            //var usernames = {}; // A dictionary linking streamIDs to usernames
+            // var usernames = {}; // A dictionary linking streamIDs to usernames
 			
 			function addVideoStream(stream) {
+				
 				var streamID = stream.local ? "myStream" : stream.getID();
 				streams[streamID] = stream;
 				streamIDs.push(streamID);
 				
+				// Create a video element for the stream
+				var video = document.createElement("video");
+				video.width = VIDEO_RES_WIDTH;
+				video.height = VIDEO_RES_HEIGHT;
+				video.autoplay = true;
+				video.src = webkitURL.createObjectURL(stream.stream);
+				stream.video = video;
+				
+				// Create a thumbnail canvas for the video
 				var thumb = document.createElement("canvas");
 				thumb.width = 160;
 				thumb.height = 120;
@@ -256,15 +252,7 @@
 				}
 				thumbs[streamID] = thumb;
 				
-				var holder = document.createElement("div");
-				holder.id = "holder" + streamID;
-				holder.className = "video-holder";
-				videos[streamID] = holder;
-				
-				document.body.appendChild(holder);
 				document.getElementById("sidebar-right").appendChild(thumb);
-				
-				stream.show(holder.id);
 				setCurrentStream(streamID);
 			}
 			
@@ -272,7 +260,6 @@
 				
 				var streamID = stream.getID();
 				var thumb = thumbs[streamID];
-				var holder = videos[streamID];
 				var index = streamIDs.indexOf(streamID);
 				
 				// Remove the stream ID
@@ -280,15 +267,12 @@
 					streamIDs.splice(index, 1);
 				}
 				
-				// Remove the stream
-				streams[streamID].hide();
-				delete streams[streamID];
-				
-				// Remove the placeholder div
-				if (holder) {
-					holder.parentNode.removeChild(holder);
-					delete videos[streamID];
+				// Remove the video
+				if (stream.video) {
+					stream.video.pause();
+					stream.video = null;
 				}
+				delete streams[streamID];
 				
 				// Remove the thumbnail div
 				if (thumb) {
@@ -466,8 +450,6 @@
 				PopupManager.showPopup(popupTest3);
 				 */
 				
-				bufferCanvas = document.createElement("canvas");
-				bufferContext = bufferCanvas.getContext("2d");
 				requestAnimFrame(drawThumbs);
 			};
 			
@@ -631,19 +613,11 @@
 				requestAnimFrame(drawThumbs);
 			
 				for (var i = 0; i < streamIDs.length; i++) {
-					var streamID = streamIDs[i];
-					var canvas = thumbs[streamID];
-					var ctx = canvas.getContext("2d");
-					var imageData = streams[streamID].getVideoFrame();
-				 
-					if (imageData) {
-						if (bufferCanvas.width != imageData.width ||
-							bufferCanvas.height != imageData.height) {
-							bufferCanvas.width = imageData.width;
-							bufferCanvas.height = imageData.height;
-						}
-						bufferContext.putImageData(imageData, 0, 0);
-						ctx.drawImage(bufferCanvas, 0, 0, canvas.width, canvas.height);
+					var stream = streams[streamIDs[i]];
+					if (stream && stream.video) {
+						var canvas = thumbs[streamID];
+						var ctx = canvas.getContext("2d");
+						ctx.drawImage(stream.video, 0, 0, canvas.width, canvas.height);
 					}
 				}
 			}
