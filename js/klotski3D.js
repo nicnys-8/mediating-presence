@@ -424,6 +424,7 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
     this.updateScene = updateScene;
     this.nextLevel = nextLevel;
     this.setHasTurn = setHasTurn;
+    this.remoteMouseEvent = remoteMouseEvent;
     
     /*-----------------------
      ==| Public variables |==
