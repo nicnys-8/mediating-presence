@@ -18,27 +18,33 @@
         <script type="text/javascript">
             
             const VIDEO_DISPLAY_WIDTH = 640, VIDEO_DISPLAY_HEIGHT = 480;
-			const KINECT_RGB_WIDTH = 160, KINECT_RGB_HEIGHT = 120;
-            const KINECT_DEPTH_WIDTH = 160, KINECT_DEPTH_HEIGHT = 120;
 			
-			var isActive = false;
-			
-			var pluginProxy;
-			var streamIDs = [];
-			var displayedStreams = {};
+			var isActive = false,
+				streamIDs = [],
+				displayedStreams = {},
+				frameCount = 0;
 			
 			var PeekDisplay = function() {
 				this.canvas = MediaExt.createCanvas(VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
 				this.renderer = new PointCloudRendererX(this.canvas);
 				
 				var ctx = document.createElement("canvas").getContext("2d");
-				this.videoData = ctx.createImageData(KINECT_RGB_WIDTH, KINECT_RGB_HEIGHT);
-				this.depthBuffer = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT);
+				this.videoData = ctx.createImageData(KinectProxy.RGB_DATA_WIDTH,
+													 KinectProxy.RGB_DATA_HEIGHT);
+				this.depthBuffer = new Array(KinectProxy.DEPTH_DATA_WIDTH,
+											 KinectProxy.DEPTH_DATA_HEIGHT);
 				
 				for (var i = 0, len = this.depthBuffer.length; i < len; ++i) {
 					this.depthBuffer[i] = 0;
 				}
 			}
+			
+			TabControl.onLoad = function() {
+				var pd = new PeekDisplay();
+				streamIDs.push("me");
+				displayedStreams["me"] = pd;
+				document.getElementById("container").appendChild(pd.canvas);
+            }
 			
 			TabControl.onActivate = function() {
 				isActive = true;
@@ -94,14 +100,18 @@
 				
 				if (type == "kinect") {
 					
-					if (isActive && pluginProxy) {
+					if (isActive) {
 						
 						var pd = displayedStreams[senderId];
 						
-						pluginProxy.decodeVideo(data.video, pd.videoData.data);
-						pluginProxy.decodeDepth(data.depth, pd.depthBuffer);
-						
-						updateScene(senderId, pd.videoData, pd.depthBuffer);
+						if (data.video) {
+							KinectProxy.decodeVideo(data.video, pd.videoData.data);
+							KinectProxy.decodeDepth(data.depth, pd.depthBuffer);
+							updateScene(senderId, pd.videoData, pd.depthBuffer);
+						} else {
+							KinectProxy.decodeDepth(data.depth, pd.depthBuffer);
+							updateScene(senderId, null, pd.depthBuffer);
+						}
 					}
 				}
 			}
@@ -113,11 +123,7 @@
 												// console.log(headPos);
 												pd.renderer.headMoved(headPos);
 											  }});
-				pluginProxy = proxy;
 			}
-			
-			const SEND_RATE = 3;
-			var sendTick = 0;
 			
 			TabControl.onNewKinectData = function(videoData, depthData, rawVideo, rawDepth) {
 				
@@ -134,19 +140,21 @@
 					updateScene("me", videoData, depthData);
 				}
 				
-				var doSend = document.getElementById("streamData").checked;
-				if (doSend && sendTick % SEND_RATE == 0) {
+				var sendData = document.getElementById("streamData").checked;
+				var sendVideo = document.getElementById("useVideo").checked;
+				var sendRate = parseInt(document.getElementById("frameSkip").value);
+				
+				if (sendData && frameCount % sendRate == 0) {
+					var data = {
+						depth:rawDepth,
+					};
+					if (sendVideo) {
+						data.video = rawVideo;
+					}
 					// Send the Kinect data
-					TabControl.sendMessage("peek", "kinect", {video:rawVideo, depth:rawDepth});
+					TabControl.sendMessage("peek", "kinect", data);
 				}
-				sendTick++;
-            }
-			
-            TabControl.onLoad = function() {
-				var pd = new PeekDisplay();
-				streamIDs.push("me");
-				displayedStreams["me"] = pd;
-				document.getElementById("container").appendChild(pd.canvas);
+				frameCount++;
             }
 			
 			function updateScene(senderId, video, depth) {
@@ -167,18 +175,21 @@
 				var lerp = document.getElementById("lerp").checked;
 				var useVideo = document.getElementById("useVideo").checked;
 				
-				if (useVideo) {
+				if (video && useVideo) {
 					renderer.setTexture(video);
 				}
 				
-                for (var y = 0, index = 0; y < KINECT_DEPTH_HEIGHT; y++) {
-                    for (var x = 0; x < KINECT_DEPTH_WIDTH; x++, index++) {
+				var width = KinectProxy.DEPTH_DATA_WIDTH,
+					height = KinectProxy.DEPTH_DATA_HEIGHT;
+				
+                for (var y = 0, index = 0; y < height; y++) {
+                    for (var x = 0; x < width; x++, index++) {
                         
                         var z = depth[index];
 						
                         var zr = depth[index + 1];
-						var zb = depth[index + KINECT_DEPTH_WIDTH];
-						var zbr = depth[index + KINECT_DEPTH_WIDTH + 1];
+						var zb = depth[index + width];
+						var zbr = depth[index + width + 1];
 						
                         if (z > 0 && z < maxDepth) {
 							
@@ -187,7 +198,7 @@
 							if (lerp) {
 								
 								if (zr
-									&& x < KINECT_DEPTH_WIDTH - 1
+									&& x < width - 1
 									&& Math.abs(zr - z) < 50) {
 									pos.push(x + 0.5,
 											 y,
@@ -195,7 +206,7 @@
 								}
 								
 								if (zb
-									&& y < KINECT_DEPTH_HEIGHT - 1
+									&& y < height - 1
 									&& Math.abs(zb - z) < 50) {
 									pos.push(x,
 											 y + 0.5,
@@ -203,8 +214,8 @@
 								}
 								
 								if (zbr
-									&& x < KINECT_DEPTH_WIDTH - 1
-									&& y < KINECT_DEPTH_HEIGHT - 1
+									&& x < width - 1
+									&& y < height - 1
 									&& Math.abs(zbr - z) < 50) {
 									pos.push(x + 0.5,
 											 y + 0.5,
@@ -266,14 +277,15 @@
 				</tr><tr>
 					<td style="text-align:right;">Interpolate:</td>
 					<td><input id="lerp" type="checkbox"></td>
-				</tr>
 				</tr><tr>
 					<td style="text-align:right;">Video texture:</td>
 					<td><input id="useVideo" type="checkbox"></td>
-				</tr>
 				</tr><tr>
 					<td style="text-align:right;">Stream:</td>
 					<td><input id="streamData" type="checkbox" checked="true"></td>
+				</tr><tr>
+					<td style="text-align:right;">Skip frames:</td>
+					<td><input id="frameSkip" type="range" min="1" max="30" step="1" value="3"></td>
 				</tr>
 			</table>
 			
