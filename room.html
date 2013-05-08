@@ -197,6 +197,8 @@
             </style>
 		
 		<script type="text/javascript" src="js/lib/jquery.js"></script>
+		<script type="text/javascript" src="js/lib/sylvester.js"></script>
+		<script type="text/javascript" src="js/geometry.js"></script>
 		<script type="text/javascript" src="js/tab-control.js"></script>
         <script type="text/javascript" src="js/kinect-touch-controller.js"></script>
 		<script type="text/javascript" src="js/kinect-proxy-zigfu.js"></script>
@@ -207,23 +209,19 @@
         
 		<script>
 			
-			const VIDEO_RES_WIDTH = 640;
-			const VIDEO_RES_HEIGHT = 480;
+			const VIDEO_RES_WIDTH = 640, VIDEO_RES_HEIGHT = 480;
 			
-			var currentTabID;
-			var enableVideo = true;
-			var enableAudio = true;
-			
-			var tabOrder = [ "#chat", "#share", "#play", "#peek" ];
-			var tabControllers = {};
-			
-			var streamIDs = [];
-			var streams = {};
-			var thumbs = {};
-			var currentStreamID = null;
-            var username;
-			
-			var bufferCanvas, bufferContext;
+			var currentTabID,
+				enableVideo = true,
+				enableAudio = true,
+				tabOrder = [ "#chat", "#share", "#play", "#peek" ],
+				numTabs = tabOrder.length,
+				tabControllers = {},
+				streamIDs = [],
+				streams = {},
+				thumbs = {},
+				currentStreamID = null,
+				username;
 			
             // var usernames = {}; // A dictionary linking streamIDs to usernames
 			
@@ -296,26 +294,29 @@
 				tabControllers["#chat"].onMessageReceived(null, "currentStream", streamID);
 			}
 			
-			TabControl.onActivate = function() {
-			};
-			TabControl.onDeactivate = function() {
-			};
+			TabControl.onActivate = function() {};
+			TabControl.onDeactivate = function() {};
 			
 			TabControl.onLocalStreamInit = function(stream) {
 				addVideoStream(stream);
-				for (var tabName in tabControllers) {
-					if (tabControllers[tabName]) {
-						tabControllers[tabName].setLocalStream(stream);
+				for (var i = 0; i < numTabs; i++) {
+					var tabController = tabControllers[tabOrder[i]];
+					if (tabController) {
+						tabController.setLocalStream(stream);
 					}
 				}
 			}
 			
 			TabControl.onStreamAdded = function(stream) {
+				
 				addVideoStream(stream);
+				stream.username = stream.getAttributes().username;
+				
 				// Just propagate the message to the tabs
-				for (var tabName in tabControllers) {
-					if (tabControllers[tabName]) {
-						tabControllers[tabName].onStreamAdded(stream);
+				for (var i = 0; i < numTabs; i++) {
+					var tabController = tabControllers[tabOrder[i]];
+					if (tabController) {
+						tabController.onStreamAdded(stream);
 					}
 				}
 			};
@@ -325,9 +326,10 @@
 				removeVideoStream(stream);
 				
 				// Just propagate the message to the tabs
-				for (var tabName in tabControllers) {
-					if (tabControllers[tabName]) {
-						tabControllers[tabName].onStreamRemoved(stream);
+				for (var i = 0; i < numTabs; i++) {
+					var tabController = tabControllers[tabOrder[i]];
+					if (tabController) {
+						tabController.onStreamRemoved(stream);
 					}
 				}
 			};
@@ -341,23 +343,16 @@
 				if (destination == "index") {
 					
 					switch (messageType) {
-						case "invite":
-                        // Invitation to Klotski game
-                        handleKlotskiInvite(senderId, data);
-                        break;
-						case "share":
-                        // Someone wants to share a 3D model
-                        handleShared3DModel(senderId, data);
-                        break;
 						default:
                         break;
 					}
 					
 				} if (destination == "all") {
 					
-					for (var tabName in tabControllers) {
-						if (tabControllers[tabName]) {
-							tabControllers[tabName].onMessageReceived(senderId, messageType, data);
+					for (var i = 0; i < numTabs; i++) {
+						var tabController = tabControllers[tabOrder[i]];
+						if (tabController) {
+							tabController.onMessageReceived(senderId, messageType, data);
 						}
 					}
 					
@@ -371,20 +366,19 @@
 			};
             
 			TabControl.onKinectInit = function(proxy) {
-                
-				// Important! This needs to happen after TabControl.onLoad
-				// TODO: Make sure it does! :)
-				for (var tabName in tabControllers) {
-					if (tabControllers[tabName]) {
-						tabControllers[tabName].onKinectInit(proxy);
+				for (var i = 0; i < numTabs; i++) {
+					var tabController = tabControllers[tabOrder[i]];
+					if (tabController) {
+						tabController.onKinectInit(proxy);
 					}
 				}
 			};
 			
 			TabControl.onNewKinectData = function(videoData, depthData, rawVideo, rawDepth) {
-				for (var tabName in tabControllers) {
-					if (tabControllers[tabName]) {
-						tabControllers[tabName].onNewKinectData(videoData, depthData, rawVideo, rawDepth);
+				for (var i = 0; i < numTabs; i++) {
+					var tabController = tabControllers[tabOrder[i]];
+					if (tabController) {
+						tabController.onNewKinectData(videoData, depthData, rawVideo, rawDepth);
 					}
 				}
 			};
@@ -409,47 +403,32 @@
 					alert("Failed parsing parameters, continuing anyway...");
 				}
 				
+				// Default tab is Chat
 				currentTabID = "#chat";
 				
 				// If a tab is specified in the url, make it the current tab
 				var hash = window.location.hash;
 				hash = hash.substring(0, hash.length - 1); // remove underscore
-				
+	
 				if (tabOrder.indexOf(hash) != -1) {
 					currentTabID = hash;
 				}
 				
+				// Show the selected tab and move it to place
 				var currentTab = $(currentTabID);
-				
 				currentTab.show();
 				currentTab.css("left", "0");
 				$(currentTabID + "button").addClass("selected");
 				
+				// Deactivate all tabs but the selected one
 				var tabs = $("iframe");
-				
 				tabs.each(function() {
                           tabControllers["#" + this.id] = this.contentWindow.TabControl;
                           deactivateTab(this.id);
 						  });
-				
 				activateTab(currentTabID);
 				
-				/*
-				 
-				 // Testing PopupManager
-				 
-				var popupTest1 = PopupManager.createPopup("Helo plx?", "images/play-icon.png",
-														 {text:"OK"}, {text:"Cancel"});
-				var popupTest3 = PopupManager.createPopup("aaaand then?!", null,
-														  {text:"GO AWAY!"});
-				var popupTest2 = PopupManager.createPopup("yes thx?", "ltu_logo_small.png",
-														 {text:"No"}, {text:"Maybe", func:function() {PopupManager.showPopup(popupTest3);}});
-				
-				PopupManager.showPopup(popupTest1);
-				PopupManager.showPopup(popupTest2);
-				PopupManager.showPopup(popupTest3);
-				 */
-				
+				// Start drawing video thumbnails
 				requestAnimFrame(drawThumbs);
 			};
 			
@@ -512,7 +491,7 @@
 				$(nextTabID +"button").toggleClass("selected");
 				
 				currentTabID = nextTabID;
-				window.location.hash = nextTabID + "_";
+				window.location.hash = nextTabID + "_"; // underscore to avoid navigation to the div
 			}
 			
 			function toggleAudio() {
@@ -537,77 +516,6 @@
 				enableVideo = !enableVideo;
 			}
 
-            /**
-             Store a mapping between a remote user's streamID and username
-             
-             function handleRemoteUsername(senderId, data) {
-             var username = data.username;
-             usernames[senderId] = username;
-             }*/
-            
-			function handleKlotskiInvite(senderId, data) {
-                if (data.dst == username) {
-                    $("#sharePopup").hide();
-                    // TODO: Make the user name of the other user show in the message
-                    // $("#inviteMessage").text(otherUser + " invited you to a Klotski game!");
-                    $("#klotskiPopup").show();
-                    showPopup();
-                }
-			}
-			function acceptKlotskiInvite() {
-				hidePopup();
-				switchToTab("#play");
-                
-				TabControl.sendMessage("play", "inviteAccepted", { turn : false });
-				// Send a fake message to self to start the local klotski game as well
-				tabControllers["#play"].onMessageReceived(null, "inviteAccepted", {turn : true });
-			}
-			
-			function declineKlotskiInvite() {
-				hidePopup();
-				TabControl.sendMessage("play", "inviteDeclined", {});
-			}
-			
-			function handleShared3DModel(senderId, data) {
-				$("#klotskiPopup").hide();
-				$("#sharePopup").show();
-				showPopup();
-			}
-			
-			function acceptShared3DModel() {
-				hidePopup();
-				switchToTab("#share");
-				
-				TabControl.sendMessage("share", "inviteAccepted", { turn : true });
-				// Send a fake message to self to start the local klotski game as well
-				// tabControllers["#share"].onMessageReceived(null, "inviteAccepted", {turn : false });
-			}
-			
-			function declineShared3DModel() {
-				hidePopup();
-				TabControl.sendMessage("share", "inviteDeclined", {});
-			}
-			
-			function showPopup() {
-				
-				var popup = $("#popupContainer");
-				var blanket = $("#popupBlanket");
-				
-				popup.show();
-				popup.animate({ top:"50%", /* opacity:1.0, */}, 500, function() {});
-				blanket.show();
-				blanket.animate({ opacity:1.0, }, 500, function() {});
-			}
-			
-			function hidePopup() {
-				var popup = $("#popupContainer");
-				var blanket = $("#popupBlanket");
-				popup.animate({ top:"100%", /* opacity:0.0, */},
-							  500, function() { $(this).hide(); });
-				blanket.animate({ opacity:0.0, },
-								500, function() { $(this).hide(); });
-			}
-			
 			function drawThumbs() {
 				
 				requestAnimFrame(drawThumbs);
@@ -641,27 +549,7 @@
          -->
 		
 		<div id="popupBlanket">
-			<div id="popupContainer"><!--
-				
-				<div id="klotskiPopup" class="popup-content">
-					<img class="popup-icon" src="images/play-icon.png"></img>
-					<span id="inviteMessage">
-                        You have been invited to play a game of Klotski!
-                    </span>
-					<br>
-					<button onclick="acceptKlotskiInvite();">Accept</button>
-					<button onclick="declineKlotskiInvite();">Decline</button>
-				</div>
-				
-				<div id="sharePopup" class="popup-content">
-					<img class="popup-icon" src="images/share-icon.png"></img>
-					Someone wants to share a 3D model with you!
-					<br>
-					<button onclick="acceptShared3DModel();">Accept</button>
-					<button onclick="declineShared3DModel();">Decline</button>
-				</div>
-				
-			--></div>
+			<div id="popupContainer"></div>
 		</div>
 		
 		<div id="menu"><!-- These comments are only here to avoid whitespace between the divs :)
