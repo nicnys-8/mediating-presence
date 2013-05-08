@@ -21,13 +21,14 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
      ===| Private variables |===
      -------------------------*/
     var scene;
-    var camera
+    var camera;
     var renderer;
     var pointLight;
     var ambientLight;
     var obstacles;
     var externalMoves;
-    var particleSystem;
+    var userParticles;
+    var friendParticles;
     var blocks;
     var activeBlock;
     var mainBlock;
@@ -211,8 +212,12 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
     var bright = true;
     setLights(bright);
     
-    particleSystem = new TouchParticleSystem();
-    scene.add(particleSystem);
+    userParticles = new TouchParticleSystem();
+    scene.add(userParticles);
+    
+    friendParticles = new TouchParticleSystem();
+    scene.add(friendParticles);
+    friendParticles.active = true;
     
     timer = new Timer(document.getElementById("timer"));
     setView();
@@ -314,7 +319,8 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
         }
         
         // Update particle system
-        particleSystem.update();
+        userParticles.update();
+        friendParticles.update();
     };
     
     /**
@@ -346,8 +352,8 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
      */
     var onMouseDown = function(x, y) {
         var mouse3D = mouseInterface.getMouse3D(x, y);
-        particleSystem.setOrigin(mouse3D.x, mouse3D.y, mouse3D.z);
-        particleSystem.active = true;
+        userParticles.setOrigin(mouse3D.x, mouse3D.y, mouse3D.z);
+        userParticles.active = true;
         
         if (!hasTurn) return;
         for (var i = 0; i < blocks.length; i++) {
@@ -373,8 +379,8 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
      */
     var onMouseMove = function(x, y) {
         var mouse3D = mouseInterface.getMouse3D(x, y);
-        //particleSystem.position.set(mouse3D.x, mouse3D.y, mouse3D.z);
-        particleSystem.setOrigin(mouse3D.x, mouse3D.y, mouse3D.z);
+        //userParticles.position.set(mouse3D.x, mouse3D.y, mouse3D.z);
+        userParticles.setOrigin(mouse3D.x, mouse3D.y, mouse3D.z);
         
         var hit = mouseInterface.getMouseHit([floor], x, y);
         if (!hit) return; // Return if the floor isn't hit
@@ -393,10 +399,18 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
      When the user input is released, deactivate the active block
      */
     var onMouseUp = function(x, y) {
-        particleSystem.active = false;
+        userParticles.active = false;
         if (activeBlock) {
             activeBlock = null;
         }
+    };
+    
+    /**
+     Set the position of the particle system representing your friend's touch point
+     */
+    var remoteMouseEvent = function(x, y) {
+        var mouse3D = mouseInterface.getMouse3D(x, y);
+        friendParticles.setOrigin(mouse3D.x, mouse3D.y, mouse3D.z);
     };
     
     /*-----------------------

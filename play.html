@@ -26,11 +26,11 @@
                 <script>
                     
                     var klotski,
-						klotskiContainer,
-						localUsername,
-						friendId,
-						invitePopup,
-						inviteDeclinedPopup;
+                    klotskiContainer,
+                    localUsername,
+                    friendId,
+                    invitePopup,
+                    inviteDeclinedPopup;
 					
                     TabControl.onActivate = function() {
                         if (klotski) klotski.shouldRender = true;
@@ -69,32 +69,35 @@
 						
 						switch (type) {
 							case "update":
-								klotski.onReceivedMove(data);
-								break;
+                            klotski.onReceivedMove(data);
+                            break;
 							case "invite":
-								if (data.dst == localUsername) {
-									PopupManager.showPopup(invitePopup);
-								}
-								break;
+                            if (data.dst == localUsername) {
+                                PopupManager.showPopup(invitePopup);
+                            }
+                            break;
 							case "inviteAccepted":
-								// Store the ID of the other user's stream
-								friendId = senderId;
-								// Display the game and game messages
-								startGame(data.turn);
-								break;
+                            // Store the ID of the other user's stream
+                            friendId = senderId;
+                            // Display the game and game messages
+                            startGame(data.turn);
+                            break;
 							case "inviteDeclined":
-								PopupManager.showPopup(inviteDeclinedPopup);
-								$("#inviteButton").removeAttr("disabled");
-								break;
+                            PopupManager.showPopup(inviteDeclinedPopup);
+                            $("#inviteButton").removeAttr("disabled");
+                            break;
 							case "nextLevel":
-								nextLevel();
-								break;
+                            nextLevel();
+                            break;
 							case "yourTurn":
-								setHasTurn(true);
-								break;
+                            setHasTurn(true);
+                            break;
+                            case "mouse":
+                            if (klotski) klotski.remoteMouseEvent(data.x, data.y);
+                            break;
 							default:
-								console.log("Received unreadable message");
-								break;
+                            console.log("Received unreadable message");
+                            break;
 						}
                     };
                     
@@ -263,6 +266,10 @@
                      Called whenever the left mouse button is clicked
                      */
                     onMouseDown = function(event) {
+                        
+                        // Send the position of the local user's mouse to the remote player
+                        TabControl.sendMessage("play", "mouse", { x: event.clientX, y: event.clientY});
+                        
                         if (klotski) klotski.onMouseDown(event.clientX, event.clientY);
                         
                         //TODO: Remove this ugly code:
