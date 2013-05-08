@@ -31,6 +31,9 @@
                     friendId,
                     invitePopup,
                     inviteDeclinedPopup;
+                    mouseX = 0,
+                    mouseY = 0,
+                    mouseLoopId;
 					
                     TabControl.onActivate = function() {
                         if (klotski) klotski.shouldRender = true;
@@ -153,6 +156,8 @@
                      Leave the start screen and begin a Klotski game
                      */
                     function startGame(hasTurn) {
+                        // Start periodically sending the mouse position to the remote user
+                        mouseLoopId = setTimeout(sendMousePosition, 100);
                         // Create the Klotski object
                         klotskiContainer = document.getElementById("klotskiContainer");
                         if (!klotski) {
@@ -181,6 +186,9 @@
                      End the Klotski game and go back to the start screen
                      */
                     function endGame() {
+                        // Stop sending mouse information
+                        clearInterval(mouseLoopId);
+                        // Hide the game and show the star screen
                         $("#startDiv").css("display", "block");
                         $("#gameDiv").css("display", "none");
                     }
@@ -259,6 +267,15 @@
                         }
                     }
                     
+                    /**
+                     Seds the current position of the mouse to the remote player
+                     */
+                    function sendMousePosition() {
+                        // Send the position of the local user's mouse to the remote player
+                        var data = {x: mouseX, y: mouseY};
+                        TabControl.sendMessage("play", "mouse", data);
+                    }
+                    
                     /*---------------------
                      ===| Mouse Events |===
                      --------------------*/
@@ -266,14 +283,12 @@
                      Called whenever the left mouse button is clicked
                      */
                     onMouseDown = function(event) {
-                        
-                        // Send the position of the local user's mouse to the remote player
-                        TabControl.sendMessage("play", "mouse", { x: event.clientX, y: event.clientY});
-                        
-                        if (klotski) klotski.onMouseDown(event.clientX, event.clientY);
+                        mouseX = mouse.clientX;
+                        mouseY = mouse.clientY;
+                        if (klotski) klotski.onMouseDown(mouseX, mouseY);
                         
                         //TODO: Remove this ugly code:
-                        var element = document.elementFromPoint(event.clientX, event.clientY);
+                        var element = document.elementFromPoint(mouseX, mouseY);
                         if (element.id == "inviteButton") inviteButtonClicked();
                         else if (element.id == "nextLevelButton") nextLevelClicked();
                         else if (element.id == "turnButton") giveUpTurn();
@@ -284,7 +299,9 @@
                      Called whenever the mouse is moved
                      */
                     onMouseMove = function(event) {
-                        if (klotski) klotski.onMouseMove(event.clientX, event.clientY);
+                        mouseX = mouse.clientX;
+                        mouseY = mouse.clientY;
+                        if (klotski) klotski.onMouseMove(mouseX, mouseY);
                     };
                     
                     /**
