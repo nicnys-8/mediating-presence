@@ -28,7 +28,7 @@ PopupManager = function() {
 	 */
 	var setAsTop = function() {
 		
-		if (!jQuery) {
+		if (typeof jQuery === "undefined") {
 			// TODO: Load the script?
 			console.warn("PopupManager needs jQuery to work, please include the script somewhere!");
 			return;

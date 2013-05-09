@@ -203,12 +203,11 @@ var Ply = function() {
 
 	var parse = function(inputStr) {
 		
-		var data = new Uint8Array(inputStr);
-		var headerStr = "";
-		
-		var index = 0;
-		var len = data.length;
-		var foundHeader = false;
+		var data = new Uint8Array(inputStr),
+			headerStr = "",
+			index = 0,
+			len = data.length,
+			foundHeader = false;
 		
 		while (index < len) {
 			headerStr += String.fromCharCode(data[index++]);
@@ -280,52 +279,18 @@ var Ply = function() {
 		result.pos = PARSE_VERTEX_PROPS[header.format](parserInput, firstVertexIndex, ["x", "y", "z"], header);
 		result.normals = PARSE_VERTEX_PROPS[header.format](parserInput, firstVertexIndex, ["nx", "ny", "nz"], header);
 		result.colors = PARSE_VERTEX_PROPS[header.format](parserInput, firstVertexIndex, ["red", "green", "blue"], header);
-		result.intensity = PARSE_VERTEX_PROPS[header.format](parserInput, firstVertexIndex, ["intensity"], header);
 		result.faces = PARSE_FACES[header.format](parserInput, firstFaceIndex, header);
 		
-		// Suggest a renderer for the model
-		result.renderer = null;
-		
-		if (result.pos) {
-			if (!result.faces) {
-				// No faces means it's a point cloud
-				if (result.colors) {
-					result.renderer = PointCloudRenderer;
-				}
-			} else {
-				if (result.normals) {
-					result.renderer = PhongRendererExt;
-				} else if (result.colors || result.intensity) {
-					result.renderer = MeshRenderer;
-				}
-			}
-		}
-		
-		// A little haxxing here, since my renderers
-		// expect RGBA data as normalized 32-bit floats
+		// Normalize the color array, if necessary
+		// TODO: Fix renderers, WebGL can normalize the array instead
 		if (result.colors && header.vertexProps["red"].size == 1) {
-			var rgba = new Array(Math.round(result.colors.length / 3 * 4));
-			var indexIn = 0, indexOut = 0;
-			var norm = 1.0 / 255.0;
-			for (var i = 0; i < result.colors.length / 3; i++) {
-				rgba[indexOut++] = result.colors[indexIn++] * norm;
-				rgba[indexOut++] = result.colors[indexIn++] * norm;
-				rgba[indexOut++] = result.colors[indexIn++] * norm;
-				rgba[indexOut++] = 1.0;
+			var len = result.colors.length,
+				rgb = new Float32Array(len),
+				norm = 1.0 / 255.0;
+			for (var i = 0; i < len; ++i) {
+				rgb[i] = result.colors[i] * norm;
 			}
-			result.colors = new Float32Array(rgba);
-			
-		} else if (result.intensity) {
-			var rgba = new Array(result.intensity.length * 4);
-			var indexOut = 0;
-			for (var i = 0; i < result.intensity.length; i++) {
-				var intensity = result.intensity[i];
-				rgba[indexOut++] = intensity;
-				rgba[indexOut++] = intensity;
-				rgba[indexOut++] = intensity;
-				rgba[indexOut++] = 1.0;
-			}
-			result.colors = new Float32Array(rgba);
+			result.colors = rgb;
 		}
 		
 		return result;
@@ -339,7 +304,7 @@ var Ply = function() {
 		var count = header.numVertices;
 		
 		if (count == 0) {
-			return null;
+			return;
 		}
 		
 		var indices = [];
@@ -349,7 +314,7 @@ var Ply = function() {
 		// Check if properties exist
 		if (!header.hasProperties(propNames)) {
 			console.log("Trying to parse missing properties " + propNames);
-			return null;
+			return;
 		}
 		
 		for (var i = 0; i < numProps; i++) {
@@ -377,7 +342,7 @@ var Ply = function() {
 		var count = header.numVertices;
 		
 		if (count == 0) {
-			return null;
+			return;
 		}
 		
 		var offsets = [];
@@ -386,7 +351,7 @@ var Ply = function() {
 		// Check if properties exist
 		if (!header.hasProperties(propNames)) {
 			console.log("Trying to parse missing properties " + propNames);
-			return null;
+			return;
 		}
 		
 		// Check that all properties are of the same type
@@ -395,7 +360,7 @@ var Ply = function() {
 			var otherType = header.vertexProps[propNames[i]].type;
 			if (type !== otherType) {
 				console.log("Property size mismatch in binary data, '" + type + "' and '" + otherType + "'.");
-				return null;
+				return;
 			}
 		}
 		
@@ -445,9 +410,9 @@ var Ply = function() {
 				break;
 			case 8:
 				console.log("Parsing doubles not supported yet..!");
-				return null;
+				return;
 			default:
-				return null;
+				return;
 		}
 		
 		var arrayType = ARRAY_TYPES[type];
@@ -464,7 +429,7 @@ var Ply = function() {
 		var count = header.numFaces;
 		
 		if (count == 0) {
-			return null;
+			return;
 		}
 		
 		var result = new Array(count * 3);
@@ -500,7 +465,7 @@ var Ply = function() {
 		var count = header.numFaces;
 		
 		if (count == 0) {
-			return null;
+			return;
 		}
 		
 		// size1 isn't used, assuming 8 bit data type
@@ -571,7 +536,7 @@ var Ply = function() {
 				}
 				break;
 			default:
-				return null;
+				return;
 		}
 		
 		var arrayType;

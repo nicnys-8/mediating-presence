@@ -6,12 +6,12 @@ PointCloudRenderer = function(canvas) {
 	// Vertex shader
 	var vsStr = [
 				 "attribute vec3 aVertexPosition;",
-				 "attribute vec4 aVertexColor;",
+				 "attribute vec3 aVertexColor;",
 				 
 				 "uniform mat4 uMVMatrix;",
 				 "uniform mat4 uPMatrix;",
 				 
-				 "varying vec4 vColor;",
+				 "varying vec3 vColor;",
 				 
 				 "void main(void) {",
 					"vec4 pos = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);",
@@ -24,9 +24,9 @@ PointCloudRenderer = function(canvas) {
 	// Fragment shader
 	var fsStr = [
 				 "precision mediump float;",
-				 "varying vec4 vColor;",
+				 "varying vec3 vColor;",
 				 "void main(void) {",
-					"gl_FragColor = vColor;",
+					"gl_FragColor = vec4(vColor, 1.0);",
 				 "}",
 				  ].join("\n");
 		
@@ -51,164 +51,76 @@ PointCloudRenderer = function(canvas) {
 	// Set black background
 	gl.clearColor(0.0, 0.0, 0.0, 1.0);
 	gl.enable(gl.DEPTH_TEST);
-	// gl.depthFunc(gl.LEQUAL);
 	
 	// Create buffers for point cloud data
-	var positionBuffer = gl.createBuffer();
-	positionBuffer.itemSize = 3;
-	positionBuffer.numItems = 0;
+	var vertexBuffer = gl.createBuffer();
+	vertexBuffer.itemSize = 3;
+	vertexBuffer.numItems = 0;
 	
 	var colorBuffer = gl.createBuffer();
-	colorBuffer.itemSize = 4;
+	colorBuffer.itemSize = 3;
 	colorBuffer.numItems = 0;
 	
-	var mvMatrix = mat4.create();
-	var pMatrix = mat4.create();
+	var mvMatrix = mat4.create(),
+		pMatrix = mat4.create();
 	
-	var pcRotationMatrix = mat4.create();
-	mat4.identity(pcRotationMatrix);
-	
-	var degToRad = function(degrees) {
-		return degrees * Math.PI / 180;
-	}
+	mat4.identity(mvMatrix);
+	mat4.identity(pMatrix);
 	
 	this.bufferData = function(vertices, colors) {
-		gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-		positionBuffer.numItems = vertices.length / 3;
+		
+		if (typeof vertices === "Array") {
+			vertices = new Float32Array(vertices);
+		}
+		if (typeof colors === "Array") {
+			colors = new Float32Array(colors);
+		}
+		
+		gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+		vertexBuffer.numItems = vertices.length / vertexBuffer.itemSize;
 		
 		gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
-		colorBuffer.numItems = colors.length / 4;
-	}
+		gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
+		colorBuffer.numItems = colors.length / colorBuffer.itemSize;
+	};
 	
-	var cor = vec3.create([0, 0, 0]),
-		pos = vec3.create([0, 0, 0]);
-	var scale = 1.0;
-	this.setScale = function(val) {
-		scale = val;
-	}
-	this.setCenterOfRotation = function(vec) {
-		cor[0] = vec[0];
-		cor[1] = vec[1];
-		cor[2] = vec[2];
-	}
-	this.setPosition = function(vec) {
-		pos[0] = vec[0];
-		pos[1] = vec[1];
-		pos[2] = vec[2];
-	}
+	this.setModelViewMatrix = function(mat) {
+		mat4.set(mat, mvMatrix);
+	};
 	
-	// TODO: Add boolean parameter that specifies if requestAnimationFrame should be called?
 	this.render = function() {
 		
 		gl.viewport(0, 0, canvas.width, canvas.height);
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 		
 		mat4.perspective(45, canvas.width / canvas.height, 0.1, 1000.0, pMatrix);
-		
-		mat4.identity(mvMatrix);
-		mat4.translate(mvMatrix, pos);
-		mat4.multiply(mvMatrix, pcRotationMatrix);
-		mat4.scale(mvMatrix, [scale, scale, scale]);
-		mat4.translate(mvMatrix, cor);
-		
-		gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-		gl.vertexAttribPointer(prog.attrPosition, positionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+		gl.vertexAttribPointer(prog.attrPosition, vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
 		
 		gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
 		gl.vertexAttribPointer(prog.attrColor, colorBuffer.itemSize, gl.FLOAT, false, 0, 0);
 		
 		gl.uniformMatrix4fv(prog.unifMatrixP, false, pMatrix);
 		gl.uniformMatrix4fv(prog.unifMatrixMV, false, mvMatrix);
-		gl.drawArrays(gl.POINTS, 0, positionBuffer.numItems);
-	}
+		gl.drawArrays(gl.POINTS, 0, vertexBuffer.numItems);
+	};
 	
-	// Add mouse event handlers to canvas
-	// Allows for rotation of the scene
-	
-	var mouseDown = false;
-	var lastMouseX = null;
-	var lastMouseY = null;
-	
-	var pcRotationMatrix = mat4.create();
-	mat4.identity(pcRotationMatrix);
-	
-	function handleMouseDown(event) {
-		mouseDown = true;
-		lastMouseX = event.clientX;
-		lastMouseY = event.clientY;
-	}
-	
-	function handleMouseUp(event) {
-		mouseDown = false;
-	}
-	
-	var hasDataToSend = false;
-	var sendRotation = mat4.create();
-	mat4.identity(sendRotation);
-	
-	function handleMouseMove(event) {
+	this.destroy = function() {
 		
-		if (!mouseDown) {
-			return;
+		var shaders = gl.getAttachedShaders(prog);
+		for (var i = 0; i < shaders.length; i++) {
+			gl.deleteShader(shaders[i]);
 		}
+		gl.deleteProgram(prog);
+		gl.deleteBuffer(vertexBuffer);
+		gl.deleteBuffer(colorBuffer);
 		
-		var newX = event.clientX;
-		var newY = event.clientY;
-		
-		var deltaX = newX - lastMouseX;
-		
-		if (deltaX > 30) {
-			lastMouseX = newX;
-			lastMouseY = newY;
-			return;
-		}
-		
-		var newRotationMatrix = mat4.create();
-		mat4.identity(newRotationMatrix);
-		mat4.rotate(newRotationMatrix, degToRad(deltaX / 5), [0, 1, 0]);
-		
-		var deltaY = newY - lastMouseY;
-		mat4.rotate(newRotationMatrix, degToRad(deltaY / 5), [1, 0, 0]);
-		
-		mat4.multiply(newRotationMatrix, pcRotationMatrix, pcRotationMatrix);
-		
-		// ** For shared viewing **
-		mat4.multiply(newRotationMatrix, sendRotation, sendRotation);
-		hasDataToSend = true;
-		// ************************
-		
-		lastMouseX = newX;
-		lastMouseY = newY;
-	}
-	
-	this.updateModelRotation = function(mat) {
-		// mat4.set(mat, pcRotationMatrix);
-		// console.log(pcRotationMatrix);
-		
-		mat4.multiply(mat, pcRotationMatrix, pcRotationMatrix);
-	}
-	this.getRotationMatrix = function() {
-		
-		if (!hasDataToSend)
-			return null;
-		
-		var rot = [];
-		for (var i = 0; i < sendRotation.length; i++) {
-			rot[i] = sendRotation[i];
-		}
-		mat4.identity(sendRotation);
-		
-		hasDataToSend = false;
-		
-		return rot;
-	}
-	
-	// TODO: addEventListener instead?
-	document.addEventListener("mousedown", handleMouseDown, false);
-	document.addEventListener("mouseup", handleMouseUp, false);
-	document.addEventListener("mousemove", handleMouseMove, false);
+		gl = null;
+		prog = null;
+		canvas = null;
+	};
 };
 
 

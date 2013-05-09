@@ -12,6 +12,7 @@
         <script type="text/javascript" src="js/mediaext.js"></script>
         <script type="text/javascript" src="js/lib/webgl-utils.js"></script>
         <script type="text/javascript" src="js/lib/glMatrix-0.9.5.min.js"></script>
+		<script type="text/javascript" src="js/model-controller.js"></script>
         <script type="text/javascript" src="js/point-cloud-renderer.js"></script>
 		<script type="text/javascript" src="js/phong-renderer.js"></script>
 		<script type="text/javascript" src="js/phong-renderer-ext.js"></script>
@@ -20,70 +21,58 @@
 		
         <link rel="stylesheet" type="text/css" href="css/pb.css"/>
         <link rel="stylesheet" type="text/css" href="css/pointcloud.css"/>
-        
+		
         <script type="text/javascript">
-
+			
 			const kWidth = 640, kHeight = 480;
             
 			var glCanvas,
 				renderer = null,
-				model = null;
-			
-			var shareButton,
-				clearButton;
-			
-			var sendRotTimer = null;
-			var resumeSend = false;
-			
-			var invitePopup;
+				controller = null,
+				model = null,
+				shareButton,
+				clearButton,
+				sendRotTimer = null,
+				resumeSend = false,
+				invitePopup;
 			
 			TabControl.onLoad = function() {
                 
-				var specularPicker = document.getElementById("specularColor");
-				specularPicker.value = crapRGBtoHex(specular);
-				specularPicker.onchange = function() {
-					crapHexToRGB(this.value, specular);
-					updateInputs("specular", specular);
-				}
-				var diffusePicker = document.getElementById("diffuseColor");
-				diffusePicker.value = crapRGBtoHex(diffuse);
-				diffusePicker.onchange = function() {
-					crapHexToRGB(this.value, diffuse);
-					updateInputs("diffuse", diffuse);
-				}
-				var ambientPicker = document.getElementById("ambientColor");
-				ambientPicker.value = crapRGBtoHex(ambient);
-				ambientPicker.onchange = function() {
-					crapHexToRGB(this.value, ambient);
-					updateInputs("ambient", ambient);
-				}
-				
-				/*
-				 for (var prop in colorSel)
-				 console.log(prop);
-				 */
-				
+				// Create the WebGL canvas
 				glCanvas = MediaExt.createCanvas(kWidth, kHeight);
                 glCanvas.style.display = "none";
                 glCanvas.style.margin = "20px auto";
                 document.getElementById("container").appendChild(glCanvas);
 				
-				shareButton = document.getElementById("shareButton");
-				clearButton = document.getElementById("clearButton");
+				// Create a controller for the models
+				controller = new ModelController(glCanvas);
 				
-				for (var i = 0; i < 3; i++) {
-					document.getElementById("specular" + i).value = specular[i] * 255;
-					document.getElementById("diffuse" + i).value = diffuse[i] * 255;
-					document.getElementById("ambient" + i).value = ambient[i] * 255;
+				// Initialize the control panel for material properties
+				document.getElementById("specularColor").onchange = function() {
+					crapHexToRGB(this.value, specular);
+					updateInputs("specular", specular);
+				}
+				document.getElementById("diffuseColor").onchange = function() {
+					crapHexToRGB(this.value, diffuse);
+					updateInputs("diffuse", diffuse);
+				}
+				document.getElementById("ambientColor").onchange = function() {
+					crapHexToRGB(this.value, ambient);
+					updateInputs("ambient", ambient);
 				}
 				document.getElementById("shininess").value = shininess;
 				
+				updateInputs("specular", specular);
+				updateInputs("diffuse", diffuse);
+				updateInputs("ambient", ambient);
+				
+				shareButton = document.getElementById("shareButton");
+				clearButton = document.getElementById("clearButton");
 				
 				// **********************
                 // Drag and drop with File API
                 var dropbox = document.getElementById("dropbox"),
-                dropboxContainer = document.getElementById("container"),
-				state = document.getElementById("status");
+					state = document.getElementById("status");
                 
                 if (typeof window.FileReader === "undefined") {
                     state.className = "fail";
@@ -92,11 +81,11 @@
                     state.className = "success";
                 }
                 
-                dropboxContainer.ondragenter = function () { dropbox.className = "hover"; return false; };
-                dropboxContainer.ondragleave = function () { dropbox.className = ""; return false; };
-                dropboxContainer.ondragover = function () { dropbox.className = "hover"; return false; };
-                dropboxContainer.ondragend = function () { return false; };
-                dropboxContainer.ondrop = function (e) {
+                dropbox.ondragenter = function () { dropbox.className = "hover"; return false; };
+                dropbox.ondragleave = function () { dropbox.className = ""; return false; };
+                dropbox.ondragover = function () { dropbox.className = "hover"; return false; };
+                dropbox.ondragend = function () { return false; };
+                dropbox.ondrop = function (e) {
                     dropbox.className = "";
                     e.preventDefault();
                     readFiles(e.dataTransfer.files);
@@ -104,7 +93,9 @@
                 };
                 // **********************
                 
-                document.getElementById("fileSelect").addEventListener("change", function () { readFiles(this.files); }, false);
+                document.getElementById("fileSelect").addEventListener("change",
+																	   function () { readFiles(this.files); },
+																	   false);
 				
 				invitePopup = PopupManager.createPopup("Someone wants to share a 3D model with you!",
 													   "images/share-icon.png",
@@ -132,13 +123,11 @@
 			TabControl.onStreamAdded = function(stream) {};
 			TabControl.onStreamRemoved = function(stream) {};
 			
-			TabControl.onMessageReceived = function(senderId, type, packet) {
+			TabControl.onMessageReceived = function(senderId, type, data) {
 				
 				switch (type) {
 					case "rotate":
-						if (renderer) {
-							renderer.updateModelRotation(packet.matrix);
-						}
+						controller.updateRotation(data.rot);
 						break;
 					case "invite":
 						PopupManager.showPopup(invitePopup);
@@ -150,8 +139,9 @@
 						onShareDeclined();
 						break;
 					case "model":
-						loadJSONModel(packet);
+						displayModel(data);
 						sendRotation();
+						TabControl.sendMessage("share", "modelReceived", {});
 						break;
 					case "modelReceived":
 						console.log("Received model load confirmation");
@@ -160,11 +150,8 @@
 				}
 			}
 			
-			TabControl.onKinectInit = function(proxy) {
-			}
-			
-			TabControl.onNewKinectData = function(videoData, depthData) {
-			}
+			TabControl.onKinectInit = function(proxy) {};
+			TabControl.onNewKinectData = function(videoData, depthData) {};
 			
 			function updateInputs(name, values) {
 				document.getElementById(name + "Color").value = crapRGBtoHex(values);
@@ -216,227 +203,151 @@
                     alert("I ONLY ACCEPT .ply FILES! ." + splitName[1] + " FILES ANGER ME! >:(");
                     return;
                 }
-                // or maybe:
-                /*
-                 if (file.name.substring(file.name.length - 4) !== ".ply") {
-                 }
-                 */
                 
-                var progress = document.getElementById("percentBar");
-                var dropbox = document.getElementById("dropbox");
+                var progress = document.getElementById("percentBar"),
+					dropbox = document.getElementById("dropbox"),
+					reader = new FileReader();
+				
+                reader.onerror = function(evt) {
+					var error = evt.target.error;
+					switch (error.code) {
+						case error.NOT_FOUND_ERR:
+							alert("File Not Found!");
+							break;
+						case error.NOT_READABLE_ERR:
+							alert("File is not readable");
+							break;
+						case error.ABORT_ERR:
+							break;
+						default:
+							alert("An error occurred reading this file.");
+							break;
+					};
+				};
+				
+                reader.onprogress = function(evt) {
+					// evt is an ProgressEvent.
+					if (evt.lengthComputable) {
+						var percentLoaded = Math.round((evt.loaded / evt.total) * 100);
+						// Increase the progress bar length.
+						if (percentLoaded < 100) {
+							progress.style.width = percentLoaded + "%";
+							progress.textContent = percentLoaded + "%";
+						}
+					}
+				};
                 
-                var reader = new FileReader();
-                reader.onerror = errorHandler;
-                reader.onprogress = updateProgress;
-                reader.onabort = function(e) {
+				reader.onabort = function(e) {
                     alert("File read cancelled");
                 };
-                reader.onloadstart = function(e) {
+                
+				reader.onloadstart = function(e) {
                     document.getElementById("progressBar").className = "loading";
                 };
-                reader.onload = function (event) {
+                
+				reader.onload = function (event) {
                     // Ensure that the progress bar displays 100% at the end.
                     progress.style.width = "100%";
                     progress.textContent = "100%";
-                    setTimeout("document.getElementById('progressBar').className='';", 2000);
                     
-                    dropbox.style.display = "none";
-                    glCanvas.style.display = "block";
-                    
+					var result;
+					
 					try {
-						model = Ply.parse(event.target.result);
-						console.log(model);
+						result = Ply.parse(event.target.result);
+						console.log(result);
 					} catch (error) {
 						alert("Error parsing model. " + error);
 						return;
 					}
 					
-					var rendererConstructor = model.renderer;
-					if (rendererConstructor) {
-						
-						renderer = new rendererConstructor(glCanvas);
-						
-						positionModel(model);
-						
-						if (rendererConstructor == PhongRenderer || rendererConstructor == PhongRendererExt) {
-							renderer.bufferData(model.pos, model.normals, model.faces);
-						} else if (rendererConstructor == MeshRenderer) {
-							renderer.bufferData(model.pos, model.colors, model.faces);
-						} else if (rendererConstructor == PointCloudRenderer) {
-							renderer.bufferData(model.pos, model.colors);
-						}
-						
-						clearButton.disabled = false;
-						shareButton.disabled = false;
-					}
-					// drawScene();
+					setTimeout(function() {
+								document.getElementById("progressBar").className = "";
+								displayModel(result);
+							   }, 0);
                 };
-                
+				
+                console.log('Reading file:');
                 console.log(file);
-                
-                // reader.readAsDataURL(file);
-                // reader.readAsText(file);
-				reader.readAsArrayBuffer(file);
+				reader.readAsArrayBuffer(file); // .readAsDataURL.readAsText
             }
 			
-			function downloadFile(url, success) {
-				var req = new XMLHttpRequest();
-				req.open('GET', url, true);
-				req.responseType = "arraybuffer";
-				req.onreadystatechange = function () {
-					if (xhr.readyState == 4) {
-						if (success) success(xhr.response);
+			var specular = [0.8, 0.8, 0.8],
+				diffuse = [0.6, 0.6, 0.6],
+				ambient = [0.2, 0.2, 0.2],
+				shininess = 20.0,
+				lightPos = [0, 0, 0],
+				zoom = 1.0;
+			
+			function serializeModel(aModel) {
+				
+				var result = {};
+
+				var copyArray = function(src) {
+					if (typeof src == "Array") {
+						return src;
 					}
-				};
-				req.send(null);
-			}
-            
-            function updateProgress(evt) {
-                
-                var progress = document.getElementById("percentBar");
-                
-                // evt is an ProgressEvent.
-                if (evt.lengthComputable) {
-                    var percentLoaded = Math.round((evt.loaded / evt.total) * 100);
-                    // Increase the progress bar length.
-                    if (percentLoaded < 100) {
-                        progress.style.width = percentLoaded + "%";
-                        progress.textContent = percentLoaded + "%";
-                    }
-                }
-            }
-            
-            function errorHandler(evt) {
-                switch(evt.target.error.code) {
-                    case evt.target.error.NOT_FOUND_ERR:
-                    alert("File Not Found!");
-                    break;
-                    case evt.target.error.NOT_READABLE_ERR:
-                    alert("File is not readable");
-                    break;
-                    case evt.target.error.ABORT_ERR:
-                    break; // noop
-                    default:
-                    alert("An error occurred reading this file.");
-                };
-            }
-			
-			var specular = [0.8, 0.8, 0.8];
-			var diffuse = [0.6, 0.6, 0.6];
-			var ambient = [0.2, 0.2, 0.2];
-			var shininess = 20.0;
-			var lightPos = [0, 0, 0];
-			var baseScale = 1.0;
-			var distance = 0.0;
-			var zoom = 1.0;
-			
-			function positionModel(model) {
-				
-				if (model.pos) {
-					
-					// Calculate position for the object
-					var vertices = model.pos;
-					
-					var maxX = -Infinity,
-						maxY = -Infinity,
-						maxZ = -Infinity,
-						minX = Infinity,
-						minY = Infinity,
-						minZ = Infinity;
-					
-					for (var i = 0; i < vertices.length;) {
-						
-						var x = vertices[i++],
-							y = vertices[i++],
-							z = vertices[i++];
-						
-						maxX = Math.max(maxX, x);
-						maxY = Math.max(maxY, y);
-						maxZ = Math.max(maxZ, z);
-						
-						minX = Math.min(minX, x);
-						minY = Math.min(minY, y);
-						minZ = Math.min(minZ, z);
+					if (src && src.length) {
+						var len = src.length;
+						var cpy = new Array(len);
+						for (var i = 0; i < len; ++i) {
+							cpy[i] = src[i];
+						}
+						return cpy;
 					}
-					
-					var cx = (maxX + minX) / 2,
-						cy = (maxY + minY) / 2,
-						cz = (maxZ + minZ) / 2;
-					
-					baseScale = 1.0 / (maxX - minX);
-					distance = -1.0 / Math.atan(22.5 * Math.PI / 180);
-					
-					renderer.setScale(baseScale * zoom);
-					renderer.setCenterOfRotation([-cx, -cy, -cz]);
-					renderer.setPosition([0, 0, distance]);
+					// return undefined;
 				}
+				
+				result.pos = copyArray(aModel.pos);
+				result.normals = copyArray(aModel.normals);
+				result.colors = copyArray(aModel.colors);
+				result.faces = copyArray(aModel.faces);
+				
+				return result;
 			}
 			
-			function serializeModel(model) {
-				
-				var pos = model.pos ? new Array(model.pos.length) : [];
-				var normals = model.normals ? new Array(model.normals.length) : [];
-				var faces = model.faces ? new Array(model.faces.length) : [];
-				var colors = model.colors ? new Array(model.colors.length) : [];
-				
-				for (var i = 0, len = pos.length; i < len; i++) {
-					pos[i] = model.pos[i];
-				}
-				for (var i = 0, len = normals.length; i < len; i++) {
-					normals[i] = model.normals[i];
-				}
-				for (var i = 0, len = faces.length; i < len; i++) {
-					faces[i] = model.faces[i];
-				}
-				for (var i = 0, len = colors.length; i < len; i++) {
-					colors[i] = model.colors[i];
-				}
-				return {
-					pos:pos,
-					normals:normals,
-					faces:faces,
-					colors:colors,
-				};
-			}
-			
-			function loadJSONModel(model) {
+			function displayModel(aModel) {
 				
 				clearGLCanvas();
 				
 				// Select renderer
-				if (model.pos) {
-					if (!model.faces) {
+				if (aModel.pos) {
+					if (!aModel.faces) {
 						// No faces means it's a point cloud
-						if (model.colors) {
+						if (aModel.colors) {
 							renderer = new PointCloudRenderer(glCanvas);
-							renderer.bufferData(new Float32Array(model.pos),
-												new Float32Array(model.colors));
+							renderer.bufferData(aModel.pos, aModel.colors);
 						}
 					} else {
-						if (model.normals) {
+						if (aModel.normals) {
 							renderer = new PhongRendererExt(glCanvas);
-							renderer.bufferData(new Float32Array(model.pos),
-												new Float32Array(model.normals),
-												new Uint16Array(model.faces));
-						} else if (model.colors) {
+							renderer.bufferData(aModel.pos, aModel.normals, aModel.faces);
+						} else if (aModel.colors) {
 							renderer = new MeshRenderer(glCanvas);
-							renderer.bufferData(new Float32Array(model.pos),
-												new Float32Array(model.colors));
+							renderer.bufferData(aModel.pos, aModel.colors, aModel.faces);
 						}
 					}
+					
+					controller.calculateInitalTransform(aModel.pos);
 				}
 				
-				positionModel(model);
-				
 				if (renderer) {
+					
+					model = aModel;
+					
 					dropbox.style.display = "none";
 					glCanvas.style.display = "block";
-					TabControl.sendMessage("share", "modelReceived", {});
+					shareButton.disabled = false;
+					clearButton.disabled = false;
+				
+				} else {
+					// No suitable renderer found, alert?
 				}
 			}
 			
 			function drawScene() {
+				
 				requestAnimFrame(drawScene);
+				
 				if (renderer) {
 					
 					if (renderer.setSpecular) {
@@ -447,28 +358,29 @@
 						renderer.setLightPos(lightPos);
 						renderer.setZoom(zoom);
 					}
-					renderer.setScale(baseScale * zoom);
-					// renderer.setPosition([0, 0, distance * zoom]);
 					
+					var mvMatrix = controller.getModelViewMatrix();
+					renderer.setModelViewMatrix(mvMatrix);
 					renderer.render();
 				}
 			}
             
 			function sendRotation() {
-				if (renderer) {
-					
-					var sendRot = renderer.getRotationMatrix();
-					if (sendRot) {
-						TabControl.sendMessage("share", "rotate", {matrix:sendRot});
-					}
-					setTimeout(sendRotation, 100);
+				var sendRot = controller.getSendRotation();
+				if (sendRot) {
+					TabControl.sendMessage("share", "rotate", {rot:sendRot});
 				}
+				setTimeout(sendRotation, 100);
 			}
 			
 			function clearGLCanvas() {
 				
-				// Remove the renderer
-				renderer = null;
+				if (renderer) {
+					// Destroy the renderer
+					renderer.destroy();
+					renderer = null;
+					model = null;
+				}
 				
 				// Setting width and height clears the canvas
 				glCanvas.width = glCanvas.width;
@@ -478,6 +390,7 @@
 				glCanvas.style.display = "none";
 				
 				clearButton.disabled = true;
+				shareButton.disabled = true;
 			}
 			
 			
@@ -499,6 +412,7 @@
 				
 				return dst;
 			}
+			
 			function crapRGBtoHex(rgb) {
 				const maskUpper = 240; // 0xf0
 				const maskLower = 15; // 0x0f
