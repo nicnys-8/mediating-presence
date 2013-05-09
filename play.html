@@ -96,7 +96,7 @@
                             setHasTurn(true);
                             break;
                             case "mouse":
-                            if (klotski) klotski.remoteMouseEvent(data.x, data.y);
+                            onReceivedMousePosition(data.x, data.y);
                             break;
 							default:
                             console.log("Received unreadable message");
@@ -271,10 +271,20 @@
                      Sends the current position of the mouse to the remote player
                      */
                     function sendMousePosition() {
-                        // Send the position of the local user's mouse to the remote player
-                        var data = {x: mouseX, y: mouseY};
+                        // Normalize the position before sending
+                        var xNormalized = mouseX / $("#gameDiv").innerWidth();
+                        var yNormalized = mouseY / $("#gameDiv").innerHeight();
+                        var data = {x: xNormalized, y: yNormalized};
                         TabControl.sendMessage("play", "mouse", data);
                     }
+                    
+                    /**
+                     Adds a user to the list of users that can be invited
+                     */
+                    addInviteOption = function(username) {
+                        var select = document.getElementById("userSelect");
+                        select.options[select.options.length] = new Option(username, username);
+                    };
                     
                     /*---------------------
                      ===| Mouse Events |===
@@ -298,7 +308,7 @@
                     /**
                      Called whenever the mouse is moved
                      */
-                    onMouseMove = function(event) {
+                    var onMouseMove = function(event) {
                         mouseX = event.clientX;
                         mouseY = event.clientY;
                         if (klotski) klotski.onMouseMove(mouseX, mouseY);
@@ -307,16 +317,20 @@
                     /**
                      Called when the left mouse button is released
                      */
-                    onMouseUp = function(event) {
+                    var onMouseUp = function(event) {
                         if (klotski) klotski.onMouseUp(event.clientX, event.clientY);
                     };
                     
                     /**
-                     Adds a user to the list of users that can be invited
+                     Called when a mouse position is received from the remote user
                      */
-                    addInviteOption = function(username) {
-                        var select = document.getElementById("userSelect");
-                        select.options[select.options.length] = new Option(username, username);
+                    var onReceivedMousePosition = function (normalizedX, normalizedY) {
+                        if (klotski) {
+                            // Adjust the position to fit the local window
+                            var x = normalizedX * $("#gameDiv").innerWidth();
+                            var y = normalizedY * $("#gameDiv").innerHeight();
+                            klotski.remoteMouseEvent(x, y);
+                        }
                     };
                     
                     </script>

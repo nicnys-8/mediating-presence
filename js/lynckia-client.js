@@ -90,7 +90,6 @@ LynckiaClient.deleteRoom = function(roomName, callback) {
  @param roomName A string with the name of the room
  */
 LynckiaClient.getRoom = function(roomName) {
-    alert('Hey, turns out we are using this function!'); //Just checking if this is ever used... :p
     var req = new XMLHttpRequest();
     var url = serverUrl + "getRoom/";
     var body = {roomName: roomName};

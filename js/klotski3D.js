@@ -316,7 +316,8 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
             renderer.render(scene, camera);
         }
         
-        // Stupid code for finishing a level
+        // A bit code for finishing a level;
+        // Checks if the green block is at the goal position
         if (
             mainBlock.position.x == 1 &&
             mainBlock.position.y == 4) {
