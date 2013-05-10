@@ -70,10 +70,10 @@
 					updateInputs("diffuse");
 				};
 				document.getElementById("ambientColor").onchange = function() {
-					ColorConvert.hexToRGB(this.value, unforms.ambient);
+					ColorConvert.hexToRGB(this.value, uniforms.ambient);
 					updateInputs("ambient");
 				};
-				document.getElementById("shininess").value = shininess;
+				document.getElementById("shininess").value = uniforms.shininess;
 				
 				updateInputs("specular");
 				updateInputs("diffuse");
