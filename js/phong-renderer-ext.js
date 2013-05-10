@@ -95,7 +95,7 @@ PhongRendererExt = function(canvas) {
 	prog.unifBlobbiness = gl.getUniformLocation(prog, "blobbiness");
 	prog.unifZoom = gl.getUniformLocation(prog, "zoom");
 	
-	// Set black background
+	// Set transparent background
 	gl.clearColor(0.0, 0.0, 0.0, 0.0);
 	gl.enable(gl.DEPTH_TEST);
 	

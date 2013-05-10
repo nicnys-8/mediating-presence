@@ -46,8 +46,8 @@ MeshRenderer = function(canvas) {
 	prog.unifMatrixP = gl.getUniformLocation(prog, "uPMatrix");
 	prog.unifMatrixMV = gl.getUniformLocation(prog, "uMVMatrix");
 	
-	// Set black background
-	gl.clearColor(0.0, 0.0, 0.0, 1.0);
+	// Set transparent background
+	gl.clearColor(0.0, 0.0, 0.0, 0.0);
 	gl.enable(gl.DEPTH_TEST);
 	
 	// Create buffers for point cloud data

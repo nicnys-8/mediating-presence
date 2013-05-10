@@ -2,22 +2,99 @@ body {
     font-family:monospace;
     text-align:center;
 }
-#dropbox {
-    border:10px dashed #ccc;
-    width:620px;
-    height:460px;
-    margin:20px auto;
+
+#sidebar-left {
+	position:absolute;
+	left:0;
+	top:0;
+	bottom:0;
+	width:20%;
+	min-width:240px;
+	/*background-color:rgba(255,0,0,0.4);*/
 }
+
+#content {
+	position:absolute;
+	left:20%;
+	right:20%;
+	top:0;
+	bottom:0;
+	padding:0;
+	/*background-color:rgba(0,255,0,0.4);*/
+}
+
+#sidebar-right {
+	position:absolute;
+	right:0;
+	top:0;
+	bottom:0;
+	width:20%;
+	min-width:240px;
+	/*background-color:rgba(0,0,255,0.4);*/
+}
+
+h1 {
+	margin-bottom:0px;
+	padding-bottom:0px;
+}
+
+h3 {
+	margin-bottom:0.5em;
+}
+
+.control-panel {
+	margin:20px;
+	padding:0px 20px 20px 20px;
+	border:1px solid black;
+	border-radius:5px;
+}
+
+.control-panel input[type=range] {
+	width:100%;
+}
+
+.control-panel table {
+	width:100%;
+}
+
+#controls-right {}
+#controls-left {}
+
+#container {
+	margin:5% 10% 5% 10%;
+	width:80%;
+	height:65%;
+	/*background-color:rgba(0,0,0,0.3);*/
+	padding:0;
+}
+
+#dropbox {
+	position:relative;
+	border:10px dashed #ccc;
+	left:-10px;
+	top:-10px;
+	width:100%;
+	height:100%;
+}
+
 #dropbox.hover {
-    border:10px dashed #333;
+	border:10px dashed #333;
+}
+
+.gl-canvas {
+	/*display:none;*/
+	width:100%;
+	height:100%;
+	margin:0;
 }
 #status {
-    margin-top:200px;
+	display:block;
+	position:relative;
+	top:40%;
 }
 #progressBar {
+	position:relative;
     margin:1em 2em auto 2em;
-    padding:3px;
-    border:1px solid #000;
     font-size:2em;
     clear:both;
     opacity:0;
@@ -28,8 +105,4 @@ body {
 #progressBar.loading {
     opacity:1.0;
 }
-#percentBar {
-    background-color:#99ccff;
-    height:auto;
-    width:0;
-}
+

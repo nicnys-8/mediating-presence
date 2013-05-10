@@ -84,7 +84,7 @@ var Ply = function() {
 		var offset = 0;
 		var vertexPropsExt = {};
 		
-		for (var i in vertexProps) {
+		for (var i = 0; i < vertexProps.length; i++) {
 			
 			var name = vertexProps[i].name;
 			var type = vertexProps[i].type;
@@ -101,18 +101,18 @@ var Ply = function() {
 			offset += size;
 		}
 		
-		this.vertexProps = vertexPropsExt;
 		this.format = format;
 		this.numVertices = numVertices;
+		this.vertexProps = vertexPropsExt;
 		this.numFaces = numFaces;
 		this.faceProps = faceProps;
 		
 		this.hasProperty = function(name) {
-			return !!this.vertexProps[name];
+			return !!vertexPropsExt[name];
 		};
 		
 		this.hasProperties = function(names) {
-			for (var i in names) {
+			for (var i = 0; i < names.length; i++) {
 				if (!this.hasProperty(names[i]))
 					return false;
 			}
@@ -120,12 +120,8 @@ var Ply = function() {
 		};
 		
 		this.vertexPropsLength = function() {
-			var len = 0;
-			for (var i in this.vertexProps) {
-				len += this.vertexProps[i].size;
-			}
-			return len;
-		}	
+			return offset;
+		};
 	};
 
 	var parseHeader = function(header) {
@@ -138,25 +134,27 @@ var Ply = function() {
 		
 		var lines = header.split("\n");
 		
-		for (var i in lines) {
+		for (var i = 0; i < lines.length; i++) {
 			lines[i] = lines[i].trim();
 		}
 		
 		// Check for magic word at start of file!
-		if (lines[0] != "ply") {
+		if (lines[0] !== "ply") {
 			throw "Magic word 'ply' missing from header. Is this really a .ply file?";
 		}
 		
 		// The format is specified on the second line
 		format = lines[1].substring(7);
 		
-		// Remove comments
-		for (var i in lines) {
-			if (lines[i].substring(0, 8) == "comment") {
+		// Remove comments and empty string lines
+		for (var i = 0; i < lines.length;) {
+			if (lines[i] === "" || lines[i].substring(0, 8) === "comment") {
 				lines.splice(i, 1);
+			} else {
+				i++;
 			}
 		}
-		if (lines[lines.length - 1] == "end_header") {
+		if (lines[lines.length - 1] === "end_header") {
 			lines.splice(lines.length - 1, 1);
 		}
 		header = lines.join("\n");
@@ -178,11 +176,11 @@ var Ply = function() {
 		var vertexProps = [];
 		for (var i = 0; i < propsList.length; i++) {
 			var prop = propsList[i];
-			if (propsList[i] == "") {
+			if (prop === "") {
 				continue;
 			}
 			var typeAndName = prop.trim().split(" ");
-			vertexProps.push({type:typeAndName[0], name:typeAndName[1]});
+			vertexProps.push({ type:typeAndName[0], name:typeAndName[1] });
 		}
 		
 		// Extract number of faces
@@ -206,6 +204,7 @@ var Ply = function() {
 		var data = new Uint8Array(inputStr),
 			headerStr = "",
 			index = 0,
+			i,
 			len = data.length,
 			foundHeader = false;
 		
@@ -225,36 +224,40 @@ var Ply = function() {
 		
 		// var split = inputStr.split("end_header");
 		
-		var header = parseHeader(headerStr);
+		var header = parseHeader(headerStr),
+			dataString,
+			splitData,
+			firstVertexIndex,
+			firstFaceIndex,
+			parserInput;
 		
-		console.log(header);
-		
-		var dataString = "";
-		var splitData;
-
-		var firstVertexIndex, firstFaceIndex;
-		var parserInput;
+		// console.log(header);
 		
 		switch (header.format) {
 			case FORMAT_ASCII:
 				
+				console.log("ASCII format, converting data to string...");
+				
 				// Convert the ArrayBuffer bytes to ascii (assuming UTF-8 encoding)
 				// TODO: this is really slow, find a better way! :)
 				
-				var dataString = new Array(inputStr.byteLength - index);
+				dataString = new Array(inputStr.byteLength - index);
 				
-				for (var i = index, len = inputStr.byteLength; i < len; ++i) {
+				for (i = index, len = inputStr.byteLength; i < len; ++i) {
 					dataString[i] = String.fromCharCode(data[i]);
 				}
-				console.log(dataString.length);
+				
+				console.log("Done. Splitting string...");
 				
 				// Split the data into lines and words
 				splitData = dataString.join("").split("\n");
 				console.log(splitData.length);
 				
-				for (var i = 0, len = splitData.length; i < len; ++i) {
+				for (i = 0, len = splitData.length; i < len; ++i) {
 					splitData[i] = splitData[i].split(" ");
 				}
+				
+				console.log("Done. Parsing...");
 				
 				parserInput = splitData;
 				firstVertexIndex = 0;
@@ -287,7 +290,7 @@ var Ply = function() {
 			var len = result.colors.length,
 				rgb = new Float32Array(len),
 				norm = 1.0 / 255.0;
-			for (var i = 0; i < len; ++i) {
+			for (i = 0; i < len; ++i) {
 				rgb[i] = result.colors[i] * norm;
 			}
 			result.colors = rgb;
@@ -371,39 +374,39 @@ var Ply = function() {
 		}
 		
 		var size = TYPE_SIZES[type];
-		var result = new ArrayBuffer(count * numProps * size);
+		var buffer = new ArrayBuffer(count * numProps * size);
 		var lineLength = header.vertexPropsLength();
-		var buffer;
+		var result;
 		var indexIn = startIndex;
 		var indexOut = 0;
 		
 		// PARSE!
 		switch (size) {
 			case 1:
-				buffer = new Uint8Array(result);
+				result = new Uint8Array(buffer);
 				for (var i = 0; i < count; i++) {
 					for (var j = 0; j < numProps; j++) {
-						buffer[indexOut++] = data[indexIn + offsets[j]];
+						result[indexOut++] = data[indexIn + offsets[j]];
 					}
 					indexIn += lineLength;
 				}
 				break;
 			case 2:
-				buffer = new Uint16Array(result);
+				result = new Uint16Array(buffer);
 				for (var i = 0; i < count; i++) {
 					for (var j = 0; j < numProps; j++) {
 						var k = indexIn + offsets[j];
-						buffer[indexOut++] = data[k] | (data[k + 1] << 8);
+						result[indexOut++] = data[k] | (data[k + 1] << 8);
 					}
 					indexIn += lineLength;
 				}
 				break;
 			case 4:
-				buffer = new Uint32Array(result);
+				result = new Uint32Array(buffer);
 				for (var i = 0; i < count; i++) {
 					for (var j = 0; j < numProps; j++) {
 						var k = indexIn + offsets[j];
-						buffer[indexOut++] = data[k] | (data[k + 1] << 8) | (data[k + 2] << 16) | (data[k + 3] << 24);
+						result[indexOut++] = data[k] | (data[k + 1] << 8) | (data[k + 2] << 16) | (data[k + 3] << 24);
 					}
 					indexIn += lineLength;
 				}
@@ -417,7 +420,7 @@ var Ply = function() {
 		
 		var arrayType = ARRAY_TYPES[type];
 		
-		return new arrayType(result);
+		return new arrayType(buffer);
 	};
 
 	PARSE_VERTEX_PROPS[FORMAT_BINARY_BE] = function() {
@@ -474,20 +477,20 @@ var Ply = function() {
 		
 		var indexIn = startIndex;
 		var indexOut = 0;
-		var result = new ArrayBuffer(3 * size2 * count);
-		var buffer;
+		var buffer = new ArrayBuffer(3 * size2 * count);
+		var result;
 		
 		switch (size2) {
 			case 1:
-				buffer = new Uint8Array(result);
+				result = new Uint8Array(buffer);
 				for (var i = 0; i < count; i++) {
 					
 					var indexCount = data[indexIn++];
 					
 					if (indexCount == 3) {
-						buffer[indexOut++] = data[indexIn + 0];
-						buffer[indexOut++] = data[indexIn + 1];
-						buffer[indexOut++] = data[indexIn + 2];
+						result[indexOut++] = data[indexIn + 0];
+						result[indexOut++] = data[indexIn + 1];
+						result[indexOut++] = data[indexIn + 2];
 					} else {
 						console.log("Mesh face not triangle, skipping");
 					}
@@ -495,15 +498,15 @@ var Ply = function() {
 				}
 				break;
 			case 2:
-				buffer = new Uint16Array(result);
+				result = new Uint16Array(buffer);
 				for (var i = 0; i < count; i++) {
 					
 					var indexCount = data[indexIn++];
 					
 					if (indexCount == 3) {
-						buffer[indexOut++] = data[indexIn + 0] | (data[indexIn + 1] << 8);
-						buffer[indexOut++] = data[indexIn + 2] | (data[indexIn + 3] << 8);
-						buffer[indexOut++] = data[indexIn + 4] | (data[indexIn + 5] << 8);
+						result[indexOut++] = data[indexIn + 0] | (data[indexIn + 1] << 8);
+						result[indexOut++] = data[indexIn + 2] | (data[indexIn + 3] << 8);
+						result[indexOut++] = data[indexIn + 4] | (data[indexIn + 5] << 8);
 					} else {
 						console.log("Mesh face not triangle, skipping");
 					}
@@ -512,7 +515,7 @@ var Ply = function() {
 				
 				break;
 			case 4:
-				buffer = new Uint16Array(result);
+				result = new Uint16Array(buffer);
 				for (var i = 0; i < count; i++) {
 					
 					var indexCount = data[indexIn++];
@@ -524,9 +527,9 @@ var Ply = function() {
 							// Index is out of bounds, WebGL limits number of indexable
 							// vertices to 2^16 - 1 (index type unsigned short)
 						} else {
-							buffer[indexOut++] = data[indexIn + 0] | (data[indexIn + 1] << 8);
-							buffer[indexOut++] = data[indexIn + 4] | (data[indexIn + 5] << 8);
-							buffer[indexOut++] = data[indexIn + 8] | (data[indexIn + 9] << 8);
+							result[indexOut++] = data[indexIn + 0] | (data[indexIn + 1] << 8);
+							result[indexOut++] = data[indexIn + 4] | (data[indexIn + 5] << 8);
+							result[indexOut++] = data[indexIn + 8] | (data[indexIn + 9] << 8);
 						}
 					} else {
 						console.log("Mesh face not triangle, skipping");
@@ -538,14 +541,15 @@ var Ply = function() {
 			default:
 				return;
 		}
-		
+		/*
 		var arrayType;
 		if (size2 == 1) {
 			arrayType = Uint8Array;
 		} else {
 			arrayType = Uint16Array;
 		}
-		return new arrayType(result);
+		 */
+		return result; // new arrayType(result);
 	};
 	
 	PARSE_FACES[FORMAT_BINARY_BE] = function() {

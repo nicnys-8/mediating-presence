@@ -72,7 +72,7 @@ PhongRenderer = function(canvas) {
 	prog.unifLightPos = gl.getUniformLocation(prog, "uLightPos");
 	prog.unifViewPos = gl.getUniformLocation(prog, "uViewPos");
 	
-	// Set black background
+	// Set transparent background
 	gl.clearColor(0.0, 0.0, 0.0, 0.0);
 	gl.enable(gl.DEPTH_TEST);
 	

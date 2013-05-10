@@ -292,6 +292,13 @@ ModelController = function(canvas) {
 	canvas.addEventListener("mousedown", handleMouseDown, false);
 	document.addEventListener("mouseup", handleMouseUp, false);
 	document.addEventListener("mousemove", handleMouseMove, false);
+	
+	this.destroy = function() {
+		canvas.removeEventListener("mousedown", handleMouseDown);
+		document.removeEventListener("mouseup", handleMouseUp);
+		document.removeEventListener("mousemove", handleMouseMove);
+		canvas = null;
+	};
 };
 
 

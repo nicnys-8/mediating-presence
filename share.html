@@ -24,47 +24,60 @@
 		
         <script type="text/javascript">
 			
-			const kWidth = 640, kHeight = 480;
-            
 			var glCanvas,
-				renderer = null,
-				controller = null,
-				model = null,
+				renderer,
+				controller,
+				model,
 				shareButton,
 				clearButton,
 				sendRotTimer = null,
 				resumeSend = false,
-				invitePopup;
+				invitePopup,
+				uniforms = {
+					specular : [0.8, 0.8, 0.8],
+					diffuse : [0.6, 0.6, 0.6],
+					ambient : [0.2, 0.2, 0.2],
+					shininess : 20.0,
+					lightPos : [0, 0, 0],
+					zoom : 1.0,
+					blobbiness : 0.0,
+					setValue : function(name, value) {
+						this[name] = value;
+					},
+					setElement : function(name, index, value) {
+						this[name][index] = value;
+					},
+				};
 			
 			TabControl.onLoad = function() {
                 
-				// Create the WebGL canvas
-				glCanvas = MediaExt.createCanvas(kWidth, kHeight);
-                glCanvas.style.display = "none";
-                glCanvas.style.margin = "20px auto";
-                document.getElementById("container").appendChild(glCanvas);
-				
-				// Create a controller for the models
-				controller = new ModelController(glCanvas);
+				var onResize = function() {
+					if (glCanvas) {
+						glCanvas.width = glCanvas.offsetWidth;
+						glCanvas.height = glCanvas.offsetHeight;
+					}
+				};
+				onResize();
+				window.addEventListener("resize", onResize, false);
 				
 				// Initialize the control panel for material properties
 				document.getElementById("specularColor").onchange = function() {
-					crapHexToRGB(this.value, specular);
-					updateInputs("specular", specular);
-				}
+					ColorConvert.hexToRGB(this.value, uniforms.specular);
+					updateInputs("specular");
+				};
 				document.getElementById("diffuseColor").onchange = function() {
-					crapHexToRGB(this.value, diffuse);
-					updateInputs("diffuse", diffuse);
-				}
+					ColorConvert.hexToRGB(this.value, uniforms.diffuse);
+					updateInputs("diffuse");
+				};
 				document.getElementById("ambientColor").onchange = function() {
-					crapHexToRGB(this.value, ambient);
-					updateInputs("ambient", ambient);
-				}
+					ColorConvert.hexToRGB(this.value, unforms.ambient);
+					updateInputs("ambient");
+				};
 				document.getElementById("shininess").value = shininess;
 				
-				updateInputs("specular", specular);
-				updateInputs("diffuse", diffuse);
-				updateInputs("ambient", ambient);
+				updateInputs("specular");
+				updateInputs("diffuse");
+				updateInputs("ambient");
 				
 				shareButton = document.getElementById("shareButton");
 				clearButton = document.getElementById("clearButton");
@@ -101,7 +114,7 @@
 													   "images/share-icon.png",
 													   {text:"Accept", func:acceptShared3DModel},
 													   {text:"Decline", func:declineShared3DModel});
-            }
+            };
 			
 			TabControl.onActivate = function() {
 				requestAnimFrame(drawScene);
@@ -109,7 +122,7 @@
 				if (resumeSend) {
 					sendRotation();
 				}
-			}
+			};
 			
 			TabControl.onDeactivate = function() {
 				cancelAnimFrame(drawScene);
@@ -118,7 +131,7 @@
 					resumeSend = true;
 					sendRotTimer = null;
 				}
-			}
+			};
 			
 			TabControl.onStreamAdded = function(stream) {};
 			TabControl.onStreamRemoved = function(stream) {};
@@ -127,7 +140,9 @@
 				
 				switch (type) {
 					case "rotate":
-						controller.updateRotation(data.rot);
+						if (controller) {
+							controller.updateRotation(data.rot);
+						}
 						break;
 					case "invite":
 						PopupManager.showPopup(invitePopup);
@@ -148,23 +163,24 @@
 						sendRotation();
 						break;
 				}
-			}
+			};
 			
 			TabControl.onKinectInit = function(proxy) {};
 			TabControl.onNewKinectData = function(videoData, depthData) {};
-			
-			function updateInputs(name, values) {
-				document.getElementById(name + "Color").value = crapRGBtoHex(values);
-				document.getElementById(name + "0").value = values[0] * 255;
-				document.getElementById(name + "1").value = values[1] * 255;
-				document.getElementById(name + "2").value = values[2] * 255;
-			}
             
+			/**
+			 Sends an invitation to remote users to 
+			 share the currently displayed 3D model
+			 */
 			function sendShareInvite() {
 				TabControl.sendMessage("share", "invite", {/*thumbnail of the 3D model, name of the file, ...*/});
 				shareButton.disabled = true;
 			}
 			
+			/**
+			 Called when remote user accepts the client's 
+			 invititation to share a model
+			 */
 			function onShareAccepted() {
 				if (model) {
 					console.log("Sending model");
@@ -177,6 +193,10 @@
 				}
 			}
 			
+			/**
+			 Called when remote user declines the client's 
+			 invititation to share a model
+			 */
 			function onShareDeclined() {
 				// TODO: display message
 				clearTimeout(sendRotTimer);
@@ -184,16 +204,36 @@
 				shareButton.disabled = false;
 			}
 			
+			/**
+			 Invite popup callback, accepts share invite from remote user
+			 */
 			function acceptShared3DModel() {
 				// TODO: switchToTab("#share");
 				TabControl.sendMessage("share", "inviteAccepted", {});
 			}
 			
+			/**
+			 Invite popup callback, declines share invite from remote user
+			 */
 			function declineShared3DModel() {
 				TabControl.sendMessage("share", "inviteDeclined", {});
 			}
 			
+			/**
+			 Send rotation increment, if any (for shared model viewing)
+			 */
+			function sendRotation() {
+				var sendRot = controller.getSendRotation();
+				if (sendRot) {
+					TabControl.sendMessage("share", "rotate", {rot:sendRot});
+				}
+				setTimeout(sendRotation, 100);
+			}
 			
+			/**
+			 Creates a FileReader and tries to parse a 3D model
+			 from the first file in @param files
+			 */
             function readFiles(files) {
                 
                 var file = files[0];
@@ -204,12 +244,12 @@
                     return;
                 }
                 
-                var progress = document.getElementById("percentBar"),
+                var progress = document.getElementById("progressBar"),
 					dropbox = document.getElementById("dropbox"),
 					reader = new FileReader();
 				
-                reader.onerror = function(evt) {
-					var error = evt.target.error;
+                reader.onerror = function(e) {
+					var error = e.target.error;
 					switch (error.code) {
 						case error.NOT_FOUND_ERR:
 							alert("File Not Found!");
@@ -225,15 +265,12 @@
 					};
 				};
 				
-                reader.onprogress = function(evt) {
-					// evt is an ProgressEvent.
-					if (evt.lengthComputable) {
-						var percentLoaded = Math.round((evt.loaded / evt.total) * 100);
+                reader.onprogress = function(e) {
+					// e is a ProgressEvent
+					if (e.lengthComputable) {
+						var percentLoaded = Math.round((e.loaded / e.total) * 100);
 						// Increase the progress bar length.
-						if (percentLoaded < 100) {
-							progress.style.width = percentLoaded + "%";
-							progress.textContent = percentLoaded + "%";
-						}
+						progress.value = percentLoaded;
 					}
 				};
                 
@@ -242,42 +279,49 @@
                 };
                 
 				reader.onloadstart = function(e) {
-                    document.getElementById("progressBar").className = "loading";
+					progress.value = 0;
+                    progress.className = "loading";
                 };
                 
-				reader.onload = function (event) {
+				reader.onload = function (e) {
                     // Ensure that the progress bar displays 100% at the end.
-                    progress.style.width = "100%";
-                    progress.textContent = "100%";
+                    progress.value = 100;
                     
 					var result;
 					
 					try {
-						result = Ply.parse(event.target.result);
-						console.log(result);
+						result = Ply.parse(e.target.result);
+						// console.log(result);
 					} catch (error) {
 						alert("Error parsing model. " + error);
 						return;
 					}
 					
 					setTimeout(function() {
-								document.getElementById("progressBar").className = "";
+								progress.className = "";
 								displayModel(result);
 							   }, 0);
                 };
 				
-                console.log('Reading file:');
-                console.log(file);
+                // console.log('Reading file:');
+                // console.log(file);
 				reader.readAsArrayBuffer(file); // .readAsDataURL.readAsText
             }
 			
-			var specular = [0.8, 0.8, 0.8],
-				diffuse = [0.6, 0.6, 0.6],
-				ambient = [0.2, 0.2, 0.2],
-				shininess = 20.0,
-				lightPos = [0, 0, 0],
-				zoom = 1.0;
+			/**
+			 Updates control panel inputs (to keep things in sync).
+			 */
+			function updateInputs(name) {
+				var values = uniforms[name];
+				document.getElementById(name + "Color").value = ColorConvert.RGBToHex(values);
+				document.getElementById(name + "0").value = values[0];
+				document.getElementById(name + "1").value = values[1];
+				document.getElementById(name + "2").value = values[2];
+			}
 			
+			/**
+			 Creates a version of the model that can be sent as JSON
+			 */
 			function serializeModel(aModel) {
 				
 				var result = {};
@@ -305,9 +349,21 @@
 				return result;
 			}
 			
+			/**
+			 Creates a WebGL canvas and a controller and displays the model
+			 */
 			function displayModel(aModel) {
 				
 				clearGLCanvas();
+				
+				// Create the WebGL canvas
+				glCanvas = document.createElement("canvas");
+				glCanvas.className = "gl-canvas";
+				document.getElementById("container").appendChild(glCanvas);
+				
+				// Set size of canvas (to allocate framebuffer memory)
+				glCanvas.width = glCanvas.offsetWidth;
+				glCanvas.height = glCanvas.offsetHeight;
 				
 				// Select renderer
 				if (aModel.pos) {
@@ -326,24 +382,60 @@
 							renderer.bufferData(aModel.pos, aModel.colors, aModel.faces);
 						}
 					}
-					
-					controller.calculateInitalTransform(aModel.pos);
 				}
 				
 				if (renderer) {
 					
 					model = aModel;
 					
+					// Create a controller for the models
+					controller = new ModelController(glCanvas);
+					controller.calculateInitalTransform(aModel.pos);
+					
 					dropbox.style.display = "none";
-					glCanvas.style.display = "block";
 					shareButton.disabled = false;
 					clearButton.disabled = false;
 				
 				} else {
-					// No suitable renderer found, alert?
+					// No suitable renderer found, clear canvas
+					// TODO: Alert or something?
+					clearGLCanvas();
 				}
 			}
 			
+			/**
+			 Removes the WebGL canvas and (tries?) to free GPU memory
+			 */
+			function clearGLCanvas() {
+				
+				// Destroy the renderer
+				if (renderer) {
+					renderer.destroy();
+					renderer = null;
+					model = null;
+				}
+				
+				// Destroy the controller
+				if (controller) {
+					controller.destroy();
+					controller = null;
+				}
+				
+				// Remove the canvas
+				if (glCanvas) {
+					glCanvas.parentNode.removeChild(glCanvas);
+					glCanvas = null;
+				}
+				
+				dropbox.style.display = "block";
+				
+				clearButton.disabled = true;
+				shareButton.disabled = true;
+			}
+			
+			/**
+			 Sets shader uniforms and renders the model
+			 */
 			function drawScene() {
 				
 				requestAnimFrame(drawScene);
@@ -351,80 +443,60 @@
 				if (renderer) {
 					
 					if (renderer.setSpecular) {
-						renderer.setSpecular(specular);
-						renderer.setDiffuse(diffuse);
-						renderer.setAmbient(ambient);
-						renderer.setShininess(shininess);
-						renderer.setLightPos(lightPos);
-						renderer.setZoom(zoom);
+						renderer.setSpecular(uniforms.specular);
+						renderer.setDiffuse(uniforms.diffuse);
+						renderer.setAmbient(uniforms.ambient);
+						renderer.setShininess(uniforms.shininess);
+						renderer.setLightPos(uniforms.lightPos);
+						renderer.setZoom(uniforms.zoom);
+						renderer.setBlobbiness(uniforms.blobbiness);
 					}
 					
+					controller.setZoom(uniforms.zoom);
 					var mvMatrix = controller.getModelViewMatrix();
 					renderer.setModelViewMatrix(mvMatrix);
 					renderer.render();
 				}
 			}
-            
-			function sendRotation() {
-				var sendRot = controller.getSendRotation();
-				if (sendRot) {
-					TabControl.sendMessage("share", "rotate", {rot:sendRot});
-				}
-				setTimeout(sendRotation, 100);
-			}
 			
-			function clearGLCanvas() {
+			/**
+			 Functions for converting colors between hex and [rgb]
+			 */
+			var ColorConvert = function() {
 				
-				if (renderer) {
-					// Destroy the renderer
-					renderer.destroy();
-					renderer = null;
-					model = null;
-				}
+				const haxHex = "0123456789abcdef", maskUpper = 0xf0, maskLower = 0x0f;
+				var API = {};
 				
-				// Setting width and height clears the canvas
-				glCanvas.width = glCanvas.width;
-				glCanvas.height = glCanvas.height;
+				API.hexToRGB = function(value, dst) {
 				
-				dropbox.style.display = "block";
-				glCanvas.style.display = "none";
+					var R = ((haxHex.indexOf(value[1])) << 4 | haxHex.indexOf(value[2])) / 255.0,
+						G = ((haxHex.indexOf(value[3])) << 4 | haxHex.indexOf(value[4])) / 255.0,
+						B = ((haxHex.indexOf(value[5])) << 4 | haxHex.indexOf(value[6])) / 255.0;
+					
+					if (!dst) {
+						dst = [];
+					}
 				
-				clearButton.disabled = true;
-				shareButton.disabled = true;
-			}
+					dst[0] = R;
+					dst[1] = G;
+					dst[2] = B;
+				
+					return dst;
+				};
 			
-			
-			var haxHex = "0123456789abcdef";
-			
-			function crapHexToRGB(value, dst) {
-				
-				var R = ((haxHex.indexOf(value[1])) << 4 | haxHex.indexOf(value[2])) / 255.0;
-				var G = ((haxHex.indexOf(value[3])) << 4 | haxHex.indexOf(value[4])) / 255.0;
-				var B = ((haxHex.indexOf(value[5])) << 4 | haxHex.indexOf(value[6])) / 255.0;
-				
-				if (!dst) {
-					dst = [];
-				}
-				
-				dst[0] = R;
-				dst[1] = G;
-				dst[2] = B;
-				
-				return dst;
-			}
-			
-			function crapRGBtoHex(rgb) {
-				const maskUpper = 240; // 0xf0
-				const maskLower = 15; // 0x0f
-				var R = Math.round(rgb[0] * 255);
-				var G = Math.round(rgb[1] * 255);
-				var B = Math.round(rgb[2] * 255);
-				
-				var hex = "#" + haxHex[(R & maskUpper) >> 4] + haxHex[R & maskLower] +
+				API.RGBToHex = function(rgb) {
+					var R, G, B, hex;
+					R = Math.round(rgb[0] * 255);
+					G = Math.round(rgb[1] * 255);
+					B = Math.round(rgb[2] * 255);
+					hex = "#" + haxHex[(R & maskUpper) >> 4] + haxHex[R & maskLower] +
 								haxHex[(G & maskUpper) >> 4] + haxHex[G & maskLower] +
 								haxHex[(B & maskUpper) >> 4] + haxHex[B & maskLower];
-				return hex;
-			}
+					return hex;
+				}
+				
+				return API;
+			}();
 			
             </script>
         
@@ -432,85 +504,120 @@
 	
 	<body>
         
-        <h1>Share 3D models</h1>
-		
-		<div id="controls" style="padding:0px 20px 20px 20px; border:1px solid black; border-radius:5px; position:absolute; left:20px; top:60px;">
+		<div id="sidebar-left">
 			
-			<h2>Material</h2>
-			<h3>Specular <input id="specularColor" type="color"/></h3>
-			<div style="text-align:right;">
-				Red <input id="specular0" type="range" min=0 max=255 value=127
-				onchange="specular[0] = Number(this.value / 255.0); updateInputs('specular', specular);"/><br>
-				Green <input id="specular1" type="range" min=0 max=255 value=127
-				onchange="specular[1] = Number(this.value / 255.0); updateInputs('specular', specular);"/><br>
-				Blue <input id="specular2" type="range" min=0 max=255 value=127
-				onchange="specular[2] = Number(this.value / 255.0); updateInputs('specular', specular);"/><br>
-			</div>
-			
-			<h3>Diffuse <input id="diffuseColor" type="color"/></h3>
-			<div style="text-align:right;">
-				Red <input id="diffuse0" type="range" min=0 max=255 value=127
-				onchange="diffuse[0] = Number(this.value / 255.0); updateInputs('diffuse', diffuse);"/><br>
-				Green <input id="diffuse1" type="range" min=0 max=255 value=127
-				onchange="diffuse[1] = Number(this.value / 255.0); updateInputs('diffuse', diffuse);"/><br>
-				Blue <input id="diffuse2" type="range" min=0 max=255 value=127
-				onchange="diffuse[2] = Number(this.value / 255.0); updateInputs('diffuse', diffuse);"/><br>
-			</div>
-			
-			<h3>Ambient <input id="ambientColor" type="color"/></h3>
-			<div style="text-align:right;">
-				Red <input id="ambient0" type="range" min=0 max=255 value=127
-				onchange="ambient[0] = Number(this.value / 255.0); updateInputs('ambient', ambient);"/><br>
-				Green <input id="ambient1" type="range" min=0 max=255 value=127
-				onchange="ambient[1] = Number(this.value / 255.0); updateInputs('ambient', ambient);"/><br>
-				Blue <input id="ambient2" type="range" min=0 max=255 value=127
-				onchange="ambient[2] = Number(this.value / 255.0); updateInputs('ambient', ambient);"/><br>
-			</div>
-			
-			<h3>Shininess</h3>
-			<div style="text-align:right;">
-				<input id="shininess" type="range" min=0 max=255 value=127
-				onchange="shininess = Number(this.value);"/><br>
-			</div>
-			
-			<h3>Zoom</h3>
-			<div style="text-align:right;">
-				<input type="range" min=0 max=2 value=1 step=0.01
-				onchange="zoom = Number(this.value);"/><br>
-			</div>
-		</div>
-
-		<div id="controls" style="padding:0px 20px 20px 20px; border:1px solid black; border-radius:5px; position:absolute; right:20px; bottom:60px;">
-			
-			<h2>Light</h2>
-			<h3>Position</h3>
-			<div style="text-align:right;">
-				x <input type="range" min=-5 max=5 value=0 step=0.05
-				onchange="lightPos[0] = Number(this.value);"/><br>
-				y <input type="range" min=-5 max=5 value=0 step=0.05
-				onchange="lightPos[1] = Number(this.value);"/><br>
-				z <input type="range" min=-5 max=5 value=0 step=0.05
-				onchange="lightPos[2] = Number(this.value);"/><br>
+			<div class="control-panel" id="controls-left">
 				
-				BLOB! <input type="range" min=-0.125 max=0.125 value=0 step=0.00125
-				onchange="renderer.setBlobbiness(this.value);"/><br>
+				<h2>Material</h2>
+				<h3>Specular <input id="specularColor" type="color"/></h3>
+				<table>
+					<tr>
+						<td style="text-align:right;">Red</td>
+						<td><input id="specular0" type="range" min=0 max=1 step=0.004
+							onchange="uniforms.setElement('specular', 0, this.value); updateInputs('specular');"/></td>
+					</tr><tr>
+						<td style="text-align:right;">Green</td>
+						<td><input id="specular1" type="range" min=0 max=1 step=0.004
+							onchange="uniforms.setElement('specular', 1, this.value); updateInputs('specular');"/></td>
+					</tr><tr>
+						<td style="text-align:right;">Blue</td>
+						<td><input id="specular2" type="range" min=0 max=1 step=0.004
+							onchange="uniforms.setElement('specular', 2, this.value); updateInputs('specular');"/></td>
+					</tr>
+				</table>
+				
+				<h3>Diffuse <input id="diffuseColor" type="color"/></h3>
+				<table>
+					<tr>
+						<td style="text-align:right;">Red</td>
+						<td><input id="diffuse0" type="range" min=0 max=1 step=0.004
+							onchange="uniforms.setElement('diffuse', 0, this.value); updateInputs('diffuse');"/></td>
+					</tr><tr>
+						<td style="text-align:right;">Green</td>
+						<td><input id="diffuse1" type="range" min=0 max=1 step=0.004
+							onchange="uniforms.setElement('diffuse', 1, this.value); updateInputs('diffuse');"/></td>
+					</tr><tr>
+						<td style="text-align:right;">Blue</td>
+						<td><input id="diffuse2" type="range" min=0 max=1 step=0.004
+							onchange="uniforms.setElement('diffuse', 2, this.value); updateInputs('diffuse');"/></td>
+					</tr>
+				</table>
+				
+				<h3>Ambient <input id="ambientColor" type="color"/></h3>
+				<table>
+					<tr>
+						<td style="text-align:right;">Red</td>
+						<td><input id="ambient0" type="range" min=0 max=1 step=0.004
+							onchange="uniforms.setElement('ambient', 0, this.value); updateInputs('ambient');"/></td>
+					</tr><tr>
+						<td style="text-align:right;">Green</td>
+						<td><input id="ambient1" type="range" min=0 max=1 step=0.004
+							onchange="uniforms.setElement('ambient', 1, this.value); updateInputs('ambient');"/></td>
+					</tr><tr>
+						<td style="text-align:right;">Blue</td>
+						<td><input id="ambient2" type="range" min=0 max=1 step=0.004
+							onchange="uniforms.setElement('ambient', 2, this.value); updateInputs('ambient');"/></td>
+					</tr>
+				</table>
+				
+				<h3>Shininess</h3>
+				<input id="shininess" type="range" min=0 max=255 value=127
+					onchange="uniforms.setValue('shininess', this.value);"/><br>
+				
+				<h3>Zoom</h3>
+				<input type="range" min=0 max=2 value=1 step=0.01
+					onchange="uniforms.setValue('zoom', this.value);"/><br>
 			</div>
 			
 		</div>
-
-        <div id="container">
-            <div id="dropbox">
-                <p id="status">Drop a .ply file here, or use this fine button:<br><br><input type="file" id="fileSelect"></p>
-                <div id="progressBar">
-                    <div id="percentBar">0%</div>
-                </div>
-            </div>
-        </div>
 		
-		<button id="shareButton" onclick="sendShareInvite();"
-			style="padding:1em; margin:0em;" disabled=true>Share!</button>
-		<button id="clearButton" onclick="clearGLCanvas();"
-			style="padding:1em; margin:0em;" disabled=true>Clear</button>
+		<div id="content">
+			
+			<h1>Share 3D models</h1>
+			
+			<div id="container">
+				<div id="dropbox">
+					<p id="status">Drop a .ply file here, or use this fine button:<input type="file" id="fileSelect"></p>
+					<progress id="progressBar" value=0 max=100></progress>
+				</div>
+			</div>
+			
+			<button id="shareButton" onclick="sendShareInvite();"
+				style="padding:1em; margin:0em;" disabled=true>Share!</button>
+			<button id="clearButton" onclick="clearGLCanvas();"
+				style="padding:1em; margin:0em;" disabled=true>Clear</button>
+		</div>
+		
+		<div id="sidebar-right">
+			
+			<div class="control-panel" id="controls-right">
+				
+				<h2>Light</h2>
+				<h3>Position</h3>
+				<table>
+					<tr>
+						<td style="text-align:right;">x</td>
+						<td><input type="range" min=-5 max=5 value=0 step=0.05
+							onchange="uniforms.setElement('lightPos', 0, this.value);"/></td>
+					</tr><tr>
+						<td style="text-align:right;">y</td>
+						<td><input type="range" min=-5 max=5 value=0 step=0.05
+							onchange="uniforms.setElement('lightPos', 1, this.value);"/></td>
+					</tr><tr>
+						<td style="text-align:right;">z</td>
+						<td><input type="range" min=-5 max=5 value=0 step=0.05
+							onchange="uniforms.setElement('lightPos', 2, this.value);"/></td>
+					</tr>
+				</table>
+				<h3>BLOB!</h3>
+				<input type="range" min=-0.125 max=0.125 value=0 step=0.00125
+					onchange="uniforms.setValue('blobbiness', this.value);"/><br>
+				</div>
+				
+			</div>
+		
+		</div>
+        
 	
 	</body>
     
