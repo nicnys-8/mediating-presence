@@ -25,39 +25,64 @@
 				frameCount = 0;
 			
 			var PeekDisplay = function() {
+				
+				var zWidth = KinectProxy.DEPTH_DATA_WIDTH,
+					zHeight = KinectProxy.DEPTH_DATA_HEIGHT,
+					ctx = document.createElement("canvas").getContext("2d"),
+					vertices, vertices2x, index;
+				
 				this.canvas = MediaExt.createCanvas(VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
 				this.renderer = new PointCloudRendererX(this.canvas);
-				
-				var ctx = document.createElement("canvas").getContext("2d");
 				this.videoData = ctx.createImageData(KinectProxy.RGB_DATA_WIDTH,
 													 KinectProxy.RGB_DATA_HEIGHT);
-				this.depthBuffer = new Array(KinectProxy.DEPTH_DATA_WIDTH,
-											 KinectProxy.DEPTH_DATA_HEIGHT);
-				
+				this.depthBuffer = new Array(zWidth * zHeight);
 				for (var i = 0, len = this.depthBuffer.length; i < len; ++i) {
 					this.depthBuffer[i] = 0;
 				}
-			}
+				
+				vertices = new Float32Array(zWidth * zHeight * 3),
+				index = 0;
+				for (var y = 0; y < zHeight; y++) {
+					for (var x = 0; x < zWidth; x++) {
+						vertices[index++] = x;
+						vertices[index++] = y;
+						vertices[index++] = 0;
+					}
+				}
+				
+				vertices2x = new Float32Array(zWidth * zHeight * 3 * 4);
+				index = 0;
+				for (var y = 0; y < zHeight; y += 0.5) {
+					for (var x = 0; x < zWidth; x += 0.5) {
+						vertices2x[index++] = x;
+						vertices2x[index++] = y;
+						vertices2x[index++] = 0;
+					}
+				}
+				
+				this.vertices = vertices;
+				this.vertices2x = vertices2x;
+			};
 			
 			TabControl.onLoad = function() {
 				var pd = new PeekDisplay();
 				streamIDs.push("me");
 				displayedStreams["me"] = pd;
 				document.getElementById("container").appendChild(pd.canvas);
-            }
+            };
 			
 			TabControl.onActivate = function() {
 				isActive = true;
 				requestAnimFrame(drawScene);
-			}
+			};
 			
 			TabControl.onDeactivate = function() {
 				isActive = false;
 				cancelAnimFrame(drawScene);
-			}
+			};
 			
 			TabControl.onLocalStreamInit = function(stream) {
-			}
+			};
 			
 			TabControl.onStreamAdded = function(stream) {
 				
@@ -72,7 +97,7 @@
 				
 				var myPD = displayedStreams["me"];
 				myPD.canvas.style.display = "none";
-			}
+			};
 			
 			TabControl.onStreamRemoved = function(stream) {
 
@@ -94,7 +119,7 @@
 						streamIDs.splice(index, 1);
 					}
 				}
-			}
+			};
 			
 			TabControl.onMessageReceived = function(senderId, type, data) {
 				
@@ -114,7 +139,7 @@
 						}
 					}
 				}
-			}
+			};
 			
 			TabControl.onKinectInit = function(proxy) {
 				proxy.addHeadPositionListener(function(headPos) {
@@ -123,7 +148,7 @@
 												// console.log(headPos);
 												pd.renderer.headMoved(headPos);
 											  }});
-			}
+			};
 			
 			TabControl.onNewKinectData = function(videoData, depthData, rawVideo, rawDepth) {
 				
@@ -155,7 +180,7 @@
 					TabControl.sendMessage("peek", "kinect", data);
 				}
 				frameCount++;
-            }
+            };
 			
 			function updateScene(senderId, video, depth) {
 				
@@ -165,24 +190,67 @@
 					return;
 				}
 				
-				var renderer = pd.renderer;
-				
-				var maxDepth = 4000;
-				var pos = [];
-				
-				var zScale = 1.0 / parseFloat(document.getElementById("zScale").value);
-				var brightness = parseFloat(document.getElementById("brightness").value);
-				var lerp = document.getElementById("lerp").checked;
-				var useVideo = document.getElementById("useVideo").checked;
+				var renderer = pd.renderer,
+					maxDepth = 5000,
+					zScale = 1.0 / parseFloat(document.getElementById("zScale").value),
+					brightness = parseFloat(document.getElementById("brightness").value),
+					lerp = document.getElementById("lerp").checked,
+					useVideo = document.getElementById("useVideo").checked,
+					pos = lerp ? pd.vertices2x : pd.vertices,
+					width = KinectProxy.DEPTH_DATA_WIDTH,
+					height = KinectProxy.DEPTH_DATA_HEIGHT,
+					x, y, z,
+					zr, zb, zbr,
+					zLerp, index,
+					index2x = 2, width2x = width * 6;
 				
 				if (video && useVideo) {
 					renderer.setTexture(video);
 				}
 				
-				var width = KinectProxy.DEPTH_DATA_WIDTH,
-					height = KinectProxy.DEPTH_DATA_HEIGHT;
-				
-                for (var y = 0, index = 0; y < height; y++) {
+				if (lerp) {
+					
+					for (y = 0, index = 0; y < height; y++) {
+						for (x = 0; x < width; x++, index++, index2x += 6) {
+							
+							z = depth[index];
+							zr = depth[index + 1];
+							zb = depth[index + width];
+							zbr = depth[index + width + 1];
+							
+							pos[index2x] = z;
+								
+							// Interpolate right
+							zLerp = (zr && x < width - 1 && Math.abs(zr - z) < 30)
+										? (z + zr) * 0.5 : 0;
+							pos[index2x + 3] = zLerp;
+								
+							// Interpolate bottom
+							zLerp = (zb && y < height - 1 && Math.abs(zb - z) < 30)
+										? (z + zb) * 0.5 : 0;
+							pos[index2x + width2x] = zLerp;
+								
+							// Interpolate bottom-right
+							zLerp = (zbr && x < width - 1 && y < height - 1 && Math.abs(zbr - z) < 30)
+										? (z + zbr) * 0.5 : 0;
+							pos[index2x + width2x + 3] = zLerp;
+						}
+						index2x += width2x;
+					}
+					
+				} else {
+					for (y = 0, index = 0; y < height; y++) {
+						for (x = 0; x < width; x++, index++) {
+							pos[index * 3 + 2] = depth[index];
+							/* var z = depth[index];
+							if (z > 0 && z < maxDepth) {
+								pos[index * 3 + 2] = z;
+							}*/
+						}
+					}
+				}
+				/*
+				for (var y = 0, index = 0; y < height; y++) {
                     for (var x = 0; x < width; x++, index++) {
                         
                         var z = depth[index];
@@ -225,6 +293,7 @@
                         }
                     }
                 }
+				*/
 				
 				renderer.setUseVideo(useVideo);
 				renderer.setBrightness(brightness);

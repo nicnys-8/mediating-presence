@@ -114,10 +114,74 @@ var ImageHandling = function() {
     };
     
     
+	var hsv2rgb = function(h, s, v) {
+		
+		var rgb, H, i, data;
+		
+		if (s === 0) {
+			rgb = [v, v, v];
+		} else {
+			
+			H = h / 60.0;
+			i = Math.floor(H);
+			data = [v * (1.0 - s),
+					v * (1.0 - s * (H - i)),
+					v * (1.0 - s * (1.0 - (H - i)))];
+			
+			switch(i) {
+				case 0: rgb = [v, data[2], data[0]]; break;
+				case 1: rgb = [data[1], v, data[0]]; break;
+				case 2: rgb = [data[0], v, data[2]]; break;
+				case 3: rgb = [data[0], data[1], v]; break;
+				case 4: rgb = [data[2], data[0], v]; break;
+				default: rgb = [v, data[0], data[1]]; break;
+			}
+		}
+		return rgb;
+	};
+	
     /**
      Converts decoded Kinect depth data to RGBA data
      */
     var depthToRGBA = function(input, output) {
+		var z, intensity, scale = 1.0 / 4096.0;
+		for (var i = 0; i < input.length; i++) {
+			z = input[i];
+			if (z == 0) {
+				output[i * 4 + 0] = 0;
+				output[i * 4 + 1] = 0;
+				output[i * 4 + 2] = 0;
+				output[i * 4 + 3] = 255;
+			} else {
+				intensity = (1.0 - z * scale) * 255;
+				output[i * 4 + 0] = intensity;
+				output[i * 4 + 1] = intensity;
+				output[i * 4 + 2] = intensity;
+				output[i * 4 + 3] = 255;
+			}
+		}
+		
+		/*
+		var z, hue, rgb, scale = 360 / 4096;
+		for (var i = 0; i < input.length; i++) {
+			z = input[i];
+			
+			if (z == 0) {
+				output[i * 4 + 0] = 0;
+				output[i * 4 + 1] = 0;
+				output[i * 4 + 2] = 0;
+				output[i * 4 + 3] = 255;
+			} else {
+				hue = z * scale;
+				rgb = hsv2rgb(hue, 1.0, 1.0);
+				output[i * 4 + 0] = rgb[0] * 255;
+				output[i * 4 + 1] = rgb[1] * 255;
+				output[i * 4 + 2] = rgb[2] * 255;
+				output[i * 4 + 3] = 255;
+			}
+		}
+		 */
+		/*
         var depthValue;
         // If temp is undefined, create it
         if (!temp) {
@@ -127,6 +191,7 @@ var ImageHandling = function() {
             temp[i] = (input[i] / 4096) * 255;
         }
         ImageHandling.expandToRGBA(temp, output);
+		 */
     };
     
     return {computeDifferenceMask: computeDifferenceMask, applyMask: applyMask, applyMaskOnRGB: applyMaskOnRGB, fillWithOnes: fillWithOnes, fillWithValue: fillWithValue, expandToRGBA: expandToRGBA, RGBAToBinary: RGBAToBinary, depthToRGBA: depthToRGBA};

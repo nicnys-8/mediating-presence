@@ -22,11 +22,12 @@ PointCloudRendererX = function(canvas) {
 				 
 				 "void main(void) {",
 				 
-					"vec4 pos = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);",
 					"float x = aVertexPosition.x;",
 					"float y = aVertexPosition.y;",
 					"float z = aVertexPosition.z;",
 				 
+					"vec4 pos = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);",
+				
 					"if (x < 80.0) {", // textureSize.width / 2.0
 						"x += 6.0 * x / 80.0;",
 					"} else {",
@@ -43,7 +44,12 @@ PointCloudRendererX = function(canvas) {
 					
 					// "uv2 = vec2((z - 500.0) / 2000.0, 0.0);",
 					"gl_PointSize = -(pos.z / pos.w - 1.0) * 8.0;", // * pointSize
-					"gl_Position = pos;",
+				 
+					"if (z == 0.0) {",
+						"gl_Position = vec4(0, 0, 10000, 1);", // this will be clipped
+					"} else {",
+						"gl_Position = pos;",
+					"}",
 				 "}",
 				 ].join("\n");
 	
@@ -108,8 +114,8 @@ PointCloudRendererX = function(canvas) {
 	
 	this.bufferData = function(vertices) {
 		gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.DYNAMIC_DRAW);
-		vertexBuffer.numItems = vertices.length / 3;
+		gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.DYNAMIC_DRAW);
+		vertexBuffer.numItems = vertices.length / vertexBuffer.itemSize;
 	}
 	
 	this.setTexture = function(imageData) {
@@ -146,9 +152,9 @@ PointCloudRendererX = function(canvas) {
 	};
 	
 	var hsvTexData = function(width) {
-		var data = new Uint8Array(width * 4);
-		var h, s, v, rgb;
-		var scale = 360.0 / width;
+		var data = new Uint8Array(width * 4),
+			h, s, v, rgb,
+			scale = 360.0 / width;
 		for (var i = 0; i < width; i++) {
 			h = i * scale;
 			s = 1.0;
