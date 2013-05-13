@@ -477,7 +477,7 @@ var Ply = function() {
 		
 		var indexIn = startIndex;
 		var indexOut = 0;
-		var buffer = new ArrayBuffer(3 * size2 * count);
+		var buffer = new ArrayBuffer(3 * Math.min(size2, 2) * count);
 		var result;
 		
 		switch (size2) {

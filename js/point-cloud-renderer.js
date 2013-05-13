@@ -69,10 +69,10 @@ PointCloudRenderer = function(canvas) {
 	
 	this.bufferData = function(vertices, colors) {
 		
-		if (typeof vertices === "Array") {
+		if (Array.isArray(vertices)) {
 			vertices = new Float32Array(vertices);
 		}
-		if (typeof colors === "Array") {
+		if (Array.isArray(colors)) {
 			colors = new Float32Array(colors);
 		}
 		

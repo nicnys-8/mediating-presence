@@ -325,9 +325,9 @@
 			function serializeModel(aModel) {
 				
 				var result = {};
-
+				
 				var copyArray = function(src) {
-					if (typeof src == "Array") {
+					if (Array.isArray(src)) {
 						return src;
 					}
 					if (src && src.length) {

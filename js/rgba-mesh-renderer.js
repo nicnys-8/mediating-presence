@@ -69,13 +69,13 @@ MeshRenderer = function(canvas) {
 	
 	this.bufferData = function(vertices, colors, faces) {
 		
-		if (typeof vertices === "Array") {
+		if (Array.isArray(vertices)) {
 			vertices = new Float32Array(vertices);
 		}
-		if (typeof colors === "Array") {
+		if (Array.isArray(colors)) {
 			normals = new Float32Array(colors);
 		}
-		if (typeof faces === "Array") {
+		if (Array.isArray(faces)) {
 			faces = new Uint16Array(faces);
 		}
 		

@@ -125,13 +125,13 @@ PhongRendererExt = function(canvas) {
 	
 	this.bufferData = function(vertices, normals, faces) {
 		
-		if (typeof vertices === "Array") {
+		if (Array.isArray(vertices)) {
 			vertices = new Float32Array(vertices);
 		}
-		if (typeof normals === "Array") {
+		if (Array.isArray(normals)) {
 			normals = new Float32Array(normals);
 		}
-		if (typeof faces === "Array") {
+		if (Array.isArray(faces)) {
 			faces = new Uint16Array(faces);
 		}
 		

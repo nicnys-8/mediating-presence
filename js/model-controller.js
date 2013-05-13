@@ -187,7 +187,8 @@ ModelController = function(canvas) {
 		sendRotationMatrix = mat4.create(),
 		newRotationMatrix = mat4.create();
 	
-	mat4.identity(sendRotation);
+	mat4.identity(sendRotationMatrix);
+	mat4.identity(newRotationMatrix);
 	
 	var handleMouseDown = function(event) {
 		mouseDown = true;
