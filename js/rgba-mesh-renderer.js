@@ -33,13 +33,13 @@ MeshRenderer = function(canvas) {
 	
 	// Create the shader program
 	var prog = WebGLUtils.createProgram(gl, vsStr, fsStr);
-		
+	
 	gl.useProgram(prog);
 		
 	// Store the attribute and uniform locations as properties of the program
 	prog.attrPosition = gl.getAttribLocation(prog, "aVertexPosition");
 	gl.enableVertexAttribArray(prog.attrPosition);
-		
+
 	prog.attrColor = gl.getAttribLocation(prog, "aVertexColor");
 	gl.enableVertexAttribArray(prog.attrColor);
 	
