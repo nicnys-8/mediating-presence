@@ -38,28 +38,27 @@
 				depthImage.onload = null;
 				videoImage.onload = null;
 				
+				// Initialize the image data
+				for (var i = 0; i < imageData.data.length; i += 4) {
+					imageData.data[i + 2] = 255;
+					imageData.data[i + 3] = 255;
+				}
+				
 				API.encodeVideo = function(videoData) {
 					videoContext.putImageData(videoData, 0, 0);
 					return videoCanvas.toDataURL("image/webp", 0.5);
 				};
 				
-				API.decodeVideo = function(webpVideoString, callback) {
-					
-					/*if (videoImage.onload) {
-						console.log("videogrrr"); return;
+				API.decodeVideo = function(webpVideoString, dstCanvas) {
+					if (!webpVideoString) {
+						return null;
 					}
-					videoImage.src = "";*/
-					
-					/*videoImage.onload = function() {
-						// Do something?
-						videoContext.drawImage(videoImage, 0, 0, 160, 120);
-						callback(videoCanvas);
-						videoImage.onload = null;
-					};*/
-					
+					if (!dstCanvas) {
+						dstCanvas = videoCanvas;
+					}
 					videoImage.src = webpVideoString;
-					videoContext.drawImage(videoImage, 0, 0, 160, 120);
-					callback(videoCanvas);
+					dstCanvas.getContext("2d").drawImage(videoImage, 0, 0, 160, 120);
+					return dstCanvas;
 				};
 				
 				API.encodeDepth = function(depthData) {
@@ -73,8 +72,6 @@
 						z = depthData[i];
 						data[j + 0] = (z & 0xff00) >> 8;
 						data[j + 1] = (z & 0x00ff);
-						data[j + 2] = 255;
-						data[j + 3] = 255;
 						i += 1;
 						j += 4;
 					}
@@ -82,37 +79,29 @@
 					return depthCanvas.toDataURL("image/webp", 0.5);
 				};
 				
-				API.decodeDepth = function(webpDepthString, dst, callback) {
-					
-					/*if (depthImage.onload) {
-						console.log("depthgrrr"); return;
+				API.decodeDepth = function(webpDepthString, dst) {
+
+					if (!webpDepthString) {
+						return null;
 					}
-					depthImage.src = "";*/
+					
 					depthImage.src = webpDepthString;
+					depthContext.drawImage(depthImage, 0, 0, 160, 120);
+					var data = depthContext.getImageData(0, 0, 160, 120).data,
+						i = 0, j = 0, len = data.length, x = 0;
+				
+					while (j < len) {
+						dst[i] = (data[j] << 8) | data[j + 1];
+						x += data[j + 2];
+						i += 1;
+						j += 4;
+					}
 					
-					// depthImage.onload = function() {
-						depthContext.drawImage(depthImage, 0, 0, 160, 120);
-						var data = depthContext.getImageData(0, 0, 160, 120).data,
-							i = 0, j = 0, len = data.length;
-						
-						var x = 0;
-					
-						while (j < len) {
-							dst[i] = (data[j] << 8) | data[j + 1];
-							x += data[j + 2];
-							
-							i += 1;
-							j += 4;
-						}
-					
-						if (x === dst.length * 255) {
-							callback(dst);
-						} else {
-							callback(null);
-						}
-						
-						depthImage.onload = null;
-					// };
+					// Make sure the data is valid
+					if (x === dst.length * 255) {
+						return dst;
+					}
+					return null;
 				};
 				
 				return API;
@@ -122,19 +111,16 @@
 				
 				var zWidth = KinectProxy.DEPTH_DATA_WIDTH,
 					zHeight = KinectProxy.DEPTH_DATA_HEIGHT,
-					ctx = document.createElement("canvas").getContext("2d"),
 					vertices, vertices2x, index;
 				
 				this.canvas = MediaExt.createCanvas(VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
 				this.renderer = new PointCloudRendererX(this.canvas);
-				this.videoData = ctx.createImageData(KinectProxy.RGB_DATA_WIDTH,
-													 KinectProxy.RGB_DATA_HEIGHT);
-				this.depthBuffer = new Array(zWidth * zHeight);
-				for (var i = 0, len = this.depthBuffer.length; i < len; ++i) {
-					this.depthBuffer[i] = 0;
-				}
+				this.depthBuffer = new Float32Array(zWidth * zHeight);
+				this.bufferCanvas = MediaExt.createCanvas(KinectProxy.RGB_DATA_WIDTH,
+														  KinectProxy.RGB_DATA_HEIGHT);
 				
-				vertices = new Float32Array(zWidth * zHeight * 3),
+				// Initialize the vertex buffer
+				vertices = new Float32Array(zWidth * zHeight * 3);
 				index = 0;
 				for (var y = 0; y < zHeight; y++) {
 					for (var x = 0; x < zWidth; x++) {
@@ -144,6 +130,7 @@
 					}
 				}
 				
+				// Initialize the vertex buffer for interpolated data
 				vertices2x = new Float32Array(zWidth * zHeight * 3 * 4);
 				index = 0;
 				for (var y = 0; y < zHeight; y += 0.5) {
@@ -221,16 +208,11 @@
 					
 					if (isActive) {
 						
-						var pd = displayedStreams[senderId];
-						
-						if (data.video) {
-							KinectProxy.decodeVideo(data.video, pd.videoData.data);
-							KinectProxy.decodeDepth(data.depth, pd.depthBuffer);
-							updateScene(senderId, pd.videoData, pd.depthBuffer);
-						} else {
-							KinectProxy.decodeDepth(data.depth, pd.depthBuffer);
-							updateScene(senderId, null, pd.depthBuffer);
-						}
+						var pd = displayedStreams[senderId],
+							texture = StreamCodec.decodeVideo(data.video, pd.bufferCanvas),
+							depth = StreamCodec.decodeDepth(data.depth, pd.depthBuffer);
+
+						updateScene(senderId, texture, depth);
 					}
 				}
 			};
@@ -260,36 +242,26 @@
 				// canvas.getContext("2d").putImageData(videoData, 0, 0);
 				
 				// Update local Kinect stream, if no other streams are available
-				if (streamIDs.length == 1 && frameCount % sendRate == 0) {
-					
-					var vid = StreamCodec.encodeVideo(videoData);
-					var dep = StreamCodec.encodeDepth(depthData);
-					
-					console.log((vid.length + dep.length));
-					console.log((vid.length + dep.length) / (rawVideo.length + rawDepth.length));
-					
-					StreamCodec.decodeDepth(dep, hej, function(result) {
-												updateScene("me", null, result);
-											  });
-					
-					StreamCodec.decodeVideo(vid, function(result) {
-												updateScene("me", result, null);
-											  });
-					
-					// updateScene("me", null/*StreamCodec.decodeVideo(vid)*/, hej);
+				if (streamIDs.length == 1) {
+					updateScene("me", videoData, depthData);
 				}
-				/*
+				
 				if (sendData && frameCount % sendRate == 0) {
+					
 					var data = {
 						depth:StreamCodec.encodeDepth(depthData) // rawDepth,
 					};
 					if (sendVideo) {
 						data.video = StreamCodec.encodeVideo(videoData); // rawVideo;
 					}
+					
+					// console.log((data.video.length + data.depth.length));
+					// console.log((data.video.length + data.depth.length) / (rawVideo.length + rawDepth.length));
+					
 					// Send the Kinect data
 					TabControl.sendMessage("peek", "kinect", data);
 				}
-				 */
+				
 				frameCount++;
             };
 			
