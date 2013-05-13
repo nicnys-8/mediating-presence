@@ -10,12 +10,13 @@ PointCloudRendererX = function(canvas) {
 				 "uniform mat4 uMVMatrix;",
 				 "uniform mat4 uPMatrix;",
 			
-				 /*
-				  // Not used atm (values hard coded)
+				 /* Not used atm (values hard coded)
 				 "uniform vec2 textureSize;",
 				 "uniform float pointSize;",
-				 "uniform float uvOffset;",
 				  */
+				 
+				 "uniform vec2 uvScale;",
+				 "uniform vec2 uvOffset;",
 				 
 				 "varying vec2 uv;",
 				 "varying vec2 uv2;",
@@ -27,14 +28,8 @@ PointCloudRendererX = function(canvas) {
 					"float z = aVertexPosition.z;",
 				 
 					"vec4 pos = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);",
-				
-					"if (x < 80.0) {", // textureSize.width / 2.0
-						"x += 6.0 * x / 80.0;",
-					"} else {",
-						"x += 6.0 * (2.0 - x / 80.0);", // uvOffset
-					"}",
-					
-					"uv = vec2(x / 160.0, y / 120.0);",
+				 
+					"uv = vec2((x + uvOffset.x) * uvScale.x / 160.0, (y + uvOffset.y) * uvScale.y / 120.0);",
 					
 					"if (z < 1000.0) {",
 						"uv2 = vec2((z - 500.0) / 500.0, 0.0);",
@@ -93,6 +88,9 @@ PointCloudRendererX = function(canvas) {
 	prog.unifHSVTex = gl.getUniformLocation(prog, "hsvTex");
 	prog.unifBrightness = gl.getUniformLocation(prog, "brightness");
 	prog.unifUseVideo = gl.getUniformLocation(prog, "useVideo");
+	
+	prog.unifUVScale = gl.getUniformLocation(prog, "uvScale");
+	prog.unifUVOffset = gl.getUniformLocation(prog, "uvOffset");
 	
 	// Set black background
 	gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -213,6 +211,19 @@ PointCloudRendererX = function(canvas) {
 		useVideo = value;
 	}
 	
+	var uvScale = [1, 1],
+		uvOffset = [0, 0];
+	
+	this.setUVScale = function(vec) {
+		uvScale[0] = vec[0];
+		uvScale[1] = vec[1];
+	}
+	this.setUVOffset = function(vec) {
+		uvOffset[0] = vec[0];
+		uvOffset[1] = vec[1];
+	}
+	
+	
 	// TODO: Add boolean parameter that specifies if requestAnimationFrame should be called?
 	this.render = function() {
 		
@@ -241,6 +252,9 @@ PointCloudRendererX = function(canvas) {
 		gl.uniform1i(prog.unifTex, 0);
 		gl.uniform1i(prog.unifHSVTex, 1);
 		gl.uniform1i(prog.unifUseVideo, useVideo);
+		
+		gl.uniform2fv(prog.unifUVScale, uvScale);
+		gl.uniform2fv(prog.unifUVOffset, uvOffset);
 		
 		gl.drawArrays(gl.POINTS, 0, vertexBuffer.numItems);
 	}

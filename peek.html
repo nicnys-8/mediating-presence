@@ -177,7 +177,7 @@
 				document.getElementById("container").appendChild(pd.canvas);
 				
 				var myPD = displayedStreams["me"];
-				myPD.canvas.style.display = "none";
+				myPD.canvas.parentNode.removeChild(myPD.canvas);
 			};
 			
 			TabControl.onStreamRemoved = function(stream) {
@@ -199,6 +199,11 @@
 					if (index != -1) {
 						streamIDs.splice(index, 1);
 					}
+				}
+				
+				if (streamIDs.length == 1) {
+					var myPD = displayedStreams["me"];
+					document.getElementById("container").appendChild(myPD.canvas);
 				}
 			};
 			
@@ -226,7 +231,6 @@
 											  }});
 			};
 			
-			var hej = [];
 			TabControl.onNewKinectData = function(videoData, depthData, rawVideo, rawDepth) {
 				
 				// TODO: Send data even when tab is inactive?
@@ -336,51 +340,6 @@
 						}
 					}
 				}
-				/*
-				for (var y = 0, index = 0; y < height; y++) {
-                    for (var x = 0; x < width; x++, index++) {
-                        
-                        var z = depth[index];
-						
-                        var zr = depth[index + 1];
-						var zb = depth[index + width];
-						var zbr = depth[index + width + 1];
-						
-                        if (z > 0 && z < maxDepth) {
-							
-							pos.push(x, y, z);
-							
-							if (lerp) {
-								
-								if (zr
-									&& x < width - 1
-									&& Math.abs(zr - z) < 50) {
-									pos.push(x + 0.5,
-											 y,
-											 (z + zr) * 0.5);
-								}
-								
-								if (zb
-									&& y < height - 1
-									&& Math.abs(zb - z) < 50) {
-									pos.push(x,
-											 y + 0.5,
-											 (z + zb) * 0.5);
-								}
-								
-								if (zbr
-									&& x < width - 1
-									&& y < height - 1
-									&& Math.abs(zbr - z) < 50) {
-									pos.push(x + 0.5,
-											 y + 0.5,
-											 (z + zbr) * 0.5);
-								}
-							}
-                        }
-                    }
-                }
-				*/
 				
 				renderer.setUseVideo(useVideo);
 				renderer.setBrightness(brightness);
@@ -392,9 +351,16 @@
 			
 			function drawScene() {
 				requestAnimFrame(drawScene);
+				var uvScale = [parseFloat(document.getElementById("uvScaleX").value),
+							   parseFloat(document.getElementById("uvScaleY").value),];
+				var uvOffset = [parseFloat(document.getElementById("uvOffsetX").value),
+								parseFloat(document.getElementById("uvOffsetY").value),];
+				
 				var first = (streamIDs.length > 1) ? 1 : 0;
 				for (var i = first; i < streamIDs.length; i++) {
 					var pd = displayedStreams[streamIDs[i]];
+					pd.renderer.setUVOffset(uvOffset);
+					pd.renderer.setUVScale(uvScale);
 					pd.renderer.render();
 				}
 			}
@@ -411,46 +377,68 @@
     </head>
 	
 	<body>
-        
-        <h1>Peek!</h1>
 		
-		<div id="controls"
-			style="padding:0px 20px 20px 20px; 
-					border:1px solid black; 
-					border-radius:5px; 
-					position:absolute; 
-					left:20px; 
-					top:60px;">
-			
-			<h2>Controls</h2>
-			<table style="margin:0px auto;">
-				<tr>
-					<td style="text-align:right;">Z-Scale:</td>
-					<td><input id="zScale" type="range" min="1" max="20" value="5" step="0.05"></td>
-				</tr><tr>
-					<td style="text-align:right;">Brightness:</td>
-					<td><input id="brightness" type="range" min="0" max="5" step="0.01" value="1"></td>
-				</tr><tr>
-					<td style="text-align:right;">Interpolate:</td>
-					<td><input id="lerp" type="checkbox"></td>
-				</tr><tr>
-					<td style="text-align:right;">Video texture:</td>
-					<td><input id="useVideo" type="checkbox"></td>
-				</tr><tr>
-					<td style="text-align:right;">Stream:</td>
-					<td><input id="streamData" type="checkbox" checked="true"></td>
-				</tr><tr>
-					<td style="text-align:right;">Skip frames:</td>
-					<td><input id="frameSkip" type="range" min="1" max="30" step="1" value="3"></td>
-				</tr>
-			</table>
-			
-			<button onclick="resetCameras();">Reset camera</button>
-			
+		<div id="sidebar-left">
+			<div class="control-panel" id="controls-left">
+				
+				<h2>Controls</h2>
+				<h3>View</h3>
+				<table style="margin:0px auto;">
+					<tr>
+						<td style="text-align:right;">Z-Scale:</td>
+						<td><input id="zScale" type="range" min="1" max="20" value="5" step="0.05"></td>
+					</tr><tr>
+						<td style="text-align:right;">Brightness:</td>
+						<td><input id="brightness" type="range" min="0" max="5" step="0.01" value="1"></td>
+					</tr><tr>
+						<td style="text-align:right;">Interpolate:</td>
+						<td><input id="lerp" type="checkbox"></td>
+					</tr>
+				</table>
+				
+				<h3>Stream</h3>
+				<table style="margin:0px auto;">
+					<tr>
+						<td style="text-align:right;">Stream:</td>
+						<td><input id="streamData" type="checkbox" checked="true"></td>
+					</tr><tr>
+						<td style="text-align:right;">Skip frames:</td>
+						<td><input id="frameSkip" type="range" min="1" max="30" step="1" value="3"></td>
+					</tr>
+				</table>
+				
+				<h3>Texture</h3>
+				<table style="margin:0px auto;">
+					<tr>
+						<td style="text-align:right;">Video texture:</td>
+						<td><input id="useVideo" type="checkbox"></td>
+					</tr><tr>
+						<td style="text-align:right;">UV scale x:</td>
+						<td><input id="uvScaleX" type="range" min="0.5" max="1.5" step="0.01" value="0.9"></td>
+					</tr><tr>
+						<td style="text-align:right;">UV scale y:</td>
+						<td><input id="uvScaleY" type="range" min="0.5" max="1.5" step="0.01" value="0.9"></td>
+					</tr><tr>
+						<td style="text-align:right;">UV offset x:</td>
+						<td><input id="uvOffsetX" type="range" min="0" max="40" step="1" value="12"></td>
+					</tr><tr>
+						<td style="text-align:right;">UV offset y:</td>
+						<td><input id="uvOffsetY" type="range" min="0" max="30" step="1" value="9"></td>
+					</tr>
+				</table>
+				
+				<button onclick="resetCameras();">Reset camera</button>
+				
+			</div>
 		</div>
 		
-        <div id="container">
-        </div>
+		<div id="content">
+			
+			<h1>Peek!</h1>
+			
+			<div id="container">
+			</div>
+		</div>
 
 </html>
 
