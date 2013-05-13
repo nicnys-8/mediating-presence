@@ -315,23 +315,20 @@ Klotski = function(blockSnappedCallback, levelFinishedCallback, container) {
         if (this.shouldRender) {
             renderer.render(scene, camera);
         }
-        
         // A bit code for finishing a level;
         // Checks if the green block is at the goal position
         if (
-            mainBlock.position.x == 1 &&
-            mainBlock.position.y == 4) {
+            mainBlock.position.x === 1 &&
+            mainBlock.position.y === 4) {
             var finishTime = timer.getTimeString();
             timer.stop();
             levelFinishedCallback(levelIndex, finishTime);
         }
-        
-        if (hasTurn) {
+        if (hasTurn && externalMoves.length === 0) {
             localBlockUpdate();
         } else {
             remoteBlockUpdate();
         }
-        
         // Update particle system
         userParticles.update();
         friendParticles.update();

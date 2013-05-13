@@ -52,7 +52,6 @@
                         if (newUsername != localUsername) {
                             console.log("Registered new user named " + newUsername);
                             addInviteOption(newUsername);
-                            $("#inviteButton").removeAttr("disabled");
                         }
                     };
                     
@@ -65,7 +64,7 @@
                         }
                         // Remove the invite button of the user
                         var removedUser = stream.getAttributes().username;
-                        //TODO: Remove user from the list of users you can invite
+                        removeInviteOption(removedUser);
                     };
                     
                     TabControl.onMessageReceived = function(senderId, type, data) {
@@ -272,8 +271,8 @@
                      */
                     function sendMousePosition() {
                         // Normalize the position before sending
-                        var xNormalized = mouseX / $("#gameDiv").innerWidth();
-                        var yNormalized = mouseY / $("#gameDiv").innerHeight();
+                        var xNormalized = mouseX / document.body.clientWidth;
+                        var yNormalized = mouseY / document.body.clientHeight;
                         var data = {x: xNormalized, y: yNormalized};
                         TabControl.sendMessage("play", "mouse", data);
                     }
@@ -282,8 +281,30 @@
                      Adds a user to the list of users that can be invited
                      */
                     addInviteOption = function(username) {
+                        // The invite button and dropdown menu might be disabled, so enable them
+                        $("#inviteButton").removeAttr("disabled");
+                        $("#userSelect").removeAttr("disabled");
+                        // If it's there, remove the initial option that says "Waiting for other users"
+                        $("#userSelect option[value=null]").remove();
+                        // Add the new user
                         var select = document.getElementById("userSelect");
                         select.options[select.options.length] = new Option(username, username);
+                        
+                        //$("#userSelect").append("<option value=" + username + ">" + username "</option>");
+                    };
+                    
+                    /**
+                     Removes a user from the list of users that can be invited
+                     */
+                    removeInviteOption = function(username) {
+                        $("#userSelect option[value=" + username + "]").remove();
+                        // If the last user leaves, disable the menu and button
+                        if ($("#userSelect option").size() === 0) {
+                                $("#inviteButton").attr("disabled", true);
+                                $("#userSelect").attr("disabled", true);
+                                var select = document.getElementById("userSelect");
+                                select.options[select.options.length] = new Option("Waiting for other users", null);
+                            }
                     };
                     
                     /*---------------------
@@ -296,13 +317,12 @@
                         mouseX = event.clientX;
                         mouseY = event.clientY;
                         if (klotski) klotski.onMouseDown(mouseX, mouseY);
-                        
                         //TODO: Remove this ugly code:
                         var element = document.elementFromPoint(mouseX, mouseY);
-                        if (element.id == "inviteButton") inviteButtonClicked();
-                        else if (element.id == "nextLevelButton") nextLevelClicked();
-                        else if (element.id == "turnButton") giveUpTurn();
-                        else if (element.id == "endButton") endGame();
+                        if (element.id === "inviteButton") inviteButtonClicked();
+                        else if (element.id === "nextLevelButton") nextLevelClicked();
+                        else if (element.id === "turnButton") giveUpTurn();
+                        else if (element.id === "endButton") endGame();
                     };
                     
                     /**
@@ -327,8 +347,8 @@
                     var onReceivedMousePosition = function (normalizedX, normalizedY) {
                         if (klotski) {
                             // Adjust the position to fit the local window
-                            var x = normalizedX * $("#gameDiv").innerWidth();
-                            var y = normalizedY * $("#gameDiv").innerHeight();
+                            var x = normalizedX * document.body.clientWidth;
+                            var y = normalizedY * document.body.clientHeight;
                             klotski.remoteMouseEvent(x, y);
                         }
                     };
@@ -346,7 +366,8 @@
                 from a friend to finish the levels!
             </div>
             
-            <select id="userSelect">
+            <select id="userSelect" disabled>
+                <option value=null>Waiting for other users</option>
             </select>
             
             <button id="inviteButton" onclick="inviteButtonClicked()">

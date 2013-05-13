@@ -46,13 +46,16 @@
             var username;
             
             var loginButtonClicked = function() {
-                username = $("#loginField").val();
-                $("#loginDiv").hide();
-                $("#roomDiv").show();
+                var newUsername = $("#loginField").val();
+                if (newUsername.length > 0) {
+                    username = newUsername;
+                    $("#loginDiv").hide();
+                    $("#roomDiv").show();
+                }
             };
             
             /**
-             Called when the body loads
+             Called when the page body has loaded
              */
             var load = function() {
                 // var socket = io.connect("http://localhost:3005");

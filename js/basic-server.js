@@ -75,6 +75,12 @@ app.post("/createToken/", function(req, res) {
          var username = req.body.username;
          var role = req.body.role;
          var roomId = req.body.roomId;
+         // Empty strings are not allowed
+         if (username.length == 0) {
+         res.send("Error: An empty string is not a username");
+         return;
+         }
+         // If the username was not an empty string, create the token
          N.API.createToken(roomId, username, role, function (token) {
                            console.log("Answering with token", token);
                            res.send(token);
