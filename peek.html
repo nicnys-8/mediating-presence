@@ -101,9 +101,6 @@
 					if (x === dst.length * 255) {
 						return dst;
 					}
-					
-					console.log("Invalid depth data...?");
-					
 					return null;
 				};
 				
@@ -192,7 +189,7 @@
 					
 					// Remove the canvas element
 					pd.canvas.parentNode.removeChild(pd.canvas);
-					// TODO: Add renderer.destroy()
+					// Unnecessary(?) cleanup
 					pd.renderer = null;
 					pd.canvas = null;
 					
@@ -359,13 +356,12 @@
 				var uvOffset = [parseFloat(document.getElementById("uvOffsetX").value),
 								parseFloat(document.getElementById("uvOffsetY").value),];
 				
-				for (var i = 0; i < streamIDs.length; i++) {
-					if (pd.canvas.parentNode) {
-						var pd = displayedStreams[streamIDs[i]];
-						pd.renderer.setUVOffset(uvOffset);
-						pd.renderer.setUVScale(uvScale);
-						pd.renderer.render();
-					}
+				var first = (streamIDs.length > 1) ? 1 : 0;
+				for (var i = first; i < streamIDs.length; i++) {
+					var pd = displayedStreams[streamIDs[i]];
+					pd.renderer.setUVOffset(uvOffset);
+					pd.renderer.setUVScale(uvScale);
+					pd.renderer.render();
 				}
 			}
 			
