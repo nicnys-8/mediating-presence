@@ -80,7 +80,7 @@
 				};
 				
 				API.decodeDepth = function(webpDepthString, dst) {
-
+					
 					if (!webpDepthString) {
 						return null;
 					}
@@ -89,7 +89,7 @@
 					depthContext.drawImage(depthImage, 0, 0, 160, 120);
 					var data = depthContext.getImageData(0, 0, 160, 120).data,
 						i = 0, j = 0, len = data.length, x = 0;
-				
+					
 					while (j < len) {
 						dst[i] = (data[j] << 8) | data[j + 1];
 						x += data[j + 2];
@@ -101,6 +101,9 @@
 					if (x === dst.length * 255) {
 						return dst;
 					}
+					
+					console.log("Invalid depth data...?");
+					
 					return null;
 				};
 				
@@ -181,7 +184,7 @@
 			};
 			
 			TabControl.onStreamRemoved = function(stream) {
-
+				
 				var streamId = stream.getID();
 				pd = displayedStreams[streamId];
 				
@@ -189,7 +192,7 @@
 					
 					// Remove the canvas element
 					pd.canvas.parentNode.removeChild(pd.canvas);
-					// Unnecessary(?) cleanup
+					// TODO: Add renderer.destroy()
 					pd.renderer = null;
 					pd.canvas = null;
 					
@@ -216,7 +219,7 @@
 						var pd = displayedStreams[senderId],
 							texture = StreamCodec.decodeVideo(data.video, pd.bufferCanvas),
 							depth = StreamCodec.decodeDepth(data.depth, pd.depthBuffer);
-
+						
 						updateScene(senderId, texture, depth);
 					}
 				}
@@ -313,17 +316,17 @@
 							
 							// Interpolate right
 							zLerp = (zr && x < width - 1 && Math.abs(zr - z) < 30)
-										? (z + zr) * 0.5 : 0;
+								? (z + zr) * 0.5 : 0;
 							pos[index2x + 3] = zLerp;
-								
+							
 							// Interpolate bottom
 							zLerp = (zb && y < height - 1 && Math.abs(zb - z) < 30)
-										? (z + zb) * 0.5 : 0;
+								? (z + zb) * 0.5 : 0;
 							pos[index2x + width2x] = zLerp;
-								
+							
 							// Interpolate bottom-right
 							zLerp = (zbr && x < width - 1 && y < height - 1 && Math.abs(zbr - z) < 30)
-										? (z + zbr) * 0.5 : 0;
+								? (z + zbr) * 0.5 : 0;
 							pos[index2x + width2x + 3] = zLerp;
 						}
 						index2x += width2x;
@@ -334,9 +337,9 @@
 						for (x = 0; x < width; x++, index++) {
 							pos[index * 3 + 2] = depth[index];
 							/* var z = depth[index];
-							if (z > 0 && z < maxDepth) {
-								pos[index * 3 + 2] = z;
-							}*/
+							 if (z > 0 && z < maxDepth) {
+							 pos[index * 3 + 2] = z;
+							 }*/
 						}
 					}
 				}
@@ -350,18 +353,22 @@
 			}
 			
 			function drawScene() {
-				requestAnimFrame(drawScene);
-				var uvScale = [parseFloat(document.getElementById("uvScaleX").value),
-							   parseFloat(document.getElementById("uvScaleY").value),];
-				var uvOffset = [parseFloat(document.getElementById("uvOffsetX").value),
-								parseFloat(document.getElementById("uvOffsetY").value),];
 				
-				var first = (streamIDs.length > 1) ? 1 : 0;
-				for (var i = first; i < streamIDs.length; i++) {
-					var pd = displayedStreams[streamIDs[i]];
-					pd.renderer.setUVOffset(uvOffset);
-					pd.renderer.setUVScale(uvScale);
-					pd.renderer.render();
+				requestAnimFrame(drawScene);
+				
+				var uvScale = [parseFloat(document.getElementById("uvScaleX").value),
+							   parseFloat(document.getElementById("uvScaleY").value)],
+					uvOffset = [parseFloat(document.getElementById("uvOffsetX").value),
+								parseFloat(document.getElementById("uvOffsetY").value)],
+					i, pd;
+				
+				for (i = 0; i < streamIDs.length; i++) {
+					pd = displayedStreams[streamIDs[i]];
+					if (pd.canvas.parentNode) {
+						pd.renderer.setUVOffset(uvOffset);
+						pd.renderer.setUVScale(uvScale);
+						pd.renderer.render();
+					}
 				}
 			}
 			
@@ -439,6 +446,6 @@
 			<div id="container">
 			</div>
 		</div>
-
+		
 </html>
 
