@@ -1,10 +1,9 @@
 
-<!-- Partly based on example from http://learningwebgl.com/lessons/lesson02/index.html -->
 
 <html>
     <head>
         
-        <title>Point Cloud Rendering Test</title>
+        <title>Share 3D models</title>
         
 		<script type="text/javascript" src="js/tab-control.js"></script>
 		<script type="text/javascript" src="js/popup-manager.js"></script>
@@ -33,21 +32,67 @@
 				sendRotTimer = null,
 				resumeSend = false,
 				invitePopup,
-				uniforms = {
-					specular : [0.8, 0.8, 0.8],
-					diffuse : [0.6, 0.6, 0.6],
-					ambient : [0.2, 0.2, 0.2],
-					shininess : 20.0,
-					lightPos : [0, 0, 0],
-					zoom : 1.0,
-					blobbiness : 0.0,
-					setValue : function(name, value) {
-						this[name] = value;
+				uniforms = function() {
+					
+					var updatedValues = [],
+					
+					markAsChanged = function(name) {
+						if (updatedValues.indexOf(name) === -1) {
+							updatedValues.push(name);
+						}
 					},
-					setElement : function(name, index, value) {
-						this[name][index] = value;
+					
+					clearUpdates = function() {
+						var updates;
+						if (updatedValues.length === 0) {
+							return; // undefined
+						}
+						updates = {};
+						for (var i = 0; i < updatedValues.length; i++) {
+							updates[updatedValues[i]] = this[updatedValues[i]];
+						}
+						updatedValues = [];
+						console.log(updates);
+						return updates;
 					},
-				};
+					
+					setValue = function(name, value) {
+						uniforms[name] = value;
+						markAsChanged(name);
+					},
+					
+					setElement = function(name, index, value) {
+						uniforms[name][index] = Number(value);
+						markAsChanged(name);
+					},
+					
+					update = function(data) {
+						for (var prop in data) {
+							if (uniforms.hasOwnProperty(prop)) {
+								setValue(prop, data[prop]);
+								updateInputs(prop);
+							}
+						}
+						clearUpdates();
+					};
+					
+					return {
+						specular : [0.8, 0.8, 0.8],
+						diffuse : [0.6, 0.6, 0.6],
+						ambient : [0.2, 0.2, 0.2],
+						shininess : 20.0,
+						lightPos : [0, 0, 0],
+						zoom : 1.0,
+						blobbiness : 0.0,
+						
+						markAsChanged : markAsChanged,
+						clearUpdates : clearUpdates,
+						setValue : setValue,
+						setElement : setElement,
+						update : update,
+					};
+				}();
+			
 			
 			TabControl.onLoad = function() {
                 
@@ -140,8 +185,11 @@
 				
 				switch (type) {
 					case "rotate":
-						if (controller) {
+						if (data.rot && controller) {
 							controller.updateRotation(data.rot);
+						}
+						if (data.uniforms) {
+							uniforms.update(data.uniforms);
 						}
 						break;
 					case "invite":
@@ -221,12 +269,28 @@
 			
 			/**
 			 Send rotation increment, if any (for shared model viewing)
+			 Updated: Also send changed uniform values
 			 */
 			function sendRotation() {
-				var sendRot = controller.getSendRotation();
+				
+				var sendRot = controller.getSendRotation(),
+					sendUnif = uniforms.clearUpdates(),
+					data = {},
+					doSend = false;
+				
 				if (sendRot) {
-					TabControl.sendMessage("share", "rotate", {rot:sendRot});
+					data.rot = sendRot;
+					doSend = true;
 				}
+				if (sendUnif) {
+					data.uniforms = sendUnif;
+					doSend = true;
+				}
+				
+				if (doSend) {
+					TabControl.sendMessage("share", "rotate", data);
+				}
+				
 				setTimeout(sendRotation, 100);
 			}
 			
@@ -313,10 +377,21 @@
 			 */
 			function updateInputs(name) {
 				var values = uniforms[name];
-				document.getElementById(name + "Color").value = ColorConvert.RGBToHex(values);
-				document.getElementById(name + "0").value = values[0];
-				document.getElementById(name + "1").value = values[1];
-				document.getElementById(name + "2").value = values[2];
+				
+				// This will throw some errors, but whatever :)
+				if (Array.isArray(values)) {
+					document.getElementById(name + "0").value = values[0];
+					document.getElementById(name + "1").value = values[1];
+					document.getElementById(name + "2").value = values[2];
+					
+					var colorInput = document.getElementById(name + "Color");
+					if (colorInput) {
+						colorInput.value = ColorConvert.RGBToHex(values);
+					}
+					
+				} else {
+					document.getElementById(name).value = values;
+				}
 			}
 			
 			/**
@@ -565,7 +640,7 @@
 					onchange="uniforms.setValue('shininess', this.value);"/><br>
 				
 				<h3>Zoom</h3>
-				<input type="range" min=0 max=2 value=1 step=0.01
+				<input id="zoom" type="range" min=0 max=2 value=1 step=0.01
 					onchange="uniforms.setValue('zoom', this.value);"/><br>
 			</div>
 			
@@ -597,20 +672,20 @@
 				<table>
 					<tr>
 						<td style="text-align:right;">x</td>
-						<td><input type="range" min=-5 max=5 value=0 step=0.05
+						<td><input id="lightPos0" type="range" min=-5 max=5 value=0 step=0.05
 							onchange="uniforms.setElement('lightPos', 0, this.value);"/></td>
 					</tr><tr>
 						<td style="text-align:right;">y</td>
-						<td><input type="range" min=-5 max=5 value=0 step=0.05
+						<td><input id="lightPos1" type="range" min=-5 max=5 value=0 step=0.05
 							onchange="uniforms.setElement('lightPos', 1, this.value);"/></td>
 					</tr><tr>
 						<td style="text-align:right;">z</td>
-						<td><input type="range" min=-5 max=5 value=0 step=0.05
+						<td><input id="lightPos2" type="range" min=-5 max=5 value=0 step=0.05
 							onchange="uniforms.setElement('lightPos', 2, this.value);"/></td>
 					</tr>
 				</table>
 				<h3>BLOB!</h3>
-				<input type="range" min=-0.125 max=0.125 value=0 step=0.00125
+				<input id="blobbiness" type="range" min=-0.125 max=0.125 value=0 step=0.00125
 					onchange="uniforms.setValue('blobbiness', this.value);"/><br>
 				</div>
 				
