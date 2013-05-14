@@ -8,6 +8,7 @@
         <script type="text/javascript" src="js/mediaext.js"></script>
         <script type="text/javascript" src="js/lib/webgl-utils.js"></script>
         <script type="text/javascript" src="js/lib/glMatrix-0.9.5.min.js"></script>
+		<script type="text/javascript" src="js/model-controller.js"></script>
         <script type="text/javascript" src="js/image-handling.js"></script>
 		<script type="text/javascript" src="js/kinect-proxy-zigfu.js"></script>
 		<script type="text/javascript" src="js/point-cloud-renderer-x.js"></script>
@@ -22,8 +23,26 @@
 			var isActive = false,
 				streamIDs = [],
 				displayedStreams = {},
-				frameCount = 0;
+				frameCount = 0,
 			
+				// Control panel inputs
+				glContainer,
+				uvScaleSliders,
+				uvOffsetSliders,
+				zScaleSlider,
+				brightnessSlider,
+				lerpCheckbox,
+				useVideoCheckbox,
+				sendDataCheckbox,
+				sendRateSlider;
+			
+			/**
+			 Provides function for encoding/decoding Kinect data when streaming.
+			 
+			 Uses webp compression for video data and png for depth data.
+			 It should use webp for both, but it seems the lossless version
+			 is not available at the moment...
+			 */
 			var StreamCodec = function() {
 				
 				var API = {},
@@ -49,15 +68,20 @@
 					return videoCanvas.toDataURL("image/webp", 0.5);
 				};
 				
-				API.decodeVideo = function(webpVideoString, dstCanvas) {
-					if (!webpVideoString) {
+				API.decodeVideo = function(dataURL, dstCanvas, callback) {
+					if (!dataURL) {
 						return null;
 					}
 					if (!dstCanvas) {
 						dstCanvas = videoCanvas;
 					}
-					videoImage.src = webpVideoString;
-					dstCanvas.getContext("2d").drawImage(videoImage, 0, 0, 160, 120);
+                    videoImage.src = "";
+                    videoImage.onload = function() {
+                        dstCanvas.getContext("2d").drawImage(videoImage, 0, 0, 160, 120);
+                        callback(dstCanvas);
+                    }
+					videoImage.src = dataURL;
+
 					return dstCanvas;
 				};
 				
@@ -76,40 +100,50 @@
 						j += 4;
 					}
 					depthContext.putImageData(imageData, 0, 0);
-					return depthCanvas.toDataURL("image/webp", 0.5);
+					return depthCanvas.toDataURL("image/png"); // webp appears to be lossy, trying png
 				};
 				
-				API.decodeDepth = function(webpDepthString, dst) {
+				API.decodeDepth = function(dataURL, dst, callback) {
 					
-					if (!webpDepthString) {
+					if (!dataURL) {
 						return null;
 					}
 					
-					depthImage.src = webpDepthString;
-					depthContext.drawImage(depthImage, 0, 0, 160, 120);
-					var data = depthContext.getImageData(0, 0, 160, 120).data,
-						i = 0, j = 0, len = data.length, x = 0;
+                    depthImage.src = "";
+                    
+                    depthImage.onload = function() {
+                        
+                        depthContext.drawImage(depthImage, 0, 0, 160, 120);
+                    
+                        var data = depthContext.getImageData(0, 0, 160, 120).data,
+                            i = 0, j = 0, len = data.length, x = 0;
 					
-					while (j < len) {
-						dst[i] = (data[j] << 8) | data[j + 1];
-						x += data[j + 2];
-						i += 1;
-						j += 4;
-					}
+                        while (j < len) {
+                            dst[i] = (data[j] << 8) | data[j + 1];
+                            x += data[j + 2];
+                            i += 1;
+                            j += 4;
+                        }
 					
-					// Make sure the data is valid
-					if (x === dst.length * 255) {
-						return dst;
-					}
-					
-					console.log("Invalid depth data...?");
-					
-					return null;
+                        // Make sure the data is valid
+                        if (x === dst.length * 255) {
+                            callback(dst);
+                        } else {
+                            console.log("Invalid depth data...? " + x / dst.length);
+                            callback(null);
+                        }
+                    }
+                        
+                    depthImage.src = dataURL;
 				};
 				
 				return API;
 			}();
 			
+			/**
+			 One of these is created for each data stream.
+			 Holds a WebGL canvas, renderer, data buffers and a mouse controller
+			 */
 			var PeekDisplay = function() {
 				
 				var zWidth = KinectProxy.DEPTH_DATA_WIDTH,
@@ -121,6 +155,7 @@
 				this.depthBuffer = new Float32Array(zWidth * zHeight);
 				this.bufferCanvas = MediaExt.createCanvas(KinectProxy.RGB_DATA_WIDTH,
 														  KinectProxy.RGB_DATA_HEIGHT);
+				this.controller = new ModelController(this.canvas);
 				
 				// Initialize the vertex buffer
 				vertices = new Float32Array(zWidth * zHeight * 3);
@@ -149,10 +184,23 @@
 			};
 			
 			TabControl.onLoad = function() {
+				
+				glContainer = document.getElementById("container");
+				uvScaleSliders = [document.getElementById("uvScaleX"),
+								  document.getElementById("uvScaleY")];
+				uvOffsetSliders = [document.getElementById("uvOffsetX"),
+								   document.getElementById("uvOffsetY")];
+				zScaleSlider = document.getElementById("zScale");
+				brightnessSlider = document.getElementById("brightness");
+				lerpCheckbox = document.getElementById("lerp");
+				useVideoCheckbox = document.getElementById("useVideo");
+				sendDataCheckbox = document.getElementById("streamData");
+				sendRateSlider = document.getElementById("frameSkip");
+				
 				var pd = new PeekDisplay();
 				streamIDs.push("me");
 				displayedStreams["me"] = pd;
-				document.getElementById("container").appendChild(pd.canvas);
+				glContainer.appendChild(pd.canvas);
             };
 			
 			TabControl.onActivate = function() {
@@ -177,10 +225,12 @@
 				streamIDs.push(streamId);
 				
 				// Add its canvas element
-				document.getElementById("container").appendChild(pd.canvas);
+				glContainer.appendChild(pd.canvas);
 				
 				var myPD = displayedStreams["me"];
-				myPD.canvas.parentNode.removeChild(myPD.canvas);
+				if (myPD.canvas.parentNode) {
+					myPD.canvas.parentNode.removeChild(myPD.canvas);
+				}
 			};
 			
 			TabControl.onStreamRemoved = function(stream) {
@@ -190,10 +240,16 @@
 				
 				if (pd) {
 					
-					// Remove the canvas element
-					pd.canvas.parentNode.removeChild(pd.canvas);
-					// TODO: Add renderer.destroy()
+					// Remove the canvas element from DOM
+					if (pd.canvas.parentNode) {
+						pd.canvas.parentNode.removeChild(pd.canvas);
+					}
+					
+					// Cleanup
+					pd.renderer.destroy();
 					pd.renderer = null;
+					pd.controller.destroy();
+					pd.controller = null;
 					pd.canvas = null;
 					
 					// Remove the stream and PeekDisplay from lists
@@ -204,9 +260,12 @@
 					}
 				}
 				
+				// Add the local stream again, if it's the only one left
 				if (streamIDs.length == 1) {
 					var myPD = displayedStreams["me"];
-					document.getElementById("container").appendChild(myPD.canvas);
+					if (!myPD.parentNode) {
+						glContainer.appendChild(myPD.canvas);
+					}
 				}
 			};
 			
@@ -217,8 +276,10 @@
 					if (isActive) {
 						
 						var pd = displayedStreams[senderId],
-							texture = StreamCodec.decodeVideo(data.video, pd.bufferCanvas),
-							depth = StreamCodec.decodeDepth(data.depth, pd.depthBuffer);
+							texture = StreamCodec.decodeVideo(data.video, pd.bufferCanvas,
+                                                          function(result) {updateScene(senderId, result, null)}),
+							depth = StreamCodec.decodeDepth(data.depth, pd.depthBuffer,
+                                                            function(result) {updateScene(senderId, null, result)});
 						
 						updateScene(senderId, texture, depth);
 					}
@@ -241,9 +302,9 @@
 					return;
 				}
 				
-				var sendData = document.getElementById("streamData").checked,
-					sendVideo = document.getElementById("useVideo").checked,
-					sendRate = parseInt(document.getElementById("frameSkip").value);
+				var sendData = sendDataCheckbox.checked,
+					sendVideo = useVideoCheckbox.checked,
+					sendRate = parseInt(sendRateSlider.value);
 				
 				// DEBUG: show the video in a separate canvas
 				// canvas.getContext("2d").putImageData(videoData, 0, 0);
@@ -256,14 +317,17 @@
 				if (sendData && frameCount % sendRate == 0) {
 					
 					var data = {
-						depth:StreamCodec.encodeDepth(depthData) // rawDepth,
+						depth:StreamCodec.encodeDepth(depthData), // rawDepth,
+						video:StreamCodec.encodeVideo(videoData), // rawVideo,
 					};
+					
+					/*
 					if (sendVideo) {
 						data.video = StreamCodec.encodeVideo(videoData); // rawVideo;
 					}
-					
-					// console.log((data.video.length + data.depth.length));
-					// console.log((data.video.length + data.depth.length) / (rawVideo.length + rawDepth.length));
+					console.log((data.video.length + data.depth.length));
+					console.log((data.video.length + data.depth.length) / (rawVideo.length + rawDepth.length));
+					*/
 					
 					// Send the Kinect data
 					TabControl.sendMessage("peek", "kinect", data);
@@ -281,11 +345,12 @@
 				}
 				
 				var renderer = pd.renderer,
+					controller = pd.controller,
 					maxDepth = 5000,
-					zScale = 1.0 / parseFloat(document.getElementById("zScale").value),
-					brightness = parseFloat(document.getElementById("brightness").value),
-					lerp = document.getElementById("lerp").checked,
-					useVideo = document.getElementById("useVideo").checked,
+					zScale = 1.0 / parseFloat(zScaleSlider.value),
+					brightness = parseFloat(brightnessSlider.value),
+					lerp = lerpCheckbox.checked,
+					useVideo = useVideoCheckbox.checked,
 					pos = lerp ? pd.vertices2x : pd.vertices,
 					width = KinectProxy.DEPTH_DATA_WIDTH,
 					height = KinectProxy.DEPTH_DATA_HEIGHT,
@@ -336,19 +401,17 @@
 					for (y = 0, index = 0; y < height; y++) {
 						for (x = 0; x < width; x++, index++) {
 							pos[index * 3 + 2] = depth[index];
-							/* var z = depth[index];
-							 if (z > 0 && z < maxDepth) {
-							 pos[index * 3 + 2] = z;
-							 }*/
 						}
 					}
 				}
 				
+				controller.setScaleVec([1.0, -1.0, -zScale]);
+                controller.setCenterOfRotation([-80, -60, -1000]);
+				controller.setPosition([0, 0, -200]);
+				
 				renderer.setUseVideo(useVideo);
+				renderer.setLookAtPoint([0, 0, -200]);
 				renderer.setBrightness(brightness);
-				renderer.setScale([1.0, -1.0, -zScale]);
-                renderer.setCenterOfRotation([-80, -60, -1000]);
-				renderer.setPosition([0, 0, -200]);
 				renderer.bufferData(pos);
 			}
 			
@@ -356,15 +419,17 @@
 				
 				requestAnimFrame(drawScene);
 				
-				var uvScale = [parseFloat(document.getElementById("uvScaleX").value),
-							   parseFloat(document.getElementById("uvScaleY").value)],
-					uvOffset = [parseFloat(document.getElementById("uvOffsetX").value),
-								parseFloat(document.getElementById("uvOffsetY").value)],
+				var uvScale = [parseFloat(uvScaleSliders[0].value),
+							   parseFloat(uvScaleSliders[1].value)],
+					uvOffset = [parseFloat(uvOffsetSliders[0].value),
+								parseFloat(uvOffsetSliders[1].value)],
 					i, pd;
 				
 				for (i = 0; i < streamIDs.length; i++) {
 					pd = displayedStreams[streamIDs[i]];
 					if (pd.canvas.parentNode) {
+						mvMatrix = pd.controller.getModelViewMatrix();
+						pd.renderer.setModelViewMatrix(mvMatrix);
 						pd.renderer.setUVOffset(uvOffset);
 						pd.renderer.setUVScale(uvScale);
 						pd.renderer.render();
@@ -376,6 +441,7 @@
 				for (var i = 0; i < streamIDs.length; i++) {
 					var pd = displayedStreams[streamIDs[i]];
 					pd.renderer.resetCamera();
+					pd.controller.resetRotation();
 				}
 			}
 			

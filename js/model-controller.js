@@ -88,7 +88,7 @@ ModelController = function(canvas) {
 	
 	var cor = vec3.create([0, 0, 0]),
 		pos = vec3.create([0, 0, 0]),
-		scale = 1.0,
+		scale = vec3.create([1.0, 1.0, 1.0]),
 		zoom = 1.0,
 		rotationMatrix = mat4.create(),
 		mvMatrix = mat4.create(),
@@ -110,11 +110,17 @@ ModelController = function(canvas) {
 		hasValidMVMatrix = false;
 	}
 	
+	// RENAME!
 	this.setScale = function(val) {
-		scale = val;
+		scale[0] = val;
+		scale[1] = val;
+		scale[2] = val;
 		hasValidMVMatrix = false;
 	}
-	
+	this.setScaleVec = function(vec) {
+		vec3.set(vec, scale);
+		hasValidMVMatrix = false;
+	}
 	this.setZoom = function(val) {
 		zoom = val;
 		hasValidMVMatrix = false;
@@ -165,17 +171,20 @@ ModelController = function(canvas) {
 			return mvMatrix;
 		}
 		
-		var totScale = scale * zoom;
-		
 		mat4.identity(mvMatrix);
 		mat4.translate(mvMatrix, pos);
 		mat4.multiply(mvMatrix, rotationMatrix);
-		mat4.scale(mvMatrix, [totScale, totScale, totScale]);
+		mat4.scale(mvMatrix, [scale[0] * zoom, scale[1] * zoom, scale[2] * zoom]);
 		mat4.translate(mvMatrix, cor);
 		
 		hasValidMVMatrix = true;
 		
 		return mvMatrix;
+	}
+	
+	this.resetRotation = function() {
+		mat4.identity(rotationMatrix);
+		hasValidMVMatrix = false;
 	}
 	
 	// Add mouse event handlers to canvas
@@ -269,7 +278,7 @@ ModelController = function(canvas) {
 	this.getSendRotation = function() {
 		
 		if (!hasDataToSend) {
-			return null;
+			return; // undefined
 		}
 		
 		var quat = new Array(4); // quat4.create();

@@ -38,10 +38,11 @@ PointCloudRendererX = function(canvas) {
 					"}",
 					
 					// "uv2 = vec2((z - 500.0) / 2000.0, 0.0);",
+				 
 					"gl_PointSize = -(pos.z / pos.w - 1.0) * 8.0;", // * pointSize
 				 
 					"if (z == 0.0) {",
-						"gl_Position = vec4(0, 0, 10000, 1);", // this will be clipped
+						"gl_Position = vec4(0, 0, 10000, 1);", // this will be clipped(?)
 					"} else {",
 						"gl_Position = pos;",
 					"}",
@@ -56,8 +57,10 @@ PointCloudRendererX = function(canvas) {
 				 
 				 "uniform bool useVideo;",
 				 "uniform float brightness;",
+				 
 				 "varying vec2 uv;",
 				 "varying vec2 uv2;",
+				 
 				 "void main(void) {",
 					"if (useVideo) {",
 						"gl_FragColor = vec4(texture2D(tex, uv).rgb * brightness, 1.0);",
@@ -101,13 +104,22 @@ PointCloudRendererX = function(canvas) {
 	vertexBuffer.itemSize = 3;
 	vertexBuffer.numItems = 0;
 	
-	var mvMatrix = mat4.create();
-	var pMatrix = mat4.create();
+	var mvMatrix = mat4.create(),
+		pMatrix = mat4.create(),
+		cameraMatrix = mat4.create();
 	
-	var eye = vec3.create([0, 0, 0]);
+	mat4.identity(mvMatrix);
+	mat4.identity(pMatrix);
+	mat4.identity(cameraMatrix);
 	
-	var degToRad = function(degrees) {
-		return degrees * Math.PI / 180;
+	var eye = vec3.create([0, 0, 0]),
+		lookAt = vec3.create([0, 0, 0]);
+	
+	this.setModelViewMatrix = function(mat) {
+		mat4.set(mat, mvMatrix);
+	};
+	this.setLookAtPoint = function(vec) {
+		vec3.set(vec, lookAt);
 	}
 	
 	this.bufferData = function(vertices) {
@@ -178,30 +190,8 @@ PointCloudRendererX = function(canvas) {
 	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 512, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, hsvTexData);
 	gl.activeTexture(gl.TEXTURE0);
 	
-	var cor = vec3.create([0, 0, 0]),
-		pos = vec3.create([0, 0, 0]),
-		scale = vec3.create([1, 1, 1]),
-		brightness = 1.0,
-		rotX = 0.0, rotY = 0.0,
+	var brightness = 1.0,
 		useVideo = false;
-	
-	this.setCenterOfRotation = function(vec) {
-		cor[0] = vec[0];
-		cor[1] = vec[1];
-		cor[2] = vec[2];
-	}
-	
-	this.setPosition = function(vec) {
-		pos[0] = vec[0];
-		pos[1] = vec[1];
-		pos[2] = vec[2];
-	}
-	
-	this.setScale = function(vec) {
-		scale[0] = vec[0];
-		scale[1] = vec[1];
-		scale[2] = vec[2];
-	}
 	
 	this.setBrightness = function(value) {
 		brightness = value;
@@ -232,13 +222,9 @@ PointCloudRendererX = function(canvas) {
 		
 		mat4.perspective(45, canvas.width / canvas.height, 50.0, 1000.0, pMatrix);
 		
-		mat4.identity(mvMatrix);
-		mat4.lookAt(eye, pos, [0, 1, 0], mvMatrix);
-		mat4.translate(mvMatrix, pos);
-		mat4.rotateY(mvMatrix, rotX);
-		mat4.rotateX(mvMatrix, rotY);
-		mat4.scale(mvMatrix, scale);
-		mat4.translate(mvMatrix, cor);
+		mat4.identity(cameraMatrix);
+		mat4.lookAt(eye, lookAt, [0, 1, 0], cameraMatrix);
+		mat4.multiply(cameraMatrix, mvMatrix, mvMatrix);
 		
 		gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
 		gl.vertexAttribPointer(prog.attrPosition, vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
@@ -259,48 +245,6 @@ PointCloudRendererX = function(canvas) {
 		gl.drawArrays(gl.POINTS, 0, vertexBuffer.numItems);
 	}
 	
-	// Add mouse event handlers to canvas
-	// Allows for rotation of the scene
-	
-	var mouseDown = false;
-	var lastMouseX = null;
-	var lastMouseY = null;
-	
-	function handleMouseDown(event) {
-		mouseDown = true;
-		lastMouseX = event.clientX;
-		lastMouseY = event.clientY;
-	}
-	
-	function handleMouseUp(event) {
-		mouseDown = false;
-	}
-
-	function handleMouseMove(event) {
-		if (!mouseDown) {
-			return;
-		}
-		moveCursor(event.clientX, event.clientY);
-	}
-	
-	var moveCursor = function(x, y) {
-		
-		var deltaX = x - lastMouseX;
-		var deltaY = y - lastMouseY;
-		
-		if (deltaX < 30) {
-			rotX += degToRad(deltaX / 5);
-		}
-		if (deltaY < 30) {
-			rotY += degToRad(deltaY / 5);
-		}
-		
-		lastMouseX = x;
-		lastMouseY = y;
-	}
-	
-	this.moveCursor = moveCursor;
-	
 	var prevHeadPos = null;
 	this.headMoved = function(headPos) {
 		
@@ -320,17 +264,21 @@ PointCloudRendererX = function(canvas) {
 		vec3.set([0, 0, 0], eye);
 	}
 	
-	this.resetCursor = function() {
-		mouseDown = false;
-		lastMouseX = null;
-		lastMouseY = null;
-		rotX = 0.0;
-		rotY = 0.0;
-	}
-	
-	canvas.addEventListener("mousedown", handleMouseDown, false);
-	document.addEventListener("mouseup", handleMouseUp, false);
-	document.addEventListener("mousemove", handleMouseMove, false);
+	this.destroy = function() {
+		
+		var shaders = gl.getAttachedShaders(prog);
+		for (var i = 0; i < shaders.length; i++) {
+			gl.deleteShader(shaders[i]);
+		}
+		gl.deleteProgram(prog);
+		gl.deleteBuffer(vertexBuffer);
+		gl.deleteTexture(texture);
+		gl.deleteTexture(hsvTexture);
+		
+		gl = null;
+		prog = null;
+		canvas = null;
+	};
 };
 
 
