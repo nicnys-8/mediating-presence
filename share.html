@@ -21,6 +21,50 @@
         <link rel="stylesheet" type="text/css" href="css/pb.css"/>
         <link rel="stylesheet" type="text/css" href="css/pointcloud.css"/>
 		
+		<script>
+			
+			/**
+			Functions for converting colors between "#RRGGBB" and [r, g, b] 
+			 (hex string to normalized float array)
+			*/
+			var ColorConvert = function() {
+				
+				const haxHex = "0123456789abcdef", maskUpper = 0xf0, maskLower = 0x0f;
+				var API = {};
+				
+				API.hexToRGB = function(value, dst) {
+					
+					var R = ((haxHex.indexOf(value[1])) << 4 | haxHex.indexOf(value[2])) / 255.0,
+						G = ((haxHex.indexOf(value[3])) << 4 | haxHex.indexOf(value[4])) / 255.0,
+						B = ((haxHex.indexOf(value[5])) << 4 | haxHex.indexOf(value[6])) / 255.0;
+					
+					if (!dst) {
+						dst = [];
+					}
+					
+					dst[0] = R;
+					dst[1] = G;
+					dst[2] = B;
+					
+					return dst;
+				};
+				
+				API.RGBToHex = function(rgb) {
+					var R, G, B, hex;
+					R = Math.round(rgb[0] * 255);
+					G = Math.round(rgb[1] * 255);
+					B = Math.round(rgb[2] * 255);
+					hex = "#" + haxHex[(R & maskUpper) >> 4] + haxHex[R & maskLower] +
+								haxHex[(G & maskUpper) >> 4] + haxHex[G & maskLower] +
+								haxHex[(B & maskUpper) >> 4] + haxHex[B & maskLower];
+					return hex;
+				}
+				
+				return API;
+			}();
+			
+		</script>
+			
         <script type="text/javascript">
 			
 			var glCanvas,
@@ -107,15 +151,15 @@
 				
 				// Initialize the control panel for material properties
 				document.getElementById("specularColor").onchange = function() {
-					ColorConvert.hexToRGB(this.value, uniforms.specular);
+					uniforms.setValue("specular", ColorConvert.hexToRGB(this.value));
 					updateInputs("specular");
 				};
 				document.getElementById("diffuseColor").onchange = function() {
-					ColorConvert.hexToRGB(this.value, uniforms.diffuse);
+					uniforms.setValue("diffuse", ColorConvert.hexToRGB(this.value));
 					updateInputs("diffuse");
 				};
 				document.getElementById("ambientColor").onchange = function() {
-					ColorConvert.hexToRGB(this.value, uniforms.ambient);
+					uniforms.setValue("ambient", ColorConvert.hexToRGB(this.value));
 					updateInputs("ambient");
 				};
 				document.getElementById("shininess").value = uniforms.shininess;
@@ -534,45 +578,6 @@
 				}
 			}
 			
-			/**
-			 Functions for converting colors between hex and [rgb]
-			 */
-			var ColorConvert = function() {
-				
-				const haxHex = "0123456789abcdef", maskUpper = 0xf0, maskLower = 0x0f;
-				var API = {};
-				
-				API.hexToRGB = function(value, dst) {
-				
-					var R = ((haxHex.indexOf(value[1])) << 4 | haxHex.indexOf(value[2])) / 255.0,
-						G = ((haxHex.indexOf(value[3])) << 4 | haxHex.indexOf(value[4])) / 255.0,
-						B = ((haxHex.indexOf(value[5])) << 4 | haxHex.indexOf(value[6])) / 255.0;
-					
-					if (!dst) {
-						dst = [];
-					}
-				
-					dst[0] = R;
-					dst[1] = G;
-					dst[2] = B;
-				
-					return dst;
-				};
-			
-				API.RGBToHex = function(rgb) {
-					var R, G, B, hex;
-					R = Math.round(rgb[0] * 255);
-					G = Math.round(rgb[1] * 255);
-					B = Math.round(rgb[2] * 255);
-					hex = "#" + haxHex[(R & maskUpper) >> 4] + haxHex[R & maskLower] +
-								haxHex[(G & maskUpper) >> 4] + haxHex[G & maskLower] +
-								haxHex[(B & maskUpper) >> 4] + haxHex[B & maskLower];
-					return hex;
-				}
-				
-				return API;
-			}();
-			
             </script>
         
     </head>
@@ -637,11 +642,8 @@
 				
 				<h3>Shininess</h3>
 				<input id="shininess" type="range" min=0 max=255 value=127
-					onchange="uniforms.setValue('shininess', this.value);"/><br>
+					onchange="uniforms.setValue('shininess', this.value);"/>
 				
-				<h3>Zoom</h3>
-				<input id="zoom" type="range" min=0 max=2 value=1 step=0.01
-					onchange="uniforms.setValue('zoom', this.value);"/><br>
 			</div>
 			
 		</div>
@@ -656,11 +658,6 @@
 					<progress id="progressBar" value=0 max=100></progress>
 				</div>
 			</div>
-			
-			<button id="shareButton" onclick="sendShareInvite();"
-				style="padding:1em; margin:0em;" disabled=true>Share!</button>
-			<button id="clearButton" onclick="clearGLCanvas();"
-				style="padding:1em; margin:0em;" disabled=true>Clear</button>
 		</div>
 		
 		<div id="sidebar-right">
@@ -684,12 +681,21 @@
 							onchange="uniforms.setElement('lightPos', 2, this.value);"/></td>
 					</tr>
 				</table>
+				<h2>Misc.</h2>
 				<h3>BLOB!</h3>
 				<input id="blobbiness" type="range" min=-0.125 max=0.125 value=0 step=0.00125
 					onchange="uniforms.setValue('blobbiness', this.value);"/><br>
-				</div>
 				
+				<h3>Zoom</h3>
+				<input id="zoom" type="range" min=0 max=2 value=1 step=0.01
+					onchange="uniforms.setValue('zoom', this.value);"/>
 			</div>
+			
+			<button id="shareButton" onclick="sendShareInvite();"
+				style="padding:1em; margin:0em;" disabled=true>Share!</button>
+			<button id="clearButton" onclick="clearGLCanvas();"
+				style="padding:1em; margin:0em;" disabled=true>Clear</button>
+		</div>
 		
 		</div>
         

@@ -6,7 +6,7 @@
 <html>
     <head>
         
-        <title>Menu?</title>
+        <title>Chat</title>
 		
         <style type="text/css">
 			
@@ -42,61 +42,80 @@
 				/*background-color:lightblue;*/
 			}
 			
-			.video-thumb {
-				position:relative;
-				display:block;
-				margin:20px auto;
-				width:160px;
-				height:120px;
-				/*background-color:lightyellow;*/
-			}
-			
 			#content {
+				position:absolute;
 				left:200px;
 				right:200px;
-				height:100%;
+				top:0;
+				bottom:0;
 				/*background-color:lightgreen;*/
 			}
 			
-			#large-video {
-				position:relative;
-				width:80%;
-				height:50%;
-				margin:10% 10% 5% 10%;
+			#video-container {
+				position:absolute;
+				width:100%;
+				top:1em;
+				bottom:12em;
 				/*background-color:pink;*/
+			}
+			#large-video {
+				width:100%;
+				height:100%;
 			}
 			
 			#text-chat {
-				position:relative;
+				position:absolute;
+				width:100%;
+				bottom:0;
+				height:12em;
+				/*background-color:red;*/
+			}
+			
+			#chat-area {
+				position:absolute;
+				bottom:3.5em;
+				height:12.5em;
+				width:100%;
+			}
+			
+			#chat-input {
+				position:absolute;
+				bottom:0.5em;
 				width:80%;
-				height:35%;
-				margin:0% 10% 0% 10%;
+				height:2.5em;
+			}
+			
+			#send-button {
+				position:absolute;
+				bottom:0.5em;
+				right:0;
+				width:18%;
+				height:2.5em;
 			}
 			</style>
 		
 		<script type="text/javascript" src="js/tab-control.js"></script>
 		<script type="text/javascript" src="js/mediaext.js"></script>
-		<script type="text/javascript" src="js/lib/jquery.js"></script>
+		<script type="text/javascript" src="js/lib/webgl-utils.js"></script>
 		
 		<script>
 			
-			var timer = null;
-			var streamIDs = [];
-			var streams = {};
-			var currentStreamID = null; // current stream (get it? haha..)
-			var myStream;
+			var streamIDs = [],
+				streams = {},
+				currentStreamID = null, // current stream (get it? haha..)
+				myStream,
+				videoCanvas;
 			
 			TabControl.onActivate = function() {
-				drawThumbs();
+				requestAnimFrame(drawThumbs);
 			}
 			
 			TabControl.onDeactivate = function() {
-				clearTimeout(timer);
-				timer = null;
+				cancelAnimFrame(drawThumbs);
 			}
 			
 			TabControl.onLocalStreamInit = function(stream) {
-				console.log("chat::LocalStreamInit");
+				
 				myStream = stream;
 				
 				var streamID = "myStream";
@@ -117,8 +136,8 @@
 			
 			TabControl.onStreamRemoved = function(stream) {
 				
-				var streamID = stream.getID();
-				var index = streamIDs.indexOf(streamID);
+				var streamID = stream.getID(),
+					index = streamIDs.indexOf(streamID);
 				
 				// Remove the stream ID
 				if (index != -1) {
@@ -139,10 +158,10 @@
 			}
 			
 			TabControl.onMessageReceived = function(senderId, type, data) {
-				if (type == "msg") {
+				if (type === "msg") {
 					showChatMessage(senderId, data);
 				} else if (type == "currentStream") {
-					if (streamIDs.indexOf(data) != -1) {
+					if (streamIDs.indexOf(data) !== -1) {
 						currentStreamID = data;
 					}
 				}
@@ -153,32 +172,28 @@
 			
             TabControl.onLoad = function() {
 				/*
-				 // For local testing:
+				 // Fake stream for local testing
 				 var video = MediaExt.getCameraAccess(640, 480, function() {
-				 TabControl.onStreamAdded({
-				 getID:function() { return "hej"; },
-				 hasVideo:function() { return false; },
-				 });
-				 TabControl.onStreamAdded({
-				 getID:function() { return "hej2"; },
-				 hasVideo:function() { return false; },
-				 });
-				 });
-				 */
+													  TabControl.onStreamAdded({
+																			   getID:function() { return "hej"; },
+																			   video:video,
+																			   })
+													  });
+				 
+				*/
 				
-				console.log("chat::Load");
+				videoCanvas = document.getElementById("large-video");
 				
 				var onWidowResize = function() {
-					var canvas = document.getElementById("large-video");
-					canvas.width = canvas.offsetWidth;
-					canvas.height = canvas.offsetHeight;
+					videoCanvas.width = videoCanvas.offsetWidth;
+					videoCanvas.height = videoCanvas.offsetHeight;
 				}
 				onWidowResize();
 				window.addEventListener("resize", onWidowResize, false);
 				
 				var textArea = document.getElementById("chat-input");
 				textArea.onkeypress = function(evt) {
-					if (evt.keyCode == 13) {
+					if (evt.keyCode === 13) {
 						sendChatMessage();
 						return false;
 					}
@@ -187,39 +202,41 @@
 			}
 			
 			function drawThumbs() {
-			
+				
+				requestAnimFrame(drawThumbs);
+				
 				if (currentStreamID) {
 					
-					var canvas = document.getElementById("large-video");
-					var ctx = canvas.getContext("2d");
-					var stream = streams[currentStreamID];
+					var ctx = videoCanvas.getContext("2d"),
+						stream = streams[currentStreamID],
+						h, w, x, y;
 					
 					if (stream && stream.video) {
-						var h = Math.min(canvas.width * 0.75, canvas.height);
-						var w = h * 4.0 / 3.0;
-						var x = (canvas.width - w) / 2.0;
-						ctx.drawImage(stream.video, x, 0, w, h);
+						h = Math.min(videoCanvas.width * 0.75, videoCanvas.height);
+						w = h * 4.0 / 3.0;
+						x = (videoCanvas.width - w) / 2.0;
+						y = (videoCanvas.height - h);
+						ctx.drawImage(stream.video, x, y, w, h);
 					}
 				}
-				
-				timer = setTimeout(drawThumbs, 100);
 			}
 			
-			function showChatMessage(sender, message) {
+			function showChatMessage(senderId, message) {
 				
 				if (!message) {
 					return;
 				}
 				
-				var textOut = document.getElementById("chat-area");
+				var textOut = document.getElementById("chat-area"),
+					sender = (senderId === "You") ? "You" : streams[senderId].username;
 				textOut.value = textOut.value + "\n" + sender + " said: " + message;
 				textOut.scrollTop = textOut.scrollHeight;
 			}
 			
 			function sendChatMessage() {
 				
-				var textIn = document.getElementById("chat-input");
-				var message = textIn.value.trim();
+				var textIn = document.getElementById("chat-input"),
+					message = textIn.value.trim();
 				
 				if (message) {
 					showChatMessage("You", message);
@@ -240,15 +257,13 @@
 			<div id="sidebar-left"></div>
 			
 			<div id="content">
-				<canvas id="large-video"></canvas>
-				
+				<div id="video-container">
+					<canvas id="large-video"></canvas>
+				</div>
 				<div id="text-chat">
-					<textarea id="chat-area" disabled=true style="position:relative; width:100%; height:70%; margin-bottom:5px;">Text chat!</textarea>
-					<br>
-					<textarea id="chat-input" rows="1" style="position:relative; width:80%; height:2em; margin:0 5px 0 0;"></textarea>
-					<button
-						style="width:18%; height:2em; margin-top:0;"
-						onclick="sendChatMessage();">Send</button>
+					<textarea id="chat-area" disabled=true>Text chat!</textarea>
+					<textarea id="chat-input"></textarea>
+					<button id="send-button" onclick="sendChatMessage();">Send</button>
 				</div>
 			</div>
 			

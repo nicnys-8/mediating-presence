@@ -379,9 +379,9 @@
 					width = KinectProxy.DEPTH_DATA_WIDTH,
 					height = KinectProxy.DEPTH_DATA_HEIGHT,
 					x, y, z,
-					zr, zb, zbr,
-					zLerp, index,
-					index2x = 2, width2x = width * 6;
+					zE, zS, zSE,
+					zLerp,
+					index, index2x = 2, width2x = width * 6;
 				
 				if (video && useVideo) {
 					renderer.setTexture(video);
@@ -397,25 +397,25 @@
 						for (x = 0; x < width; x++, index++, index2x += 6) {
 							
 							z = depth[index];
-							zr = depth[index + 1];
-							zb = depth[index + width];
-							zbr = depth[index + width + 1];
+							zE = depth[index + 1];
+							zS = depth[index + width];
+							zSE = depth[index + width + 1];
 							
 							pos[index2x] = z;
 							
 							// Interpolate right
-							zLerp = (zr && x < width - 1 && Math.abs(zr - z) < 30)
-								? (z + zr) * 0.5 : 0;
+							zLerp = (zE && x < width - 1 && Math.abs(zE - z) < 30)
+								? (z + zE) * 0.5 : 0;
 							pos[index2x + 3] = zLerp;
 							
 							// Interpolate bottom
-							zLerp = (zb && y < height - 1 && Math.abs(zb - z) < 30)
-								? (z + zb) * 0.5 : 0;
+							zLerp = (zS && y < height - 1 && Math.abs(zS - z) < 30)
+								? (z + zS) * 0.5 : 0;
 							pos[index2x + width2x] = zLerp;
 							
 							// Interpolate bottom-right
-							zLerp = (zbr && x < width - 1 && y < height - 1 && Math.abs(zbr - z) < 30)
-								? (z + zbr) * 0.5 : 0;
+							zLerp = (zSE && x < width - 1 && y < height - 1 && Math.abs(zSE - z) < 30)
+								? (z + zSE) * 0.5 : 0;
 							pos[index2x + width2x + 3] = zLerp;
 						}
 						index2x += width2x;
@@ -427,6 +427,12 @@
 							pos[index * 3 + 2] = depth[index];
 						}
 					}
+					/*
+					 Maybe just:
+					for (var i = 0, len = depth.length; i < len; ++i) {
+						pos[i * 3 + 2] = depth[i];
+					}
+					 */
 				}
 				
 				controller.setScaleVec([1.0, -1.0, -zScale]);
@@ -478,22 +484,7 @@
 		<div id="sidebar-left">
 			<div class="control-panel" id="controls-left">
 				
-				<h2>Controls</h2>
-				<h3>View</h3>
-				<table style="margin:0px auto;">
-					<tr>
-						<td style="text-align:right;">Z-Scale:</td>
-						<td><input id="zScale" type="range" min="1" max="20" value="5" step="0.05"></td>
-					</tr><tr>
-						<td style="text-align:right;">Brightness:</td>
-						<td><input id="brightness" type="range" min="0" max="5" step="0.01" value="1"></td>
-					</tr><tr>
-						<td style="text-align:right;">Interpolate:</td>
-						<td><input id="lerp" type="checkbox"></td>
-					</tr>
-				</table>
-				
-				<h3>Stream</h3>
+				<h2>Stream</h2>
 				<table style="margin:0px auto;">
 					<tr>
 						<td style="text-align:right;">Stream:</td>
@@ -504,11 +495,11 @@
 					</tr>
 				</table>
 				
-				<h3>Texture</h3>
+				<h2>Texture</h2>
 				<table style="margin:0px auto;">
 					<tr>
 						<td style="text-align:right;">Video texture:</td>
-						<td><input id="useVideo" type="checkbox"></td>
+						<td><input id="useVideo" type="checkbox" checked="true"></td>
 					</tr><tr>
 						<td style="text-align:right;">UV scale x:</td>
 						<td><input id="uvScaleX" type="range" min="0.5" max="1.5" step="0.01" value="0.9"></td>
@@ -524,8 +515,6 @@
 					</tr>
 				</table>
 				
-				<button onclick="resetCameras();">Reset camera</button>
-				
 			</div>
 		</div>
 		
@@ -538,6 +527,26 @@
 		</div>
 		
 		<div id="sidebar-right">
+			<div class="control-panel" id="controls-right">
+				
+				<h2>View</h2>
+				<table style="margin:0px auto;">
+					<tr>
+						<td style="text-align:right;">Z-Scale:</td>
+						<td><input id="zScale" type="range" min="1" max="20" value="5" step="0.05"></td>
+					</tr><tr>
+						<td style="text-align:right;">Brightness:</td>
+						<td><input id="brightness" type="range" min="0" max="5" step="0.01" value="1"></td>
+					</tr><tr>
+						<td style="text-align:right;">Interpolate:</td>
+						<td><input id="lerp" type="checkbox"></td>
+					</tr>
+				</table>
+				
+				<h2>Camera</h2>
+				<button onclick="resetCameras();">Reset camera</button>
+				
+			</div>
 		</div>
 </html>
 
