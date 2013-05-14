@@ -73,7 +73,7 @@ MeshRenderer = function(canvas) {
 			vertices = new Float32Array(vertices);
 		}
 		if (Array.isArray(colors)) {
-			normals = new Float32Array(colors);
+			colors = new Float32Array(colors);
 		}
 		if (Array.isArray(faces)) {
 			faces = new Uint16Array(faces);
