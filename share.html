@@ -301,6 +301,10 @@
 			 */
 			function acceptShared3DModel() {
 				// TODO: switchToTab("#share");
+				// SuperHAXX (find a better solution!:)
+				if (window.top.switchToTab) {
+					window.top.switchToTab("#share");
+				}
 				TabControl.sendMessage("share", "inviteAccepted", {});
 			}
 			

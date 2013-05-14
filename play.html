@@ -127,6 +127,11 @@
 					
 					function acceptKlotskiInvite() {
 						// TODO: switchToTab("#play");
+						// SuperHAXX (find a better solution!:)
+						if (window.top.switchToTab) {
+							window.top.switchToTab("#play");
+						}
+						
 						TabControl.sendMessage("play", "inviteAccepted", { turn : false });
 						// HAXX: a fake message to self to start the local klotski game as well
 						TabControl.onMessageReceived(null, "inviteAccepted", {turn : true });
