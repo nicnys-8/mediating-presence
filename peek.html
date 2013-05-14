@@ -197,11 +197,9 @@
 				
 				var onResize = function() {
 					var pd, i;
-					if (glCanvas) {
-						for (i = 0; i < streamIDs.length; i++) {
-							pd = displayedStreams[streamIDs[i]];
-							pd.updateCanvasSize();
-						}
+					for (i = 0; i < streamIDs.length; i++) {
+						pd = displayedStreams[streamIDs[i]];
+						pd.updateCanvasSize();
 					}
 				};
 				window.addEventListener("resize", onResize, false);
@@ -299,13 +297,15 @@
 					
 					if (isActive) {
 						
-						var pd = displayedStreams[senderId],
-							texture = StreamCodec.decodeVideo(data.video, pd.bufferCanvas,
-                                                          function(result) {updateScene(senderId, result, null)}),
-							depth = StreamCodec.decodeDepth(data.depth, pd.depthBuffer,
-                                                            function(result) {updateScene(senderId, null, result)});
+						var pd = displayedStreams[senderId], texture, depth;
 						
-						updateScene(senderId, texture, depth);
+						if (pd) {
+							texture = StreamCodec.decodeVideo(data.video, pd.bufferCanvas,
+															  function(result) {updateScene(senderId, result, null)}),
+							depth = StreamCodec.decodeDepth(data.depth, pd.depthBuffer,
+															function(result) {updateScene(senderId, null, result)});
+							// updateScene(senderId, texture, depth);
+						}
 					}
 				}
 			};
