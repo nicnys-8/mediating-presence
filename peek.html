@@ -151,6 +151,7 @@
 					vertices, vertices2x, index;
 				
 				this.canvas = MediaExt.createCanvas(VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
+				this.canvas.className = "gl-canvas";
 				this.renderer = new PointCloudRendererX(this.canvas);
 				this.depthBuffer = new Float32Array(zWidth * zHeight);
 				this.bufferCanvas = MediaExt.createCanvas(KinectProxy.RGB_DATA_WIDTH,
@@ -181,9 +182,29 @@
 				
 				this.vertices = vertices;
 				this.vertices2x = vertices2x;
+				
+				this.updateCanvasSize = function() {
+					if (this.canvas.width !== this.canvas.offsetWidth) {
+						this.canvas.width = this.canvas.offsetWidth;
+					}
+					if (this.canvas.height !== this.canvas.offsetHeight) {
+						this.canvas.height = this.canvas.offsetHeight;
+					}
+				}
 			};
 			
 			TabControl.onLoad = function() {
+				
+				var onResize = function() {
+					var pd, i;
+					if (glCanvas) {
+						for (i = 0; i < streamIDs.length; i++) {
+							pd = displayedStreams[streamIDs[i]];
+							pd.updateCanvasSize();
+						}
+					}
+				};
+				window.addEventListener("resize", onResize, false);
 				
 				glContainer = document.getElementById("container");
 				uvScaleSliders = [document.getElementById("uvScaleX"),
@@ -201,6 +222,7 @@
 				streamIDs.push("me");
 				displayedStreams["me"] = pd;
 				glContainer.appendChild(pd.canvas);
+				pd.updateCanvasSize();
             };
 			
 			TabControl.onActivate = function() {
@@ -226,6 +248,7 @@
 				
 				// Add its canvas element
 				glContainer.appendChild(pd.canvas);
+				pd.updateCanvasSize();
 				
 				var myPD = displayedStreams["me"];
 				if (myPD.canvas.parentNode) {
@@ -265,6 +288,7 @@
 					var myPD = displayedStreams["me"];
 					if (!myPD.parentNode) {
 						glContainer.appendChild(myPD.canvas);
+						myPD.updateCanvasSize();
 					}
 				}
 			};
@@ -513,5 +537,7 @@
 			</div>
 		</div>
 		
+		<div id="sidebar-right">
+		</div>
 </html>
 
