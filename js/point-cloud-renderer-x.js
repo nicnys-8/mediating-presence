@@ -245,13 +245,18 @@ PointCloudRendererX = function(canvas) {
 		gl.drawArrays(gl.POINTS, 0, vertexBuffer.numItems);
 	}
 	
+	var parallax = 0.33;
+	this.setParallax = function(value) {
+		parallax = Number(value);
+	}
+	
 	var prevHeadPos = null;
 	this.headMoved = function(headPos) {
 		
 		if (prevHeadPos != null) {
 			var delta = vec3.create();
 			var delta = vec3.subtract(headPos, prevHeadPos, delta);
-			// vec3.scale(delta, 1.0 / 5.0);
+			vec3.scale(delta, parallax);
 			delta[2] = 0; // *= 0.1;
 			vec3.add(eye, delta);
 			vec3.set(headPos, prevHeadPos);
