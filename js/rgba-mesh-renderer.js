@@ -29,7 +29,7 @@ MeshRenderer = function(canvas) {
 				  ].join("\n");
 		
 	// Get the WebGL context
-	var gl = WebGLUtils.setupWebGL(canvas);
+	var gl = WebGLUtils.setupWebGL(canvas, {preserveDrawingBuffer: true});
 	
 	// Create the shader program
 	var prog = WebGLUtils.createProgram(gl, vsStr, fsStr);

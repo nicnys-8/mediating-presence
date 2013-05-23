@@ -236,7 +236,7 @@
 			TabControl.onLoad = function() {
                 
 				// Create a canvas for drawing thumbnails of the 3D models
-				thumbnailCanvas = MediaExt.createCanvas(100, 100);
+				thumbnailCanvas = MediaExt.createCanvas(90, 75);
 				
 				// Make sure the WebGL framebuffer is the correct size
 				var onResize = function() {
@@ -405,7 +405,10 @@
 			 share the currently displayed 3D model 
 			 */
 			function sendShareInvite() {
-				thumbnailCanvas.getContext("2d").drawImage(glCanvas, 0, 0, 100, 100);
+				var ctx = thumbnailCanvas.getContext("2d");
+				ctx.clearRect(0, 0, thumbnailCanvas.width, thumbnailCanvas.height);
+				ctx.drawImage(glCanvas, 0, 0, thumbnailCanvas.width, thumbnailCanvas.height);
+				console.log(thumbnailCanvas.toDataURL());
 				ShareCounter.startCount(TabControl.getStreamCount() + 1);
 				TabControl.sendMessage("share", "invite", { tag:model.tag, imageURL:thumbnailCanvas.toDataURL()});
 				shareButton.disabled = true;
