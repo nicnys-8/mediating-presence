@@ -21,7 +21,7 @@
         <link rel="stylesheet" type="text/css" href="css/pb.css"/>
         <link rel="stylesheet" type="text/css" href="css/pointcloud.css"/>
 		
-		<script>
+		<script type="text/javascript">
 			
 			/**
 			Functions for converting colors between "#RRGGBB" and [r, g, b] 
@@ -29,36 +29,33 @@
 			*/
 			var ColorConvert = function() {
 				
-				const haxHex = "0123456789abcdef", maskUpper = 0xf0, maskLower = 0x0f;
-				var API = {};
+				const hexStr = "0123456789abcdef", maskUpper = 0xf0, maskLower = 0x0f, norm = 1.0 / 255.0;
+				var API = {},
+					clamp = function(val, lower, upper) {
+						return (val < lower) ? lower : (val > upper) ? upper : val;
+					};
 				
 				API.hexToRGB = function(value, dst) {
-					
-					var R = ((haxHex.indexOf(value[1])) << 4 | haxHex.indexOf(value[2])) / 255.0,
-						G = ((haxHex.indexOf(value[3])) << 4 | haxHex.indexOf(value[4])) / 255.0,
-						B = ((haxHex.indexOf(value[5])) << 4 | haxHex.indexOf(value[6])) / 255.0;
-					
-					if (!dst) {
-						dst = [];
-					}
-					
+					if (!dst) { dst = []; }
+					var R = ((hexStr.indexOf(value[1])) << 4 | hexStr.indexOf(value[2])) * norm,
+						G = ((hexStr.indexOf(value[3])) << 4 | hexStr.indexOf(value[4])) * norm,
+						B = ((hexStr.indexOf(value[5])) << 4 | hexStr.indexOf(value[6])) * norm;
 					dst[0] = R;
 					dst[1] = G;
 					dst[2] = B;
-					
 					return dst;
 				};
 				
 				API.RGBToHex = function(rgb) {
 					var R, G, B, hex;
-					R = Math.round(rgb[0] * 255);
-					G = Math.round(rgb[1] * 255);
-					B = Math.round(rgb[2] * 255);
-					hex = "#" + haxHex[(R & maskUpper) >> 4] + haxHex[R & maskLower] +
-								haxHex[(G & maskUpper) >> 4] + haxHex[G & maskLower] +
-								haxHex[(B & maskUpper) >> 4] + haxHex[B & maskLower];
+					R = clamp(Math.round(rgb[0] * 255), 0, 255);
+					G = clamp(Math.round(rgb[1] * 255), 0, 255);
+					B = clamp(Math.round(rgb[2] * 255), 0, 255);
+					hex = "#" + hexStr[(R & maskUpper) >> 4] + hexStr[R & maskLower] +
+								hexStr[(G & maskUpper) >> 4] + hexStr[G & maskLower] +
+								hexStr[(B & maskUpper) >> 4] + hexStr[B & maskLower];
 					return hex;
-				}
+				};
 				
 				return API;
 			}();
@@ -76,6 +73,74 @@
 				sendRotTimer = null,
 				resumeSend = false,
 				invitePopup,
+				myStreamID,
+				thumbnailCanvas,
+			
+				randomString = function() {
+					const len = 32, chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+					var result = "", i;
+					for (i = 0; i < len; ++i) {
+						result += chars[Math.round(Math.random() * (chars.length - 1))];
+					}
+					return result;
+				},
+			
+				ShareCounter = function() {
+					
+					var owner = null,
+						numStreams,
+						numAccepted,
+						numRejected,
+						answered,
+						isCounting = false,
+						API = {};
+					
+					API.startCount = function(total) {
+						numAccepted = 1; // 1 vote from local user
+						numRejected = 0;
+						numStreams = total; // TabControl.getStreamCount() + 1; // +1 for local stream
+						answered = [];
+						isCounting = true;
+						return randomString();
+					};
+					
+					API.stopCount = function() {
+						isCounting = false;
+						answered = null;
+					};
+					
+					API.onAccept = function(sender) {
+						if (isCounting && answered.indexOf(sender) !== -1) {
+							numAccepted++;
+							answered.push(sender);
+						}
+					};
+					
+					API.onReject = function(sender) {
+						if (isCounting && answered.indexOf(sender) !== -1) {
+							numRejected++;
+							answered.push(sender);
+						}
+					};
+					
+					/**
+					 @return -1=rejected, 0=pending, 1=accepted
+					 */
+					API.getStatus = function() {
+						var limit = numStreams / 2;
+						if (!isCounting || numRejected >= limit) {
+							return -1;
+						}
+						if (numAccepted >= limit) {
+							return 1;
+						}
+						return 0;
+					};
+					
+					return API;
+					
+				}(),
+			
 				uniforms = function() {
 					
 					var updatedValues = [],
@@ -93,20 +158,21 @@
 						}
 						updates = {};
 						for (var i = 0; i < updatedValues.length; i++) {
-							updates[updatedValues[i]] = this[updatedValues[i]];
+							updates[updatedValues[i]] = uniforms[updatedValues[i]].value;
 						}
 						updatedValues = [];
-						console.log(updates);
 						return updates;
 					},
 					
 					setValue = function(name, value) {
-						uniforms[name] = value;
+						uniforms[name].value = value;
+						syncControls(name);
 						markAsChanged(name);
 					},
 					
 					setElement = function(name, index, value) {
-						uniforms[name][index] = Number(value);
+						uniforms[name].value[index] = Number(value);
+						syncControls(name);
 						markAsChanged(name);
 					},
 					
@@ -114,59 +180,77 @@
 						for (var prop in data) {
 							if (uniforms.hasOwnProperty(prop)) {
 								setValue(prop, data[prop]);
-								updateInputs(prop);
 							}
 						}
 						clearUpdates();
+					},
+					
+					getType = function(name) {
+						var prop = uniforms[name];
+						if (prop && prop.type) {
+							return prop.type;
+						}
+						// return undefined;
 					};
 					
 					return {
-						specular : [0.8, 0.8, 0.8],
-						diffuse : [0.6, 0.6, 0.6],
-						ambient : [0.2, 0.2, 0.2],
-						shininess : 20.0,
-						lightPos : [0, 0, 0],
-						zoom : 1.0,
-						blobbiness : 0.0,
+						specular : {
+							value:[0.8, 0.8, 0.8],
+							type:"color"
+						},
+						diffuse : {
+							value:[0.6, 0.6, 0.6],
+							type:"color"
+						},
+						ambient : {
+							value:[0.2, 0.2, 0.2],
+							type:"color"
+						},
+						shininess : {
+							value:20.0,
+							type:"float"
+						},
+						lightPos : {
+							value:[0, 0, 0],
+							type:"vec3"
+						},
+						zoom : {
+							value:1.0,
+							type:"float"
+						},
+						blobbiness : {
+							value:0.0,
+							type:"float"
+						},
 						
+						getType : getType,
 						markAsChanged : markAsChanged,
 						clearUpdates : clearUpdates,
 						setValue : setValue,
 						setElement : setElement,
-						update : update,
+						update : update
 					};
 				}();
 			
 			
 			TabControl.onLoad = function() {
                 
+				// Create a canvas for drawing thumbnails of the 3D models
+				thumbnailCanvas = MediaExt.createCanvas(100, 100);
+				
+				// Make sure the WebGL framebuffer is the correct size
 				var onResize = function() {
 					if (glCanvas) {
 						glCanvas.width = glCanvas.offsetWidth;
 						glCanvas.height = glCanvas.offsetHeight;
 					}
 				};
-				onResize();
 				window.addEventListener("resize", onResize, false);
 				
-				// Initialize the control panel for material properties
-				document.getElementById("specularColor").onchange = function() {
-					uniforms.setValue("specular", ColorConvert.hexToRGB(this.value));
-					updateInputs("specular");
-				};
-				document.getElementById("diffuseColor").onchange = function() {
-					uniforms.setValue("diffuse", ColorConvert.hexToRGB(this.value));
-					updateInputs("diffuse");
-				};
-				document.getElementById("ambientColor").onchange = function() {
-					uniforms.setValue("ambient", ColorConvert.hexToRGB(this.value));
-					updateInputs("ambient");
-				};
-				document.getElementById("shininess").value = uniforms.shininess;
-				
-				updateInputs("specular");
-				updateInputs("diffuse");
-				updateInputs("ambient");
+				// Synchronize the control panel with the default uniform values
+				for (var i in uniforms) {
+					syncControls(i);
+				}
 				
 				shareButton = document.getElementById("shareButton");
 				clearButton = document.getElementById("clearButton");
@@ -199,6 +283,7 @@
 																	   function () { readFiles(this.files); },
 																	   false);
 				
+				// Create a popup to use when getting invites for shared models
 				invitePopup = PopupManager.createPopup("Someone wants to share a 3D model with you!",
 													   "images/share-icon.png",
 													   {text:"Accept", func:acceptShared3DModel},
@@ -222,8 +307,31 @@
 				}
 			};
 			
-			TabControl.onStreamAdded = function(stream) {};
-			TabControl.onStreamRemoved = function(stream) {};
+			TabControl.onLocalStreamInit = function(stream) {
+				myStreamID = stream.getID();
+			};
+			
+			TabControl.onStreamAdded = function(stream) {
+				if (model && model.isShared && model.owner === myStreamID) {
+					// Resend the shared model to new users
+					TabControl.sendMessage("share", "model", serializeModel(model));
+				}
+			};
+			
+			TabControl.onStreamRemoved = function(stream) {
+				
+				if (model) {
+					
+					if (model.owner === stream.getID()) {
+						model.owner = model.nextOwner;
+						model.nextOwner = null;
+					
+					} else if (model.owner === myStreamID) {
+						model.nextOwner = TabControl.getStreamIDs()[0];
+						TabControl.sendMessage("share", "nextOwner", { nextOwner:model.nextOwner });
+					}
+				}
+			};
 			
 			TabControl.onMessageReceived = function(senderId, type, data) {
 				
@@ -237,35 +345,69 @@
 						}
 						break;
 					case "invite":
-						PopupManager.showPopup(invitePopup);
+						// TODO: create popup with correct callbacks
+						// data.tag
+						var imageURL = data.imageURL || "images/share-icon.png",
+						// Create a popup to use when getting invites for shared models
+						// TODO: memory leak?
+						popup = PopupManager.createPopup("Someone wants to share a 3D model with you!",
+														 imageURL,
+														 {text:"Accept", func:function() {acceptShared3DModel(data.tag)}},
+														 {text:"Decline", func:function() {declineShared3DModel(data.tag)}});
+						PopupManager.showPopup(popup);
 						break;
 					case "inviteAccepted":
-						onShareAccepted();
+						if (model && model.tag === data.tag) {
+							ShareCounter.onAccept(senderId);
+							if (ShareCounter.getStatus() === 1) {
+								onShareAccepted();
+								ShareCounter.stopCount();
+							}
+						}
 						break;
 					case "inviteDeclined":
-						onShareDeclined();
+						if (model && model.tag === data.tag) {
+							ShareCounter.onReject(senderId);
+							if (ShareCounter.getStatus() === -1) {
+								onShareDeclined();
+								ShareCounter.stopCount();
+							}
+						}
 						break;
 					case "model":
-						displayModel(data);
-						sendRotation();
-						TabControl.sendMessage("share", "modelReceived", {});
+						if (model && model.tag === data.tag) {
+							// Model is already being displayed (probably), do nothing
+						} else {
+							// Display the model and start sending updates
+							displayModel(data);
+							sendRotation();
+							// Acknowledge message
+							TabControl.sendMessage("share", "modelReceived", {});
+						}
 						break;
 					case "modelReceived":
 						console.log("Received model load confirmation");
 						sendRotation();
+						break;
+					case "nextOwner":
+						if (model) {
+							model.nextOwner = data.nextOwner;
+						}
 						break;
 				}
 			};
 			
 			TabControl.onKinectInit = function(proxy) {};
 			TabControl.onNewKinectData = function(videoData, depthData) {};
-            
+			
 			/**
 			 Sends an invitation to remote users to 
-			 share the currently displayed 3D model
+			 share the currently displayed 3D model 
 			 */
 			function sendShareInvite() {
-				TabControl.sendMessage("share", "invite", {/*thumbnail of the 3D model, name of the file, ...*/});
+				thumbnailCanvas.getContext("2d").drawImage(glCanvas, 0, 0, 100, 100);
+				ShareCounter.startCount(TabControl.getStreamCount() + 1);
+				TabControl.sendMessage("share", "invite", { tag:model.tag, imageURL:thumbnailCanvas.toDataURL()});
 				shareButton.disabled = true;
 			}
 			
@@ -277,6 +419,8 @@
 				if (model) {
 					console.log("Sending model");
 					console.log(model);
+					
+					model.isShared = true;
 					
 					// Send the model
 					TabControl.sendMessage("share", "model", serializeModel(model));
@@ -299,20 +443,20 @@
 			/**
 			 Invite popup callback, accepts share invite from remote user
 			 */
-			function acceptShared3DModel() {
+			function acceptShared3DModel(tag) {
 				// TODO: switchToTab("#share");
 				// SuperHAXX (find a better solution!:)
 				if (window.top.switchToTab) {
 					window.top.switchToTab("#share");
 				}
-				TabControl.sendMessage("share", "inviteAccepted", {});
+				TabControl.sendMessage("share", "inviteAccepted", {tag:tag});
 			}
 			
 			/**
 			 Invite popup callback, declines share invite from remote user
 			 */
 			function declineShared3DModel() {
-				TabControl.sendMessage("share", "inviteDeclined", {});
+				TabControl.sendMessage("share", "inviteDeclined", {tag:tag});
 			}
 			
 			/**
@@ -411,6 +555,7 @@
 					
 					setTimeout(function() {
 								progress.className = "";
+								tagModel(result);
 								displayModel(result);
 							   }, 0);
                 };
@@ -423,22 +568,30 @@
 			/**
 			 Updates control panel inputs (to keep things in sync).
 			 */
-			function updateInputs(name) {
-				var values = uniforms[name];
+			function syncControls(name) {
 				
-				// This will throw some errors, but whatever :)
-				if (Array.isArray(values)) {
-					document.getElementById(name + "0").value = values[0];
-					document.getElementById(name + "1").value = values[1];
-					document.getElementById(name + "2").value = values[2];
-					
-					var colorInput = document.getElementById(name + "Color");
-					if (colorInput) {
-						colorInput.value = ColorConvert.RGBToHex(values);
+				var uniform = uniforms[name], val;
+				
+				if (uniform && uniform.type) {
+					val = uniform.value;
+					switch (uniform.type) {
+						case "float":
+							document.getElementById(name).value = val;
+							break;
+						case "vec3":
+							document.getElementById(name + "0").value = val[0];
+							document.getElementById(name + "1").value = val[1];
+							document.getElementById(name + "2").value = val[2];
+							break;
+						case "color":
+							document.getElementById(name + "0").value = val[0];
+							document.getElementById(name + "1").value = val[1];
+							document.getElementById(name + "2").value = val[2];
+							document.getElementById(name + "Color").value = ColorConvert.RGBToHex(val);
+							break;
+						default:
+							break;
 					}
-					
-				} else {
-					document.getElementById(name).value = values;
 				}
 			}
 			
@@ -447,22 +600,25 @@
 			 */
 			function serializeModel(aModel) {
 				
-				var result = {};
-				
 				var copyArray = function(src) {
-					if (Array.isArray(src)) {
-						return src;
-					}
-					if (src && src.length) {
-						var len = src.length;
-						var cpy = new Array(len);
-						for (var i = 0; i < len; ++i) {
-							cpy[i] = src[i];
+						if (Array.isArray(src)) {
+							return src;
 						}
-						return cpy;
-					}
-					// return undefined;
-				}
+						if (src && src.length) {
+							var i, len = src.length,
+								cpy = new Array(len);
+							for (i = 0; i < len; ++i) {
+								cpy[i] = src[i];
+							}
+							return cpy;
+						}
+						// return undefined;
+					},
+					result = {};
+				
+				result.tag = aModel.tag;
+				result.owner = aModel.owner;
+				result.isShared = aModel.isShared;
 				
 				result.pos = copyArray(aModel.pos);
 				result.normals = copyArray(aModel.normals);
@@ -470,6 +626,15 @@
 				result.faces = copyArray(aModel.faces);
 				
 				return result;
+			}
+			
+			/**
+			 */
+			function tagModel(aModel) {
+				aModel.tag = randomString();
+				aModel.owner = myStreamID;
+				aModel.nextOwner = TabControl.getStreamIDs()[0];
+				aModel.isShared = false;
 			}
 			
 			/**
@@ -566,16 +731,16 @@
 				if (renderer) {
 					
 					if (renderer.setSpecular) {
-						renderer.setSpecular(uniforms.specular);
-						renderer.setDiffuse(uniforms.diffuse);
-						renderer.setAmbient(uniforms.ambient);
-						renderer.setShininess(uniforms.shininess);
-						renderer.setLightPos(uniforms.lightPos);
-						renderer.setZoom(uniforms.zoom);
-						renderer.setBlobbiness(uniforms.blobbiness);
+						renderer.setSpecular(uniforms.specular.value);
+						renderer.setDiffuse(uniforms.diffuse.value);
+						renderer.setAmbient(uniforms.ambient.value);
+						renderer.setShininess(uniforms.shininess.value);
+						renderer.setLightPos(uniforms.lightPos.value);
+						renderer.setZoom(uniforms.zoom.value);
+						renderer.setBlobbiness(uniforms.blobbiness.value);
 					}
 					
-					controller.setZoom(uniforms.zoom);
+					controller.setZoom(uniforms.zoom.value);
 					var mvMatrix = controller.getModelViewMatrix();
 					renderer.setModelViewMatrix(mvMatrix);
 					renderer.render();
@@ -593,54 +758,57 @@
 			<div class="control-panel" id="controls-left">
 				
 				<h2>Material</h2>
-				<h3>Specular <input id="specularColor" type="color"/></h3>
+				<h3>Specular <input id="specularColor" type="color"
+					onchange="uniforms.setValue('specular', ColorConvert.hexToRGB(this.value));"/></h3>
 				<table>
 					<tr>
 						<td style="text-align:right;">Red</td>
 						<td><input id="specular0" type="range" min=0 max=1 step=0.004
-							onchange="uniforms.setElement('specular', 0, this.value); updateInputs('specular');"/></td>
+							onchange="uniforms.setElement('specular', 0, this.value);"/></td>
 					</tr><tr>
 						<td style="text-align:right;">Green</td>
 						<td><input id="specular1" type="range" min=0 max=1 step=0.004
-							onchange="uniforms.setElement('specular', 1, this.value); updateInputs('specular');"/></td>
+							onchange="uniforms.setElement('specular', 1, this.value);"/></td>
 					</tr><tr>
 						<td style="text-align:right;">Blue</td>
 						<td><input id="specular2" type="range" min=0 max=1 step=0.004
-							onchange="uniforms.setElement('specular', 2, this.value); updateInputs('specular');"/></td>
+							onchange="uniforms.setElement('specular', 2, this.value);"/></td>
 					</tr>
 				</table>
 				
-				<h3>Diffuse <input id="diffuseColor" type="color"/></h3>
+				<h3>Diffuse <input id="diffuseColor" type="color"
+					onchange="uniforms.setValue('diffuse', ColorConvert.hexToRGB(this.value));"/></h3>
 				<table>
 					<tr>
 						<td style="text-align:right;">Red</td>
 						<td><input id="diffuse0" type="range" min=0 max=1 step=0.004
-							onchange="uniforms.setElement('diffuse', 0, this.value); updateInputs('diffuse');"/></td>
+							onchange="uniforms.setElement('diffuse', 0, this.value);"/></td>
 					</tr><tr>
 						<td style="text-align:right;">Green</td>
 						<td><input id="diffuse1" type="range" min=0 max=1 step=0.004
-							onchange="uniforms.setElement('diffuse', 1, this.value); updateInputs('diffuse');"/></td>
+							onchange="uniforms.setElement('diffuse', 1, this.value);"/></td>
 					</tr><tr>
 						<td style="text-align:right;">Blue</td>
 						<td><input id="diffuse2" type="range" min=0 max=1 step=0.004
-							onchange="uniforms.setElement('diffuse', 2, this.value); updateInputs('diffuse');"/></td>
+							onchange="uniforms.setElement('diffuse', 2, this.value);"/></td>
 					</tr>
 				</table>
 				
-				<h3>Ambient <input id="ambientColor" type="color"/></h3>
+				<h3>Ambient <input id="ambientColor" type="color"
+					onchange="uniforms.setValue('ambient', ColorConvert.hexToRGB(this.value));"/></h3>
 				<table>
 					<tr>
 						<td style="text-align:right;">Red</td>
 						<td><input id="ambient0" type="range" min=0 max=1 step=0.004
-							onchange="uniforms.setElement('ambient', 0, this.value); updateInputs('ambient');"/></td>
+							onchange="uniforms.setElement('ambient', 0, this.value);"/></td>
 					</tr><tr>
 						<td style="text-align:right;">Green</td>
 						<td><input id="ambient1" type="range" min=0 max=1 step=0.004
-							onchange="uniforms.setElement('ambient', 1, this.value); updateInputs('ambient');"/></td>
+							onchange="uniforms.setElement('ambient', 1, this.value);"/></td>
 					</tr><tr>
 						<td style="text-align:right;">Blue</td>
 						<td><input id="ambient2" type="range" min=0 max=1 step=0.004
-							onchange="uniforms.setElement('ambient', 2, this.value); updateInputs('ambient');"/></td>
+							onchange="uniforms.setElement('ambient', 2, this.value);"/></td>
 					</tr>
 				</table>
 				

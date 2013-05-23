@@ -195,7 +195,7 @@ var onMediaAccessGranted = function() {
                           });
     
     room.addEventListener("stream-subscribed", function(streamEvent) {
-                          tabController.onStreamAdded(streamEvent.stream);
+                          tabController.addStream(streamEvent.stream);
                           });
     
     room.addEventListener("stream-added", function (streamEvent) {
@@ -204,7 +204,7 @@ var onMediaAccessGranted = function() {
                           });
     
     room.addEventListener("stream-removed", function (streamEvent) {
-                          tabController.onStreamRemoved(streamEvent.stream);
+                          tabController.removeStream(streamEvent.stream);
                           });
     room.connect();
 };
