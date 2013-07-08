@@ -13,7 +13,7 @@ var LynckiaClient = LynckiaClient || {};
  Creates the key used to get access to a Lynckia room
  @param username Not useful at the moment
  @param role Not useful at the moment
- @param roomId A number identifying the room the caller wishes to access
+ @param roomId A number identifying the  room the caller wishes to access
  @param callback A function that will be called with the servers response
  to the request, in string form, as input
  */
@@ -157,8 +157,7 @@ var onDataReceived = function(event) {
 
 /**
  Called when a user access token is created-
- A Lynckia room is created, and the user is
- asked to grant access to the local user media
+ the user is asked to grant access to the local user media
  */
 var onTokenCreated = function(token) {
     console.log("Received token: " + token);
