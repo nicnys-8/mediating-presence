@@ -41,7 +41,8 @@ KinectTouchController = function(transformData) {
                                             transformData.vectors[1]);
     this.touchDistance = transformData.touchDistance;
     this.interval = transformData.interval;
-    this.xScale = transformData.xScale;
+	this.scale = transformData.scale;
+	this.offset = transformData.offset;
     
     this.touch = null;
     this.touchData = new Array(KINECT_PIXELS);
@@ -62,19 +63,29 @@ KinectTouchController.prototype.update = function(depthData) {
  Update the image representing current touch points
  */
 KinectTouchController.prototype.updateTouchData = function(depthData) {
+	
+	var x, y, z, index, distance, p = {x:0, y:0}, tp;
+	
     // Empty the touch data
     ImageHandling.fillWithValue(this.touchData, 0);
-    for (var y = 0, index = 0; y < KINECT_DEPTH_HEIGHT; y++) {
-        for (var x = 0; x < KINECT_DEPTH_WIDTH; x++, index++) {
-            var z = depthData[index];
-            // Ignore points where depth data is missing
-            if (z == 0) continue;
-            // Compute the difference compared to the reference image
-            var distance = this.depthRef[index] - z;
-            var p = this.transform.transformPoint({x:x, y:y});
-            if (p.x >= 0 && p.y >= 0 && p.x <= window.innerWidth && p.y <= window.innerHeight) {
+    for (y = 0, index = 0; y < KINECT_DEPTH_HEIGHT; y++) {
+        for (x = 0; x < KINECT_DEPTH_WIDTH; x++, index++) {
+            
+			z = depthData[index];
+           
+			// Ignore points where depth data is missing
+            if (z == 0)
+				continue;
+            
+			p.x = this.offset[0] + x * this.scale[0];
+			p.y = this.offset[1] + y * this.scale[1];
+			
+			// Compute the difference compared to the reference image
+            distance = this.depthRef[index] - z;
+			tp = this.transform.transformPoint(p);
+            
+			if (tp.x >= 0 && tp.y >= 0 && tp.x <= window.innerWidth && tp.y <= window.innerHeight) {
                 // A touch occurs at a certain depth threshold
-                // (to be determined/calculated) :)
                 if (distance > this.touchDistance && distance < this.touchDistance + this.interval) {
                     this.touchData[index] = 1;
                 }

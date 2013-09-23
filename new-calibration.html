@@ -20,7 +20,6 @@
             canvas.fullPage {
 				width:100%;
 				height:100%;
-				background-color:black;
 			}
 			canvas.videoCanvas {
 				display:block;
@@ -28,6 +27,7 @@
 				width:640px;
 				height:480px;
 			}
+			
 			#videoCanvas2, #videoCanvas2:active, #videoCanvas2:focus {
 				cursor: crosshair;
 			}
@@ -70,7 +70,9 @@
             var depthRef;
             var touchDistance = 10;
             var interval = 10;
-            var xScale = 1.0;
+            
+			var scale = [1, 1];
+			var offset = [0, 0];
             
 			CalibrationPoint = function(color, position) {
 				this.browserX = 0;
@@ -89,8 +91,8 @@
             var initialized = false;
             
 			var depthData = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT),
-            depthRef = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT),
-            planeError = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT);
+				depthRef = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT),
+				planeError = new Array(KINECT_DEPTH_WIDTH * KINECT_DEPTH_HEIGHT);
 			var currentVideoFrame, videoData;
             
 			var transform = null;
@@ -129,6 +131,9 @@
                     
                     $("drawCanvas").width = window.innerWidth;
                     $("drawCanvas").height = window.innerHeight;
+					
+					$("videoOverlayCanvas").width = window.innerWidth;
+                    $("videoOverlayCanvas").height = window.innerHeight;
                     
                     drawCalibrationMarkers();
                 };
@@ -140,7 +145,7 @@
                 
                 
                 createCalibrationSteps();
-                
+
                 
 				plugin = document.getElementById("ZigPlugin");
 				// Start the video streams
@@ -501,17 +506,38 @@
                      */
                     onUpdate : function() {
                         
+						touchDistance = parseInt($("distanceSlider").value);
+						interval = parseInt($("intervalSlider").value);
+                        
+						scale = [parseFloat($("uvScaleX").value),
+								 parseFloat($("uvScaleY").value)];
+						offset = [parseFloat($("uvOffsetX").value),
+								  parseFloat($("uvOffsetY").value)];
+						
                         // ** TEMP **
                         // Draw the depth image in the background (temporary, just for reference)
+						var vCnv = $("videoOverlayCanvas"),
+							vCtx = vCnv.getContext("2d"),
+							width = window.innerWidth,
+							height = window.innerHeight;
+						
+						vCtx.globalAlpha = 0.5;
+						vCtx.clearRect(0, 0, width, height);
+						vCtx.drawImage(currentVideoFrame,
+									 offset[0] * width / currentVideoFrame.width,
+									 offset[1] * height / currentVideoFrame.height,
+									 width * scale[0],
+									 height * scale[1]);
+						
                         ImageHandling.depthToRGBA(depthData, videoData.data);
                         currentVideoFrame.getContext("2d").putImageData(videoData, 0, 0);
                         Geometry.drawPolys([tmpPoly], currentVideoFrame.getContext("2d"));
-                        this.ctx.drawImage(currentVideoFrame, 0, 0, window.innerWidth, window.innerHeight);
-                        // **********
-                        touchDistance = parseInt(document.getElementById("distanceSlider").value);
-						interval = parseInt(document.getElementById("intervalSlider").value);
-						xScale = parseFloat(document.getElementById("xScaleSlider").value);
                         
+						this.ctx.drawImage(currentVideoFrame, 0, 0, width, height);
+                        // **********
+						
+                       
+						
                         for (var y = 0, index = 0; y < KINECT_DEPTH_HEIGHT; y++) {
                             for (var x = 0; x < KINECT_DEPTH_WIDTH; x++, index++) {
                                 
@@ -519,14 +545,18 @@
                                 
                                 // Ignore points where depth data is missing
                                 if (z == 0)
-                                continue;
+									continue;
                                 
                                 // var distance = plane.signedDistanceTo(x, y, z) - planeError[index];
                                 var distance = depthRef[index] - depthData[index];
                                 if (distance > touchDistance && distance < (touchDistance + interval)) {
-                                    // Transform the point to browser coordinates
-                                    var p = transform.transformPoint({x:x, y:y});
-                                    p.x = p.x * xScale;
+									
+									var rx = offset[0] + x * scale[0];
+									var ry = offset[1] + y * scale[1];
+                                    
+									// Transform the point to browser coordinates
+                                    var p = transform.transformPoint({x:rx, y:ry});
+                                    
                                     if (p.x >= 0 && p.y >= 0 && p.x <= window.innerWidth && p.y <= window.innerHeight) {
                                         
                                         this.ctx.beginPath();
@@ -616,7 +646,8 @@
                     depthRef: depthRef,
                     touchDistance: touchDistance,
                     interval: interval,
-                    xScale: xScale
+					scale : scale,
+					offset : offset
                 };
                 localStorage.transformData = JSON.stringify(transformData);
                 
@@ -625,7 +656,9 @@
                 console.log("depthRef: " + depthRef);
                 console.log("touchDistance: " + touchDistance);
                 console.log("interval: " + interval);
-                console.log("xScale: " + xScale);
+                
+				console.log("scale: " + scale);
+				console.log("offset: " + offset);
             }
             
             </script>
@@ -671,17 +704,39 @@
 				<button id="doneButton" disabled=true>Done</button>
             </div>
             
-            <div class="fullPage" id="stepFour" style="wdith:100%">
+            <div class="fullPage" id="stepFour">
                 <canvas class="fullPage" id="drawCanvas" style="position:absolute; top:0; left:0"></canvas>
-                <div style="background-color:white; position:absolute; top:0; left:0; wdith:100%">
-                    <span>Touch distance:</span>
-                    <input type="range" id="distanceSlider" value="24" min="0" max="30" />
-                    <span>Touch interval: </span>
-                    <input type="range" id="intervalSlider" value="7" min="0" max="30" />
-                    <span>x scale::</span>
-                    <span>x scale::</span>
-                    <input type="range" id="xScaleSlider" value="0.85" min="0.7" max="1.0" step="0.01" />
-                    <button onclick="storeThresholdValues()">Save current setup</button>
+				<canvas class="fullPage" id="videoOverlayCanvas" style="position:absolute; top:0; left:0"></canvas>
+                <div style="background-color:white; position:absolute; top:20px; left:20px; border:1px solid black; border-radius:5px; padding:20px;">
+                    <h2>Touch distance</h2>
+					<table style="margin:0px auto;">
+						<tr>
+							<td style="text-align:right;">Distance:</td>
+							<td><input type="range" id="distanceSlider" value="24" min="0" max="30" /></td>
+						</tr><tr>
+							<td style="text-align:right;">Interval:</td>
+							<td><input type="range" id="intervalSlider" value="7" min="0" max="30" /></td>
+						</tr>
+					</table>
+					
+					<h2>Depth/video alignment</h2>
+					<table style="margin:0px auto;">
+						<tr>
+							<td style="text-align:right;">UV scale x:</td>
+							<td><input id="uvScaleX" type="range" min="0.5" max="1.5" step="0.01" value="1.0"></td>
+						</tr><tr>
+							<td style="text-align:right;">UV scale y:</td>
+							<td><input id="uvScaleY" type="range" min="0.5" max="1.5" step="0.01" value="1.0"></td>
+						</tr><tr>
+							<td style="text-align:right;">UV offset x:</td>
+							<td><input id="uvOffsetX" type="range" min="-50" max="50" step="1" value="0"></td>
+						</tr><tr>
+							<td style="text-align:right;">UV offset y:</td>
+							<td><input id="uvOffsetY" type="range" min="-50" max="50" step="1" value="0"></td>
+						</tr>
+					</table>
+					
+					<button onclick="storeThresholdValues()">Save current setup</button>
                 </div>
                 
             </div>
