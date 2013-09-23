@@ -34,7 +34,8 @@
 				lerpCheckbox,
 				useVideoCheckbox,
 				sendDataCheckbox,
-				sendRateSlider;
+				sendRateSlider,
+                animFrameId;
 			
 			/**
 			 Provides function for encoding/decoding Kinect data when streaming.
@@ -225,12 +226,12 @@
 			
 			TabControl.onActivate = function() {
 				isActive = true;
-				requestAnimFrame(drawScene);
+				animFrameId = requestAnimFrame(drawScene);
 			};
 			
 			TabControl.onDeactivate = function() {
 				isActive = false;
-				cancelAnimFrame(drawScene);
+				cancelAnimFrame(animFrameId);
 			};
 			
 			TabControl.onLocalStreamInit = function(stream) {
@@ -447,7 +448,7 @@
 			
 			function drawScene() {
 				
-				requestAnimFrame(drawScene);
+				animFrameId = requestAnimFrame(drawScene);
 				
 				var uvScale = [parseFloat(uvScaleSliders[0].value),
 							   parseFloat(uvScaleSliders[1].value)],

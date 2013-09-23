@@ -105,14 +105,15 @@
 				streams = {},
 				currentStreamID = null, // current stream (get it? haha..)
 				myStream,
-				videoCanvas;
+				videoCanvas,
+                animFrameId;
 			
 			TabControl.onActivate = function() {
-				requestAnimFrame(drawThumbs);
+				animFrameId = requestAnimFrame(drawThumbs);
 			}
 			
 			TabControl.onDeactivate = function() {
-				cancelAnimFrame(drawThumbs);
+				cancelAnimFrame(animFrameId);
 			}
 			
 			TabControl.onLocalStreamInit = function(stream) {
@@ -204,7 +205,7 @@
 			
 			function drawThumbs() {
 				
-				requestAnimFrame(drawThumbs);
+				animFrameId = requestAnimFrame(drawThumbs);
 				
 				if (currentStreamID) {
 					
