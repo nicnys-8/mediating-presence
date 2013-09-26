@@ -10,6 +10,52 @@ io = require("socket.io").listen(3005),
 https = require("https"),
 config = require("./../../lynckia_config");
 
+/*========================
+ --- Amazon S3 storage ---
+ =======================*/
+var s3Signature,
+s3Credentials,
+POLICIES_PER_DAY = 100,
+// The number of seconds that passes before the number of policies are refreshed:
+policyRefreshTime = 1000 * 60 * 60 * 24, // 24 hours
+remainingPolicies = POLICIES_PER_DAY;
+
+setInterval(function() {
+            remainingPolicies = POLICIES_PER_DAY;
+            }, policyRefreshTime);
+
+var createS3Policy = function() {
+    var s3PolicyBase64, date, s3Policy, filename;
+    date = new Date();
+    filename = remainingPolicies; // This gives us a unique filename
+    s3Policy = {
+        "expiration": "" + (date.getFullYear()) + "-" + (date.getMonth() + 1) + "-" + (date.getDate()) + "T" + (date.getHours()) + ":" + (date.getMinutes() + 5) + ":" + (date.getSeconds()) + "Z", // set to expire in five minutes
+        "conditions": [
+                       {"bucket": "idipity-data"},
+                       //["starts-with", "$key", "uploads/" + filename],
+                       {"key": "uploads/" + filename},
+                       {"acl": "public-read"},
+                       {"success_action_redirect": "/"}, // TODO: Remove
+                       ["starts-with", "$Content-Type", ""], // TODO: Remove?
+                       ["content-length-range", 0, 20000000]
+                       ]
+    };
+    s3PolicyBase64 = new Buffer(JSON.stringify(s3Policy)).toString("base64")
+    
+    s3Credentials = {
+    s3PolicyBase64: s3PolicyBase64,
+    s3Signature: crypto.createHmac("sha1", config.cloudProvider.secretAccessKey).update(s3PolicyBase64).digest("base64"),
+    s3Key: config.cloudProvider.accessKey,
+        
+    s3Redirect: "/",
+    s3Policy: s3Policy,
+    s3Filename: filename,
+    s3Url: "https://mediating-presence.s3.amazonaws.com/"
+    }
+    return s3Credentials;
+};
+
+
 /*
  Dictionary containing room information-
  the property names are Lynckia room names,
@@ -195,6 +241,20 @@ app.get("/getUsers/:room", function (req, res) {
                        });
         });
   */
+
+/**
+ TODO: Description
+ */
+app.get("/gets3policy", function(req, res) {
+        "use strict";
+        if (remainingPolicies > 0) {
+        remainingPolicies--;
+        var credentials = createS3Policy();
+        res.json(credentials);
+        } else {
+        res.json({error: "No more policies available today"});
+        }
+        });
 
 // Delete all rooms that exist form before
 deletionLoop();

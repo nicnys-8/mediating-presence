@@ -215,6 +215,43 @@ LynckiaClient.setTabControl = function(tabControllerArg) {
     tabController = tabControllerArg;
 };
 
+/**
+ TODO: Description
+ @param callbacks: An object containing callback methods:
+ {success: func1, fail: func2, progress: func3}
+ */
+LynckiaClient.uploadFile = function(file, callbacks) {
+    var logEvent = function(evt) {
+        console.log(evt);
+    }
+    var postToS3 = function(res) {
+        var req = new XMLHttpRequest(),
+        url = res.s3Url,
+        fd = new FormData(),
+        subfolder = "uploads/";
+        fd.append("key", subfolder + res.s3Filename);
+        fd.append("acl", "public-read");
+        fd.append("success_action_redirect", "/");
+        fd.append("Content-Type", file.type);
+        fd.append("AWSAccessKeyId", res.s3Key);
+        fd.append("policy", res.s3PolicyBase64);
+        fd.append("signature", res.s3Signature);
+        fd.append("file", file);
+        req.open("POST", url, true);
+        req.addEventListener("load", function() {
+                             // Call the callback with the url to the uploaded file
+                             // as argument
+                             callbacks.success(url + subfolder + res.s3Filename);
+                             }, false);
+        req.addEventListener("error", callbacks.fail, false);
+        req.addEventListener("abort", callbacks.fail, false);
+        req.upload.addEventListener("progress", callbacks.progress, false);
+        req.send(fd);
+    }
+    var url = "/gets3policy";
+    httpGet(postToS3, url);
+};
+
 
 
 
