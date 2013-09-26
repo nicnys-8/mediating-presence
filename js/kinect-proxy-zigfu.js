@@ -129,7 +129,7 @@ KinectProxy = function() {
 		}
         
         if (touchController) {
-            touchController.update(depthData);
+            // touchController.update(depthData);
         }
 	};
 	

@@ -1,0 +1,389 @@
+
+<html>
+    <head>
+        
+        <title>Hand overlay</title>
+        
+		<script type="text/javascript" src="js/tab-control.js"></script>
+        <script type="text/javascript" src="js/mediaext.js"></script>
+		<script type="text/javascript" src="js/geometry.js"></script>
+        <script type="text/javascript" src="js/lib/webgl-utils.js"></script>
+        <script type="text/javascript" src="js/lib/glMatrix-0.9.5.min.js"></script>
+		<script type="text/javascript" src="js/image-handling.js"></script>
+		<script type="text/javascript" src="js/kinect-touch-controller.js"></script>
+		<script type="text/javascript" src="js/kinect-proxy-zigfu.js"></script>
+		
+        <link rel="stylesheet" type="text/css" href="css/pb.css"/>
+        <link rel="stylesheet" type="text/css" href="css/pointcloud.css"/>
+        
+		<style type="text/css">
+			
+			body {
+				pointer-events:none;
+				background-color:blue;
+			}
+			
+			#content {
+				position:absolute;
+				left:0;
+				right:0;
+				top:0;
+				bottom:0;
+				width:auto;
+				height:auto;
+			}
+			
+			canvas.overlay {
+				width:100%;
+				height:100%;
+			}
+			
+		</style>
+        
+		<script type="text/javascript">
+            
+			var ALPHA = 0.25,
+				COLORS = [[1, 0, 0, ALPHA],
+						  [0, 1, 0, ALPHA],
+						  [0, 0, 1, ALPHA]
+						  [1, 1, 0, ALPHA],
+						  [1, 0, 1, ALPHA],
+						  [0, 1, 1, ALPHA]],
+				COLOR_INDEX = 0;
+			
+            var isActive = false,
+				streamIDs = [],
+				displayedStreams = {},
+				frameCount = 0,
+                animFrameId,
+				container,
+				transformData,
+				depthCanvas,
+				depthContext,
+				depthImageData,
+				depthRef;
+			
+			// Vertex shader
+			var vsStr = [
+						 "precision mediump float;",
+						 "attribute vec2 position;",
+						 "attribute vec2 texCoord;",
+						 "varying vec2 uv;",
+						 "uniform vec4 a, b;",
+						 "uniform float widthIn, heightIn;",
+						 "uniform float widthOut, heightOut;",
+						 "void main(void) {",
+						 "	gl_Position = vec4(position.x, -position.y, 0.0, 1.0);",
+						 "	float x = texCoord.x * widthIn;",
+						 "	float y = texCoord.y * heightIn;",
+						 "	float nx = a.x * x * y + a.y * x + a.z * y + a.w;",
+						 "	float ny = b.x * x * y + b.y * x + b.z * y + b.w;",
+						 "	uv = vec2(nx / widthOut, ny / heightOut);",
+						 "}"
+						 ].join("\n");
+			
+			// Fragment shader
+			var fsStr = [
+						 "precision mediump float;",
+						 "varying vec2 uv;",
+						 "uniform sampler2D tex;",
+						 "uniform vec4 color;",
+						 "void main(void) {",
+						 "	gl_FragColor = texture2D(tex, uv) * color;",
+						 "}"
+						 ].join("\n");
+			
+			/**
+			 One of these is created for each data stream.
+			 */
+			var HandOverlay = function(transformVectors) {
+				
+				var color = COLORS[(COLOR_INDEX++) % COLORS.length];
+				
+				var transform = new Geometry.Transform(transformVectors[1], transformVectors[0]);
+				this.vecA = new Float32Array(transform._a);
+				this.vecB = new Float32Array(transform._b);
+				
+				this.canvas = MediaExt.createCanvas(window.innerWidth, window.innerHeight);
+				this.canvas.className = "overlay";
+				
+				// Get the WebGL context
+				var gl = WebGLUtils.setupWebGL(this.canvas); // , {preserveDrawingBuffer: true});
+				
+				// Create the shader program
+				var prog = WebGLUtils.createProgram(gl, vsStr, fsStr);
+				
+				gl.useProgram(prog);
+				
+				// Store the attribute and uniform locations as properties of the program
+				prog.attrLocVertex = gl.getAttribLocation(prog, "position");
+				prog.attrLocTexCoord = gl.getAttribLocation(prog, "texCoord");
+				prog.unifLocA = gl.getUniformLocation(prog, "a");
+				prog.unifLocB = gl.getUniformLocation(prog, "b");
+				prog.unifLocWidthIn = gl.getUniformLocation(prog, "widthIn");
+				prog.unifLocHeightIn = gl.getUniformLocation(prog, "heightIn");
+				prog.unifLocWidthOut = gl.getUniformLocation(prog, "widthOut");
+				prog.unifLocHeightOut = gl.getUniformLocation(prog, "heightOut");
+				prog.unifLocTex = gl.getUniformLocation(prog, "tex");
+				prog.unifLocColor = gl.getUniformLocation(prog, "color");
+
+				var texture = WebGLUtils.createTexture(gl);
+				var image = new Image();
+				document.body.appendChild(image);
+				var hasTexture = false;
+				
+				var data = [-1, -1,		0,  0,
+							1, -1,		1,  0,
+							-1,  1,		0,  1,
+							1,  1,		1,  1];
+				
+				var vertexBuffer = gl.createBuffer();
+				gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
+				gl.bindBuffer(gl.ARRAY_BUFFER, null);
+				
+				this.setTextureURL = function(url) {
+					image.src = "";
+					image.onload = function() {
+						gl.bindTexture(gl.TEXTURE_2D, texture);
+						gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+						hasTexture = true;
+					}
+					image.src = url;
+				}
+				
+				this.render = function() {
+					
+					if (!hasTexture) {
+						return;
+					}
+					
+					gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+					gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+					
+					gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+					
+					gl.enableVertexAttribArray(prog.attrLocVertex);
+					gl.enableVertexAttribArray(prog.attrLocTexCoord);
+					gl.vertexAttribPointer(prog.attrLocVertex, 2, gl.FLOAT, false, 16, 0);
+					gl.vertexAttribPointer(prog.attrLocTexCoord, 2, gl.FLOAT, false, 16, 8);
+					
+					// Generate a new texture from video stream
+					gl.activeTexture(gl.TEXTURE0);
+					gl.bindTexture(gl.TEXTURE_2D, texture);
+					
+					gl.uniform4fv(prog.unifLocA, this.vecA);
+					gl.uniform4fv(prog.unifLocB, this.vecB);
+					gl.uniform4fv(prog.unifLocColor, color);
+					gl.uniform1f(prog.unifLocWidthIn, this.canvas.width); // 160);
+					gl.uniform1f(prog.unifLocHeightIn, this.canvas.height); // 120);
+					gl.uniform1f(prog.unifLocWidthOut, 160); // this.canvas.width);
+					gl.uniform1f(prog.unifLocHeightOut, 120); // this.canvas.height);
+					gl.uniform1i(prog.unifLocTex, 0);
+					
+					gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+				}
+				
+				this.updateCanvasSize = function() {
+					if (this.canvas.width !== this.canvas.offsetWidth) {
+						this.canvas.width = this.canvas.offsetWidth;
+					}
+					if (this.canvas.height !== this.canvas.offsetHeight) {
+						this.canvas.height = this.canvas.offsetHeight;
+					}
+				}
+			};
+			
+			function createOverlayForUser(userId, transformVectors) {
+				
+				if (displayedStreams[userId]) {
+					return;
+				}
+				
+				// Create a PeekDisplay to render the Kinect data
+				var overlay = new HandOverlay(transformVectors);
+				displayedStreams[userId] = overlay;
+				streamIDs.push(userId);
+				
+				// Add its canvas element
+				container.appendChild(overlay.canvas);
+				overlay.updateCanvasSize();
+				
+				/*
+				 var myOverlay = displayedStreams["me"];
+				 if (myOverlay.canvas.parentNode) {
+				 myOverlay.canvas.parentNode.removeChild(myOverlay.canvas);
+				 }
+				 */
+			}
+			
+			TabControl.onLoad = function() {
+				
+				var onResize = function() {
+					var overlay, i;
+					for (i = 0; i < streamIDs.length; i++) {
+						overlay = displayedStreams[streamIDs[i]];
+						overlay.updateCanvasSize();
+					}
+				};
+				window.addEventListener("resize", onResize, false);
+				
+				container = document.getElementById("content");
+				
+				depthCanvas = MediaExt.createCanvas(160, 120);
+				depthContext = depthCanvas.getContext("2d");
+				depthImageData = depthContext.createImageData(160, 120);
+				
+				var transformDataString = localStorage.transformData;
+				
+				if (transformDataString) {
+					transformData = JSON.parse(transformDataString);
+					depthRef = transformData.depthRef;
+					createOverlayForUser("me", transformData.vectors);
+				}
+            };
+			
+			TabControl.onActivate = function() {
+				isActive = true;
+				animFrameId = requestAnimFrame(drawScene);
+			};
+			
+			TabControl.onDeactivate = function() {
+				isActive = false;
+				cancelAnimFrame(animFrameId);
+			};
+			
+			TabControl.onLocalStreamInit = function(stream) {
+			};
+			
+			TabControl.onStreamAdded = function(stream) {
+				if (transformData) {
+					TabControl.sendMessage("hands", "transform", transformData.vectors);
+				}
+			};
+			
+			TabControl.onStreamRemoved = function(stream) {
+				
+				var streamId = stream.getID(),
+					overlay = displayedStreams[streamId];
+				
+				if (overlay) {
+					
+					// Remove the canvas element from DOM
+					if (overlay.canvas.parentNode) {
+						overlay.canvas.parentNode.removeChild(overlay.canvas);
+					}
+					
+					// *** Cleanup ***
+					// Destroy the gl stuff
+					
+					// Remove the stream and HandOverlay from lists
+					delete displayedStreams[streamId];
+					var index = streamIDs.indexOf(streamId);
+					if (index != -1) {
+						streamIDs.splice(index, 1);
+					}
+				}
+				
+				// Add the local stream again, if it's the only one left
+				/*
+				if (streamIDs.length == 1) {
+					var myPD = displayedStreams["me"];
+					if (!myPD.parentNode) {
+						glContainer.appendChild(myPD.canvas);
+						myPD.updateCanvasSize();
+					}
+				}
+				 */
+			};
+			
+			TabControl.onMessageReceived = function(senderId, type, data) {
+				
+				switch (type) {
+					case "transform":
+						createOverlayForUser(senderId, data);
+						break;
+					case "img":
+						var overlay = displayedStreams[senderId];
+						if (overlay) {
+							overlay.setTextureURL(data);
+						}
+						break;
+				}
+			};
+			
+			TabControl.onKinectInit = function(proxy) {
+			};
+			
+			TabControl.onNewKinectData = function(videoData, depthData) {
+				
+				// TODO: Send data even when tab is inactive?
+				/*if (!isActive) {
+					return;
+				}*/
+				
+				var sendData = true, // sendDataCheckbox.checked,
+					sendRate = 2; // parseInt(sendRateSlider.value);
+				
+				if (depthRef && sendData && frameCount % sendRate == 0) {
+					
+					var i, j, z, distance, index = 0, url, data = depthImageData.data;
+					
+					for (i = 0; i < 120; i++) {
+						for (j = 0; j < 160; j++, index++) {
+							
+							z = depthData[index];
+							distance = depthRef[index] - z;
+							
+							if (z !== 0 && distance * distance > 50 * 50) {
+								data[index * 4 + 0] = 255;
+								data[index * 4 + 1] = 255;
+								data[index * 4 + 2] = 255;
+								data[index * 4 + 3] = 255;
+							} else {
+								data[index * 4 + 0] = 0;
+								data[index * 4 + 1] = 0;
+								data[index * 4 + 2] = 0;
+								data[index * 4 + 3] = 0;
+							}
+						}
+					}
+					depthContext.putImageData(depthImageData, 0, 0);
+					url = depthCanvas.toDataURL("image/png");
+					
+					// Send the image
+					TabControl.sendMessage("hands", "img", url);
+					
+					// Update the local overlay
+					if (displayedStreams["me"]) {
+						displayedStreams["me"].setTextureURL(url);
+					}
+				}
+				
+				frameCount++;
+            };
+			
+			
+			function drawScene() {
+				
+				animFrameId = requestAnimFrame(drawScene);
+				
+				var i, overlay;
+				
+				for (i = 0; i < streamIDs.length; i++) {
+					overlay = displayedStreams[streamIDs[i]];
+					if (overlay.canvas.parentNode) {
+						overlay.render();
+					}
+				}
+			}
+
+            </script>
+        
+    </head>
+	
+	<body>
+		<div id="content"></div>
+	</body>
+</html>
+
