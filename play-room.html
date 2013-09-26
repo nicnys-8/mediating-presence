@@ -1,0 +1,609 @@
+
+<!-- :hover doesn't work with the doctype tag..?
+ <!DOCTYPE html>
+ -->
+
+<html>
+    <head>
+        
+        <title>Kinect Telepresence</title>
+		
+		<!--
+         <link rel="stylesheet" type="text/css" href="css/pb.css"/>
+		 -->
+		<style type="text/css">
+			
+			* {
+				margin:0;
+				padding:0;
+			}
+			
+			html, body {
+				height:100%;
+				width:100%;
+			}
+			
+			body {
+				background:url('images/paper.jpg');
+				/*background:url('images/paper-tile.png');*/
+			}
+			
+			iframe {
+				overflow:auto;
+				position:absolute;
+				width:100%;
+				height:100%;
+			}
+			
+			#wrap {
+				position:absolute;
+				top:100px;
+				bottom:140px;
+				left:0px;
+				right:0px;
+			}
+			
+			#footer {
+				text-align:center;
+				position:absolute;
+				bottom:0px;
+				height:140px;
+				width:100%;
+				background: -webkit-gradient(linear, left top, left bottom, from(rgba(255, 255, 255, 0.0)), to(rgba(255, 255, 255, 1.0)));
+				border-top:1px solid black;
+			}
+			
+			#menu {
+				width:600px;
+				height:100px;
+				margin:0 auto 0 auto;
+				clear:both;
+			}
+			
+			#menu ul {
+				list-style:none;
+			}
+			#menu ul li {
+				display:inline;
+			}
+			
+			#sidebar-left {
+				position:absolute;
+				left:0px;
+				width:100px;
+				height:100%;
+				background-color:lightblue;
+				z-index:2;
+			}
+			#sidebar-right {
+				position:absolute;
+				right:0px;
+				width:200px;
+				/* height:100%; */
+				/* background-color:lightblue; */
+				z-index:2;
+			}
+			.video-thumb {
+				position:relative;
+				display:inline;
+				margin:10px;
+				width:160px;
+				height:120px;
+				background-color:black;
+			}
+			
+			#content {
+				position:absolute;
+				left:0px; /*100px;*/
+				right:0px; /*100px;*/
+				height:100%;
+				z-index:1;
+			}
+			.linkbutton {
+				display:inline-block;
+				width:100px;
+				height:100px;
+				background-position:0 0;
+				background-size:400%;
+			}
+			
+			.linkbutton.selected,
+			.linkbutton.selected:hover {
+				background-position:66.6666666% 0;
+			}
+			.linkbutton.disabled,
+			.linkbutton.disabled:hover,
+			.linkbutton.disabled:active {
+				background-position:100% 0;
+			}
+			
+			.linkbutton:hover {
+				background-position:33.3333333% 0;
+			}
+			.linkbutton:active {
+				background-position:66.6666666% 0;
+			}
+			
+			#chatbutton {
+				background-image:url('images/chat-top.png');
+			}
+			
+			#sharebutton {
+				background-image:url('images/share-top.png');
+			}
+			
+			#playbutton {
+				background-image:url('images/play-top.png');
+			}
+			
+			#peekbutton {
+				background-image:url('images/peek-top.png');
+			}
+			
+			#audiobutton {
+				background-image:url('images/audio-top.png');
+			}
+			
+			#videobutton {
+				background-image:url('images/video-top.png');
+			}
+			
+			#popupBlanket {
+				background-color:rgba(0, 0, 0, 0.5);
+				/* *background:none;*/
+				position:absolute;
+				z-index: 9001;
+				top:0px;
+				left:0px;
+				width:100%;
+				height:100%;
+				overflow:hidden;
+				
+				/* Start of animation */
+				opacity:0.0;
+				display:none;
+			}
+			
+			#popupContainer {
+				font-family:monospace;
+				font-size:150%;
+				position:relative;
+				/*background:url(pop-back.jpg) no-repeat;*/
+				background-color:white;
+				width:480px;
+				height:320px;
+				border:5px solid #000;
+				top:50%;
+				margin:-160px auto;
+				z-index: 9002;
+				text-align:center;
+				
+				/* Start of animation */
+				top:100%;
+				display:none;
+			}
+			
+			#popupContainer .popup-content {
+				/*display:none;*/
+				position:absolute;
+				width:60%;
+				height:60%;
+				top:20%;
+				left:20%;
+			}
+			#popupContainer .popup-icon {
+				display:float;
+				width:90px;
+				height:75px;
+			}
+			#popupContainer button {
+				font-size:100%;
+				padding:0.5em;
+				margin:1em 0.25em;
+			}
+			
+            </style>
+		
+		<script type="text/javascript" src="js/lib/jquery.js"></script>
+		<script type="text/javascript" src="js/lib/sylvester.js"></script>
+		<script type="text/javascript" src="js/geometry.js"></script>
+		<script type="text/javascript" src="js/image-handling.js"></script>
+		<script type="text/javascript" src="js/tab-control.js"></script>
+        <script type="text/javascript" src="js/kinect-touch-controller.js"></script>
+		<script type="text/javascript" src="js/kinect-proxy-zigfu.js"></script>
+		<script type="text/javascript" src="js/lib/erizo.js"></script>
+		<script type="text/javascript" src="js/lynckia-client.js"></script>
+		<script type="text/javascript" src="js/lib/webgl-utils.js"></script>
+		<script type="text/javascript" src="js/popup-manager.js"></script>
+        
+		<script>
+			
+			const VIDEO_RES_WIDTH = 640, VIDEO_RES_HEIGHT = 480;
+			
+			var currentTabID,
+            enableVideo = true,
+            enableAudio = true,
+            tabOrder = ["#play"],//[ "#chat", "#share", "#play", "#peek" ],
+            numTabs = tabOrder.length,
+            tabControllers = {},
+            streamIDs = [],
+            streams = {},
+            thumbs = {},
+            currentStreamID = null,
+            username,
+            touchController;
+			
+            // var usernames = {}; // A dictionary linking streamIDs to usernames
+			
+			function addVideoStream(stream) {
+				
+				var streamID = stream.local ? "myStream" : stream.getID();
+				streams[streamID] = stream;
+				streamIDs.push(streamID);
+				
+				// Create a video element for the stream
+				var video = document.createElement("video");
+				video.width = VIDEO_RES_WIDTH;
+				video.height = VIDEO_RES_HEIGHT;
+				video.autoplay = true;
+				video.src = webkitURL.createObjectURL(stream.stream);
+				stream.video = video;
+				
+				// Create a thumbnail canvas for the video
+				var thumb = document.createElement("canvas");
+				thumb.width = 160;
+				thumb.height = 120;
+				thumb.id = "thumb" + streamID;
+				thumb.className = "video-thumb";
+				thumb.onclick = function() {
+					setCurrentStream(streamID);
+				}
+				thumbs[streamID] = thumb;
+				
+				document.getElementById("footer" /*"sidebar-right"*/).appendChild(thumb);
+				setCurrentStream(streamID);
+			}
+			
+			function removeVideoStream(stream) {
+				
+				var streamID = stream.getID();
+				var thumb = thumbs[streamID];
+				var index = streamIDs.indexOf(streamID);
+				
+				// Remove the stream ID
+				if (index != -1) {
+					streamIDs.splice(index, 1);
+				}
+				
+				// Remove the video
+				if (stream.video) {
+					stream.video.pause();
+					stream.video = null;
+				}
+				delete streams[streamID];
+				
+				// Remove the thumbnail div
+				if (thumb) {
+					thumb.parentNode.removeChild(thumb);
+					delete thumbs[streamID];
+				}
+				
+				// Update which stream is shown in the middle
+				if (streamID == currentStreamID) {
+					if (streamIDs.length == 0) {
+						setCurrentStream(null);
+						// currentStreamID = null;
+					} else {
+						setCurrentStream(streamIDs[index % streamIDs.length]);
+					}
+				}
+			}
+			
+			function setCurrentStream(streamID) {
+				currentStreamID = streamID;
+			}
+			
+			TabControl.onActivate = function() {};
+			TabControl.onDeactivate = function() {};
+			
+			TabControl.onLocalStreamInit = function(stream) {
+                
+				addVideoStream(stream);
+                
+                stream.video.volume = 0; // Mute the local video to avoid feedback
+                
+				for (var i = 0; i < numTabs; i++) {
+					var tabController = tabControllers[tabOrder[i]];
+					if (tabController) {
+						tabController.setLocalStream(stream);
+					}
+				}
+			}
+			
+			TabControl.onStreamAdded = function(stream) {
+				
+				addVideoStream(stream);
+				stream.username = stream.getAttributes().username;
+				// Just propagate the message to the tabs
+				for (var i = 0; i < numTabs; i++) {
+					var tabController = tabControllers[tabOrder[i]];
+					if (tabController) {
+						tabController.addStream(stream);
+					}
+				}
+			};
+			
+			TabControl.onStreamRemoved = function(stream) {
+				
+				removeVideoStream(stream);
+				
+				// Just propagate the message to the tabs
+				for (var i = 0; i < numTabs; i++) {
+					var tabController = tabControllers[tabOrder[i]];
+					if (tabController) {
+						tabController.removeStream(stream);
+					}
+				}
+			};
+			
+			TabControl.onMessageReceived = function(senderId, type, packet) {
+				
+				var destination = packet.dst;
+				var messageType = packet.type;
+				var data = packet.data;
+                
+				if (destination == "index") {
+					
+					switch (messageType) {
+						default:
+                        break;
+					}
+					
+				} if (destination == "all") {
+					
+					for (var i = 0; i < numTabs; i++) {
+						var tabController = tabControllers[tabOrder[i]];
+						if (tabController) {
+							tabController.onMessageReceived(senderId, messageType, data);
+						}
+					}
+					
+				} else {
+					
+					var tabController = tabControllers[destination] || tabControllers["#" + destination];
+					if (tabController) {
+						tabController.onMessageReceived(senderId, messageType, data);
+					}
+				}
+			};
+            
+			TabControl.onKinectInit = function(proxy) {
+				for (var i = 0; i < numTabs; i++) {
+					var tabController = tabControllers[tabOrder[i]];
+					if (tabController) {
+						tabController.onKinectInit(proxy);
+					}
+				}
+			};
+			
+			TabControl.onNewKinectData = function(videoData, depthData, rawVideo, rawDepth) {
+				for (var i = 0; i < numTabs; i++) {
+					var tabController = tabControllers[tabOrder[i]];
+					if (tabController) {
+						tabController.onNewKinectData(videoData, depthData, rawVideo, rawDepth);
+					}
+				}
+			};
+			
+            TabControl.onLoad = function() {
+				
+                // Try parsing the Lynckia room and username from the URL
+				try {
+					var paramString = window.location.search.replace("?", "");
+					var params = paramString.split("&");
+					
+					var tempArray = params[0].split("=");
+					username = tempArray[1];
+					
+					tempArray = params[1].split("=");
+					var roomId = tempArray[1];
+					
+					LynckiaClient.setTabControl(TabControl);
+					LynckiaClient.accessRoom(username, roomId);
+                    
+				} catch (err) {
+					alert("Failed parsing parameters, continuing anyway...");
+				}
+                
+                if (localStorage.transformData) {
+                    var transformData = JSON.parse(localStorage.transformData);
+                    console.log(transformData);
+                    touchController = new KinectTouchController(transformData);
+                }
+				
+				// Default tab is Chat
+				currentTabID = "#play";
+				
+				// If a tab is specified in the url, make it the current tab
+				var hash = window.location.hash;
+				hash = hash.substring(0, hash.length - 1); // remove underscore
+                
+				if (tabOrder.indexOf(hash) != -1) {
+					currentTabID = hash;
+				}
+				
+				// Show the selected tab and move it to place
+				var currentTab = $(currentTabID);
+				currentTab.show();
+				currentTab.css("left", "0");
+				$(currentTabID + "button").addClass("selected");
+				
+				// Deactivate all tabs but the selected one
+				var tabs = $("iframe");
+				tabs.each(function() {
+                          tabControllers["#" + this.id] = this.contentWindow.TabControl;
+                          deactivateTab(this.id);
+						  });
+				activateTab(currentTabID);
+				
+				// Start drawing video thumbnails
+				requestAnimFrame(drawThumbs);
+				
+				/*
+                 // Style test: create thumbnail that can spawn new ones
+                 var thumb = document.createElement("canvas");
+                 thumb.className = "video-thumb";
+                 thumb.onclick = function() {
+                 var thumb = document.createElement("canvas");
+                 thumb.className = "video-thumb";
+                 document.getElementById("footer").appendChild(thumb);
+                 }
+                 document.getElementById("footer").appendChild(thumb);
+				 */
+			};
+			
+			function activateTab(tabName) {
+				
+				var tabController = tabControllers[tabName] || tabControllers["#" + tabName];
+				
+				if (tabController && tabController.onActivate) {
+					tabController.onActivate();
+				} else {
+					console.warn("Failed to activate tab '" + tabName + "', since it has no TabControl object. Please import the script 'tab-control.js'!");
+				}
+			}
+			
+			function deactivateTab(tabName) {
+				
+				var tabController = tabControllers[tabName] || tabControllers["#" + tabName];
+				
+				if (tabController && tabController.onDeactivate) {
+					tabController.onDeactivate();
+				} else {
+					console.warn("Failed to deactivate tab '" + tabName + "', since it has no TabControl object. Please import the script 'tab-control.js'!");
+				}
+			}
+			
+			function switchToTab(nextTabID) {
+				
+				if (nextTabID == currentTabID) {
+					return;
+				}
+				
+				var currentTab = $(currentTabID);
+				var nextTab = $(nextTabID);
+				
+				// Choose animation direction depending on if the next tab is
+				// to the left or to the right of the current tab
+				var fromLeft = tabOrder.indexOf(currentTabID) > tabOrder.indexOf(nextTabID);
+				var startPos = fromLeft ? "-100%" : "100%";
+				
+				deactivateTab(currentTabID);
+				currentTab.animate({
+                                   left:"-=" + startPos,
+                                   opacity:0.0,
+                                   }, 500, function() {
+                                   // Animation complete.
+                                   $(this).hide();
+                                   });
+                
+				nextTab.show();
+				nextTab.css("left", startPos);
+				nextTab.css("opacity", 0.0);
+				nextTab.animate({
+                                left:"-=" + startPos,
+                                opacity:1.0,
+                                }, 500, function() {
+                                activateTab(this.id);
+                                });
+				
+				$(currentTabID + "button").toggleClass("selected");
+				$(nextTabID +"button").toggleClass("selected");
+				
+				currentTabID = nextTabID;
+				window.location.hash = nextTabID + "_"; // underscore to avoid navigation to the div
+			}
+			
+			function toggleAudio() {
+				
+				var audiobutton = $("#audiobutton");
+				if (audiobutton.hasClass("disabled"))
+                return;
+				
+				audiobutton.css("background-image", enableAudio ? "url('images/noaudio-top.png')" : "url('images/audio-top.png')");
+                
+				enableAudio = !enableAudio;
+			}
+			
+			function toggleVideo() {
+				
+				var videobutton = $("#videobutton");
+				if (videobutton.hasClass("disabled"))
+                return;
+				
+				videobutton.css("background-image", enableVideo ? "url('images/novideo-top.png')" : "url('images/video-top.png')");
+				
+				enableVideo = !enableVideo;
+			}
+            
+			function drawThumbs() {
+				
+				requestAnimFrame(drawThumbs);
+                
+				for (var i = 0; i < streamIDs.length; i++) {
+					var streamID = streamIDs[i];
+					var stream = streams[streamID];
+					if (stream && stream.video) {
+						var canvas = thumbs[streamID];
+						var ctx = canvas.getContext("2d");
+						ctx.drawImage(stream.video, 0, 0, canvas.width, canvas.height);
+					}
+				}
+			}
+			
+            </script>
+        
+    </head>
+	
+	<body>
+        
+		<a href="http://www.ltu.se" target="_blank"><img src="images/ltu_logo_small.png" style="position:absolute; left:5px; top:5px;"></a>
+		<!--
+         <a href="http://www.ltu.se" target="_blank"><img src="images/ltu_logo_small.png" style="position:absolute; left:5px; bottom:5px;"></a>
+         -->
+		<!--
+         <a href="http://www.ltu.se" target="_blank"><img src="images/ltu_logo_small.png" style="position:absolute; right:5px; top:5px;"></a>
+		 -->
+		<!--
+         <a href="http://www.ltu.se" target="_blank"><img src="images/ltu_logo_small.png" style="position:absolute; right:5px; bottom:5px;"></a>
+         -->
+		
+		<div id="popupBlanket">
+			<div id="popupContainer"></div>
+		</div>
+		
+		<div id="wrap">
+			
+			<!--
+             <div id="sidebar-left">
+             </div>
+             -->
+			
+			<div id="content">
+				<iframe id="play" src="play.html" seamless></iframe>
+			</div>
+			
+			<div id="sidebar-right">
+			</div>
+			
+		</div>
+		
+		<div id="footer">
+		</div>
+        
+        <iframe id="hands" src="hands.html" seamless></iframe>
+        
+    </body>
+	
+</html>
+

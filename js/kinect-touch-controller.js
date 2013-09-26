@@ -31,9 +31,7 @@ Touch = function(size, x, y, left, top, width, height) {
 
 /**
  KinectTouchController constructor
- @param depthRef reference image used for depth thresholding
- @param transform An object used for coordinate conversion
- @parm touchDistance, interval Optional parameters used to set depth threshold values
+ @param transformData An object used for coordinate conversion
  */
 KinectTouchController = function(transformData) {
     this.depthRef = transformData.depthRef;
