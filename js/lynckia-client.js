@@ -10,6 +10,47 @@ var tabController;
 var LynckiaClient = LynckiaClient || {};
 
 /**
+ Sends a HTTP POST request to the server
+ @param callback Method which is called when the server responds
+ @param url The URL to send to
+ @param body The body of the request
+ */
+var httpPost = function (callback, url, body) {
+    var req = new XMLHttpRequest();
+    req.onreadystatechange = function () {
+        if (req.readyState === 4 && callback) {
+            callback(req.responseText);
+        }
+    };
+    req.open("POST", url, true);
+    req.setRequestHeader("Content-Type", "application/json");
+    if (body) {
+        req.send(JSON.stringify(body));
+    } else {
+        req.send();
+    }
+};
+
+/**
+ Sends a HTTP GET request to the server
+ @param callback Method which is called when the server responds
+ @param url The URL to send to
+ @param body The body of the request
+ */
+var httpGet = function(callback, url, body) {
+    var req = new XMLHttpRequest();
+    var parsedResponse;
+    req.onreadystatechange = function () {
+        if (req.readyState === 4 && callback) {
+            parsedResponse = JSON.parse(req.responseText);
+            callback(parsedResponse);
+        }
+    };
+    req.open("GET", url, true);
+    req.send();
+};
+
+/**
  Creates the key used to get access to a Lynckia room
  @param username Not useful at the moment
  @param role Not useful at the moment
