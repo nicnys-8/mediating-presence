@@ -1,3 +1,6 @@
+
+<!DOCTYPE html>
+
 <html>
     <head>
         
@@ -207,16 +210,14 @@
 	
 	<body onload="load()">
         
-        <a href="http://www.ltu.se" target="_blank"><img src="images/ltu_logo_small.png" style="position:absolute; left:5px; top:5px;">
-            </a>
-        <a href="http://www.ltu.se" target="_blank"><img src="images/ltu_logo_small.png" style="position:absolute; right:5px; top:5px;">
-            </a>
+        <a href="http://www.ltu.se" target="_blank"><img src="images/ltu_logo_small.png" style="position:absolute; left:5px; top:5px;"></a>
+        <!--a href="http://www.ltu.se" target="_blank"><img src="images/ltu_logo_small.png" style="position:absolute; right:5px; top:5px;"></a-->
         
         <div id="loginDiv">
             Write your user name:
-            <input id="loginField" type="text" rows="1" cols="20" onkeypress="executeOnEnterKey(event, loginButtonClicked)">
+            <input id="loginField" type="text" rows="1" cols="20" onkeypress="executeOnEnterKey(event, loginButtonClicked)" style="font-size:125%; padding:0.45em; margin-right:-5px; height:21px;">
             </input>
-            <button id="loginBtn" onclick="loginButtonClicked()">
+            <button id="loginBtn" onclick="loginButtonClicked()" style="margin-left:0px;">
                 Log in
             </button>
         </div>
@@ -229,10 +230,10 @@
             
             <div id="roomCreation">
                 Write a room name:
-                <input id="roomName" type="text" rows="1" cols="20" onkeypress="executeOnEnterKey(event, createRoomButtonClicked)">
+                <input id="roomName" type="text" rows="1" cols="20" onkeypress="executeOnEnterKey(event, createRoomButtonClicked)" style="font-size:125%; padding:0.45em; margin-right:-5px; height:21px;">
                 </input>
                 
-                <button id="createRoomBtn" onclick="createRoomButtonClicked()">
+                <button id="createRoomBtn" onclick="createRoomButtonClicked()" style="margin-left:0px;">
                     Create room
                 </button>
             </div>

@@ -96,7 +96,7 @@ ModelController = function(canvas) {
 	
 	mat4.identity(rotationMatrix);
 	
-	var degToRad = function(degrees) {
+	function degToRad(degrees) {
 		return degrees * Math.PI / 180;
 	}
 	
@@ -236,35 +236,6 @@ ModelController = function(canvas) {
 
 		lastMouseX = newX;
 		lastMouseY = newY;
-		
-		/*
-		 
-		 *** Testing accuracy and speed of mat4->quat->mat4 ***
-
-		 var quat = quat4.create(), matBack, i, error;
-		 
-		 console.time("First");
-		 for (i = 0; i < 1000; i++) mat4.rotationToQuat4(pcRotationMatrix, quat);
-		 console.timeEnd("First");
-		 
-		 matBack = quat4.toMat4(quat);
-		 error = 0;
-		 for (var i = 0; i < 16; i++) {
-		 error += matBack[i] - pcRotationMatrix[i];
-		 }
-		 console.log(error);
-		 
-		 console.time("Second");
-		 for (i = 0; i < 1000; i++) mat4.rotationToQuat4_alt(pcRotationMatrix, quat);
-		 console.timeEnd("Second");
-		 
-		 matBack = quat4.toMat4(quat);
-		 error = 0;
-		 for (var i = 0; i < 16; i++) {
-		 error += matBack[i] - pcRotationMatrix[i];
-		 }
-		 console.log(error);
-		 */
 	}
 
 	this.updateRotation = function(quat) {
@@ -299,6 +270,16 @@ ModelController = function(canvas) {
 		 */
 	}
 
+	this.setRotationMatrix = function(mat) {
+		mat4.set(mat, rotationMatrix);
+	};
+	
+	this.getFullRotation = function() {
+		mat4.identity(sendRotationMatrix);
+		hasDataToSend = false;
+		return rotationMatrix;
+	};
+	
 	canvas.addEventListener("mousedown", handleMouseDown, false);
 	document.addEventListener("mouseup", handleMouseUp, false);
 	document.addEventListener("mousemove", handleMouseMove, false);
