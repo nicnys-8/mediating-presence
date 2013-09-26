@@ -1,15 +1,18 @@
 
+
+<!DOCTYPE html>
+
 <html>
     <head>
         
         <title>Hand overlay</title>
         
+		<script type="text/javascript" src="js/lib/webgl-utils.js"></script>
+        <script type="text/javascript" src="js/lib/glMatrix-0.9.5.min.js"></script>
+		<script type="text/javascript" src="js/image-handling.js"></script>
 		<script type="text/javascript" src="js/tab-control.js"></script>
         <script type="text/javascript" src="js/mediaext.js"></script>
 		<script type="text/javascript" src="js/geometry.js"></script>
-        <script type="text/javascript" src="js/lib/webgl-utils.js"></script>
-        <script type="text/javascript" src="js/lib/glMatrix-0.9.5.min.js"></script>
-		<script type="text/javascript" src="js/image-handling.js"></script>
 		<script type="text/javascript" src="js/kinect-touch-controller.js"></script>
 		<script type="text/javascript" src="js/kinect-proxy-zigfu.js"></script>
 		
@@ -19,8 +22,8 @@
 		<style type="text/css">
 			
 			body {
-				pointer-events:none;
-				/*background-color:blue;*/
+				/*pointer-events:none;*/
+				background-color:blue;
 			}
 			
 			#content {
@@ -361,6 +364,8 @@
 				}
 				
 				frameCount++;
+				
+				console.log("HEasdfJ");
             };
 			
 			
@@ -378,7 +383,7 @@
 				}
 			}
 
-            </script>
+		</script>
         
     </head>
 	
