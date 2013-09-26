@@ -281,7 +281,7 @@ KinectTouchController.prototype.simulateMouseEvent = function(touchPoint, eventT
     // Decide the target that will dispatch the event;
     // it can be either an iFrame or the main element
     var target;
-    if (element.tagName == "IFRAME") {
+    if (element && element.tagName == "IFRAME") {
         var elementX = $(element).offset().left;
         var elementY = $(element).offset().top;
         
