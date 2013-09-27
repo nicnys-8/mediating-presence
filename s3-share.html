@@ -222,10 +222,13 @@
                 document.ondragover = function () { dropbox.className = "hover"; return false; };
                 document.ondragend = function () { return false; };
                 document.ondrop = function (e) {
-                    dropbox.className = "";
-                    e.preventDefault();
-                    readFiles(e.dataTransfer.files);
-                    return false;
+					var files = e.dataTransfer.files;
+					if (files) {
+						dropbox.className = "";
+						e.preventDefault();
+						readFiles(e.dataTransfer.files);
+						// return false;
+					}
                 };
                 // **********************
                 
