@@ -74,15 +74,21 @@
 				renderLoopID,
 				rotationIntervalID,
 				sendCount = 0,
-				SEND_ALL_INTERVAL = 10,
-				UNIFORM_DEFAULTS = {
-					specular : [0.8, 0.8, 0.8],
-					diffuse : [0.6, 0.6, 0.6],
-					ambient : [0.2, 0.2, 0.2],
-					shininess : 20.0,
-					lightPos : [0, 0, 0],
-					zoom : 1.0,
-					blobbiness : 0.0,
+				SEND_ALL_INTERVAL = 30,
+				UNIFORM_DEFAULTS = function(name) {
+					var values = {
+						specular : [0.8, 0.8, 0.8],
+						diffuse : [0.6, 0.6, 0.6],
+						ambient : [0.2, 0.2, 0.2],
+						shininess : 20.0,
+						lightPos : [0, 0, 0],
+						zoom : 1.0,
+						blobbiness : 0.0
+					};
+					if (name) {
+						return values[name];
+					}
+					return values;
 				},
 				uniforms = function() {
 					
@@ -137,36 +143,36 @@
 					},
 					
 					reset = function() {
-						update(UNIFORM_DEFAULTS);
+						update(UNIFORM_DEFAULTS());
 					};
 					
 					return {
 						specular : {
-							value:UNIFORM_DEFAULTS.specular,
+							value:UNIFORM_DEFAULTS("specular"),
 							type:"color"
 						},
 						diffuse : {
-							value:UNIFORM_DEFAULTS.diffuse,
+							value:UNIFORM_DEFAULTS("diffuse"),
 							type:"color"
 						},
 						ambient : {
-							value:UNIFORM_DEFAULTS.ambient,
+							value:UNIFORM_DEFAULTS("ambient"),
 							type:"color"
 						},
 						shininess : {
-							value:UNIFORM_DEFAULTS.shininess,
+							value:UNIFORM_DEFAULTS("shininess"),
 							type:"float"
 						},
 						lightPos : {
-							value:UNIFORM_DEFAULTS.lightPos,
+							value:UNIFORM_DEFAULTS("lightPos"),
 							type:"vec3"
 						},
 						zoom : {
-							value:UNIFORM_DEFAULTS.zoom,
+							value:UNIFORM_DEFAULTS("zoom"),
 							type:"float"
 						},
 						blobbiness : {
-							value:UNIFORM_DEFAULTS.blobbiness,
+							value:UNIFORM_DEFAULTS("blobbiness"),
 							type:"float"
 						},
 						
@@ -211,11 +217,11 @@
                     state.className = "success";
                 }
                 
-                dropbox.ondragenter = function () { dropbox.className = "hover"; return false; };
-                dropbox.ondragleave = function () { dropbox.className = ""; return false; };
-                dropbox.ondragover = function () { dropbox.className = "hover"; return false; };
-                dropbox.ondragend = function () { return false; };
-                dropbox.ondrop = function (e) {
+                document.ondragenter = function () { dropbox.className = "hover"; return false; };
+                document.ondragleave = function () { dropbox.className = ""; return false; };
+                document.ondragover = function () { dropbox.className = "hover"; return false; };
+                document.ondragend = function () { return false; };
+                document.ondrop = function (e) {
                     dropbox.className = "";
                     e.preventDefault();
                     readFiles(e.dataTransfer.files);
@@ -237,7 +243,6 @@
 			};
 			
 			TabControl.onLocalStreamInit = function(stream) {
-				myStreamID = stream.getID();
 			};
 			
 			TabControl.onStreamAdded = function(stream) {
@@ -264,7 +269,7 @@
 						break;
 					case "sync":
 						if (controller) {
-							controller.setRotationMatrix(data.rot);
+							controller.setRotation(data.rot);
 						}
 						uniforms.update(data.uniforms);
 						break;
@@ -351,7 +356,7 @@
 						alert("Error parsing model. " + error);
 						return;
 					}
-					
+					/*
 					if (displayModel(result)) {
 						// Upload the file to S3 (hacky way to get LynckiaClient?)
 						// Only upload after making sure the model can be loaded
@@ -369,16 +374,16 @@
 															}
 															});
 						
-					}
+					}*/
 					
 					progress.className = "";
 					
-					/*
+					
 					 setTimeout(function() {
 					 progress.className = "";
 					 displayModel(result);
 					 }, 0);
-					 */
+					 
                 };
 				
                 // console.log('Reading file:');
@@ -466,8 +471,11 @@
 			function syncControls(name) {
 				
 				var uniform = uniforms[name], val;
-				
-				if (uniform && uniform.type && uniform.value) {
+
+				if (uniform
+					&& uniform.hasOwnProperty("type")
+					&& uniform.hasOwnProperty("value")) {
+
 					val = uniform.value;
 					switch (uniform.type) {
 						case "float":
@@ -682,7 +690,7 @@
 			
 			<div id="container">
 				<div id="dropbox">
-					<p id="status">Drop a .ply file here, or use this fine button:<input type="file" id="fileSelect"></p>
+					<p id="status">Drop a .ply file here, or use this fine button:</br><input type="file" id="fileSelect"></p>
 					<progress id="progressBar" value=0 max=100></progress>
 				</div>
 			</div>

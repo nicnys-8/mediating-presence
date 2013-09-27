@@ -91,11 +91,17 @@ ModelController = function(canvas) {
 		scale = vec3.create([1.0, 1.0, 1.0]),
 		zoom = 1.0,
 		rotationMatrix = mat4.create(),
+		visibleRotation = mat4.create(),
 		mvMatrix = mat4.create(),
 		hasValidMVMatrix = false;
 	
 	mat4.identity(rotationMatrix);
+	mat4.identity(visibleRotation);
 	
+	var goalQuat = quat4.create([0, 0, 0, 1]);
+	var visibleQuat = quat4.create([0, 0, 0, 1]);
+	var sendQuat = quat4.create([0, 0, 0, 1]);
+
 	function degToRad(degrees) {
 		return degrees * Math.PI / 180;
 	}
@@ -171,18 +177,37 @@ ModelController = function(canvas) {
 			return mvMatrix;
 		}
 		
+		var vq = visibleQuat; // quat4.create();
+		var rq = goalQuat; // quat4.create();
+		
+		// mat4.rotationToQuat4(visibleRotation, vq);
+		// mat4.rotationToQuat4(rotationMatrix, rq);
+
+		
+		var amt = 0.1;
+		vq[0] = vq[0] + (rq[0] - vq[0]) * amt;
+		vq[1] = vq[1] + (rq[1] - vq[1]) * amt;
+		vq[2] = vq[2] + (rq[2] - vq[2]) * amt;
+		vq[3] = vq[3] + (rq[3] - vq[3]) * amt;
+		
+		
+		// quat4.slerp(vq, rq, 0.2);
+		quat4.normalize(vq);
+		quat4.toMat4(vq, visibleRotation);
+		
 		mat4.identity(mvMatrix);
 		mat4.translate(mvMatrix, pos);
-		mat4.multiply(mvMatrix, rotationMatrix);
+		mat4.multiply(mvMatrix, visibleRotation); // rotationMatrix);
 		mat4.scale(mvMatrix, [scale[0] * zoom, scale[1] * zoom, scale[2] * zoom]);
 		mat4.translate(mvMatrix, cor);
 		
-		hasValidMVMatrix = true;
+		// hasValidMVMatrix = true;
 		
 		return mvMatrix;
 	}
 	
 	this.resetRotation = function() {
+		quat4.set([0, 0, 0, 1], goalQuat);
 		mat4.identity(rotationMatrix);
 		hasValidMVMatrix = false;
 	}
@@ -223,13 +248,18 @@ ModelController = function(canvas) {
 		}*/
 		
 		mat4.identity(newRotationMatrix);
-		mat4.rotateY(newRotationMatrix, degToRad(deltaX / 5));
-		mat4.rotateX(newRotationMatrix, degToRad(deltaY / 5));
+		mat4.rotateY(newRotationMatrix, degToRad(deltaX / 3));
+		mat4.rotateX(newRotationMatrix, degToRad(deltaY / 3));
 		mat4.multiply(newRotationMatrix, rotationMatrix, rotationMatrix);
 		
 		hasValidMVMatrix = false;
+
+		// TODO: Remove unnecessary conversions!
+		var rot = mat4.rotationToQuat4(newRotationMatrix);
+		quat4.multiply(goalQuat, rot);
 		
 		// ** For shared viewing **
+		quat4.multiply(sendQuat, rot);
 		mat4.multiply(newRotationMatrix, sendRotationMatrix, sendRotationMatrix);
 		hasDataToSend = true;
 		// ************************
@@ -239,8 +269,10 @@ ModelController = function(canvas) {
 	}
 
 	this.updateRotation = function(quat) {
-		quat4.toMat4(quat, newRotationMatrix);
-		mat4.multiply(newRotationMatrix, rotationMatrix, rotationMatrix);
+		quat4.multiply(goalQuat, quat);
+		
+		// quat4.toMat4(quat, newRotationMatrix);
+		// mat4.multiply(newRotationMatrix, rotationMatrix, rotationMatrix);
 		
 		// With matrix:
 		// mat4.multiply(mat, rotationMatrix, rotationMatrix);
@@ -253,8 +285,10 @@ ModelController = function(canvas) {
 		}
 		
 		var quat = new Array(4); // quat4.create();
-		mat4.rotationToQuat4(sendRotationMatrix, quat);
-		mat4.identity(sendRotationMatrix);
+		// mat4.rotationToQuat4(sendRotationMatrix, quat);
+		// mat4.identity(sendRotationMatrix);
+		quat4.set(sendQuat, quat);
+		quat4.set([0, 0, 0, 1], sendQuat);
 		hasDataToSend = false;
 		return quat;
 		
@@ -270,14 +304,21 @@ ModelController = function(canvas) {
 		 */
 	}
 
+	this.setRotation = function(quat) {
+		quat4.set(quat, goalQuat);
+	};
+	
 	this.setRotationMatrix = function(mat) {
 		mat4.set(mat, rotationMatrix);
 	};
 	
 	this.getFullRotation = function() {
-		mat4.identity(sendRotationMatrix);
+		var quat = quat4.create();
+		quat4.set(goalQuat, quat);
+		return quat;
+		/*mat4.identity(sendRotationMatrix);
 		hasDataToSend = false;
-		return rotationMatrix;
+		return rotationMatrix;*/
 	};
 	
 	canvas.addEventListener("mousedown", handleMouseDown, false);
