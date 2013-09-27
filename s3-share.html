@@ -223,7 +223,7 @@
                 document.ondragend = function () { return false; };
                 document.ondrop = function (e) {
 					var files = e.dataTransfer.files;
-					if (files) {
+					if (files && files.length) {
 						dropbox.className = "";
 						e.preventDefault();
 						readFiles(e.dataTransfer.files);
