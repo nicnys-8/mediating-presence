@@ -8,17 +8,18 @@ N = require("./nuve"),
 fs = require("fs"),
 io = require("socket.io").listen(3005),
 https = require("https"),
-config = require("./../../lynckia_config");
+config = require("./../../lynckia_config"),
+crypto = require( "crypto" );
 
 /*========================
  --- Amazon S3 storage ---
  =======================*/
 var s3Signature,
-s3Credentials,
-POLICIES_PER_DAY = 100,
-// The number of seconds that passes before the number of policies are refreshed:
-policyRefreshTime = 1000 * 60 * 60 * 24, // 24 hours
-remainingPolicies = POLICIES_PER_DAY;
+	s3Credentials,
+	POLICIES_PER_DAY = 100,
+	// The number of seconds that passes before the number of policies are refreshed:
+	policyRefreshTime = 1000 * 60 * 60 * 24, // 24 hours
+	remainingPolicies = POLICIES_PER_DAY;
 
 setInterval(function() {
             remainingPolicies = POLICIES_PER_DAY;
@@ -31,7 +32,7 @@ var createS3Policy = function() {
     s3Policy = {
         "expiration": "" + (date.getFullYear()) + "-" + (date.getMonth() + 1) + "-" + (date.getDate()) + "T" + (date.getHours()) + ":" + (date.getMinutes() + 5) + ":" + (date.getSeconds()) + "Z", // set to expire in five minutes
         "conditions": [
-                       {"bucket": "idipity-data"},
+                       {"bucket": "mediating-presence"},
                        //["starts-with", "$key", "uploads/" + filename],
                        {"key": "uploads/" + filename},
                        {"acl": "public-read"},
@@ -82,8 +83,7 @@ app.configure(function () {
 app.use(function (req, res, next) {
         "use strict";
         res.header("Access-Control-Allow-Origin", "*");
-        res.header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE");
-        res.header("Access-Control-Allow-Headers", "origin, content-type");
+        res.header("Access-Control-Allow-Headers", "X-Requested-With");
         if (req.method == "OPTIONS") {
         res.send(200);
         }

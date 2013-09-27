@@ -289,7 +289,7 @@ LynckiaClient.uploadFile = function(file, callbacks) {
         req.upload.addEventListener("progress", callbacks.progress, false);
         req.send(fd);
     }
-    var url = "/gets3policy";
+    var url = serverUrl + "gets3policy";
     httpGet(postToS3, url);
 };
 
