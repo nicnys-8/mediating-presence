@@ -264,7 +264,7 @@
 				switch (type) {
 					case "rot":
 						if (data.rot && controller) {
-							controller.updateRotation(data.rot);
+							controller.rotate(data.rot);
 						}
 						if (data.uniforms) {
 							uniforms.update(data.uniforms);

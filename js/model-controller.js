@@ -1,136 +1,104 @@
 
 /*
- * mat4.rotationToQuat4
- *
- * Extension to glMatrix, by Jimmy. Based on
- * http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/
- * Calculates a quat4 fom the given matrix. In order to work
- * correctly, mat needs to be a pure rotation matrix.
- *
- * Params:
- * mat - mat4 rotation matrix to create quaternion from
- * dest - Optional, quat4 receiving operation result
- *
- * Returns:
- * dest if specified, a new quat4 otherwise
+ * Extensions to glMatrix, by Jimmy.
  */
-mat4.rotationToQuat4 = function(mat, dest) {
+
+quat4.nlerp = function(quat, quat2, lerp, dest) {
+	if (!dest) { dest = quat; }
 	
-	if (!dest) { dest = quat4.create(); };
-	
-	var a00 = mat[0], a01 = mat[1], a02 = mat[2];
-	var a10 = mat[4], a11 = mat[5], a12 = mat[6];
-	var a20 = mat[8], a21 = mat[9], a22 = mat[10];
-	var tr = a00 + a11 + a22, S, invS;
-	
-	if (tr > 0) {
-		S = Math.sqrt(tr + 1.0) * 2; // S=4*qw
-		invS = 1.0 / S;
-		dest[0] = (a21 - a12) * invS;
-		dest[1] = (a02 - a20) * invS;
-		dest[2] = (a10 - a01) * invS;
-		dest[3] = 0.25 * S;
-	} else if ((a00 > a11) && (a00 > a22)) {
-		S = Math.sqrt(1.0 + a00 - a11 - a22) * 2; // S=4*qx
-		invS = 1.0 / S;
-		dest[0] = 0.25 * S;
-		dest[1] = (a01 + a10) * invS;
-		dest[2] = (a02 + a20) * invS;
-		dest[3] = (a21 - a12) * invS;
-	} else if (a11 > a22) {
-		S = Math.sqrt(1.0 + a11 - a00 - a22) * 2; // S=4*qy
-		invS = 1.0 / S;
-		dest[0] = (a01 + a10) * invS;
-		dest[1] = 0.25 * S;
-		dest[2] = (a12 + a21) * invS;
-		dest[3] = (a02 - a20) * invS;
-	} else {
-		S = Math.sqrt(1.0 + a22 - a00 - a11) * 2; // S=4*qz
-		invS = 1.0 / S;
-		dest[0] = (a02 + a20) * invS;
-		dest[1] = (a12 + a21) * invS;
-		dest[2] = 0.25 * S;
-		dest[3] = (a10 - a01) * invS;
-	}
+	dest[0] = quat[0] + (quat2[0] - quat[0]) * lerp;
+	dest[1] = quat[1] + (quat2[1] - quat[1]) * lerp;
+	dest[2] = quat[2] + (quat2[2] - quat[2]) * lerp;
+	dest[3] = quat[3] + (quat2[3] - quat[3]) * lerp;
+	quat4.normalize(dest);
 	
 	return dest;
 };
 
-var copySign = function(x1, x2) {
-	var sign = x2 < 0 ? -1 : x2 > 0 ? 1 : 0;
-	return x1 < 0 ? -x1 * sign : x1 * sign;
+quat4.closeEnough = function(quat, quat2) {
+	var dx = quat[0] - quat2[0],
+		dy = quat[1] - quat2[1],
+		dz = quat[2] - quat2[2],
+		dw = quat[3] - quat2[3],
+		close = 0.01 * 0.01;
+	return dx * dx < close
+		&& dy * dy < close
+		&& dz * dz < close
+		&& dw * dw < close;
 };
 
-mat4.rotationToQuat4_alt = function(mat, dest) {
-	
-	if (!dest) { dest = quat4.create(); };
-	
-	var a00 = mat[0], a01 = mat[1], a02 = mat[2];
-	var a10 = mat[4], a11 = mat[5], a12 = mat[6];
-	var a20 = mat[8], a21 = mat[9], a22 = mat[10];
-	
-	dest[0] = Math.sqrt(Math.max(0, 1 + a00 - a11 - a22)) * 0.5;
-	dest[1] = Math.sqrt(Math.max(0, 1 - a00 + a11 - a22)) * 0.5;
-	dest[2] = Math.sqrt(Math.max(0, 1 - a00 - a11 + a22)) * 0.5;
-	dest[3] = Math.sqrt(Math.max(0, 1 + a00 + a11 + a22)) * 0.5;
-	
-	dest[0] = copySign(dest[0], a21 - a12);
-	dest[1] = copySign(dest[1], a02 - a20);
-	dest[2] = copySign(dest[2], a10 - a01);
-	
-	return dest;
+quat4.isEqual = function(quat, quat2) {
+	return quat[0] == quat2[0]
+		&& quat[1] == quat2[1]
+		&& quat[2] == quat2[2]
+		&& quat[3] == quat2[3];
 };
 
+vec3.closeEnough = function(vec, vec2) {
+	var dx = vec[0] - vec2[0],
+		dy = vec[1] - vec2[1],
+		dz = vec[2] - vec2[2],
+		close = 0.01 * 0.01;
+	return dx * dx < close
+		&& dy * dy < close
+		&& dz * dz < close;
+};
+
+vec3.isEqual = function(vec, vec2) {
+	return vec[0] == vec2[0]
+		&& vec[1] == vec2[1]
+		&& vec[2] == vec2[2];
+};
 
 /**
  */
 ModelController = function(canvas) {
 	
-	var cor = vec3.create([0, 0, 0]),
-		pos = vec3.create([0, 0, 0]),
-		scale = vec3.create([1.0, 1.0, 1.0]),
+	var center = vec3.create([0, 0, 0]),
+		position = vec3.create([0, 0, 0]),
+		scale = vec3.create([1, 1, 1]),
 		zoom = 1.0,
-		rotationMatrix = mat4.create(),
-		visibleRotation = mat4.create(),
-		mvMatrix = mat4.create(),
+		mModelView = mat4.create(),
+		mRotation = mat4.create(),
+		qTargetRotation = quat4.create([0, 0, 0, 1]),
+		qRotation = quat4.create([0, 0, 0, 1]),
+		qSendRotation = quat4.create([0, 0, 0, 1]),
 		hasValidMVMatrix = false;
-	
-	mat4.identity(rotationMatrix);
-	mat4.identity(visibleRotation);
-	
-	var goalQuat = quat4.create([0, 0, 0, 1]);
-	var visibleQuat = quat4.create([0, 0, 0, 1]);
-	var sendQuat = quat4.create([0, 0, 0, 1]);
 
 	function degToRad(degrees) {
 		return degrees * Math.PI / 180;
 	}
 	
 	this.setCenterOfRotation = function(vec) {
-		vec3.set(vec, cor);
-		hasValidMVMatrix = false;
-	}
+		if (!vec3.isEqual(vec, center)) {
+			vec3.set(vec, center);
+			hasValidMVMatrix = false;
+		}
+	};
 	
 	this.setPosition = function(vec) {
-		vec3.set(vec, pos);
-		hasValidMVMatrix = false;
-	}
+		if (!vec3.isEqual(vec, position)) {
+			vec3.set(vec, position);
+			hasValidMVMatrix = false;
+		}
+	};
 	
 	// RENAME!
 	this.setScale = function(val) {
-		scale[0] = val;
-		scale[1] = val;
-		scale[2] = val;
-		hasValidMVMatrix = false;
-	}
+		this.setScaleVec([val, val, val]);
+	};
 	this.setScaleVec = function(vec) {
-		vec3.set(vec, scale);
-		hasValidMVMatrix = false;
-	}
+		if (!vec3.isEqual(vec, scale)) {
+			vec3.set(vec, scale);
+			hasValidMVMatrix = false;
+		}
+	};
 	this.setZoom = function(val) {
-		zoom = val;
-		hasValidMVMatrix = false;
-	}
+		if (zoom !== val) {
+			zoom = val;
+			hasValidMVMatrix = false;
+		}
+	};
 	
 	this.calculateInitalTransform = function(vertices) {
 
@@ -151,132 +119,109 @@ ModelController = function(canvas) {
 			y = vertices[i++];
 			z = vertices[i++];
 			
-			maxX = x > maxX ? x : maxX; // Math.max(maxX, x);
-			maxY = y > maxY ? y : maxY; // Math.max(maxY, y);
-			maxZ = z > maxZ ? z : maxZ; // Math.max(maxZ, z);
+			maxX = x > maxX ? x : maxX;
+			maxY = y > maxY ? y : maxY;
+			maxZ = z > maxZ ? z : maxZ;
 			
-			minX = x < minX ? x : minX; // Math.min(minX, x);
-			minY = y < minY ? y : minY; // Math.min(minY, y);
-			minZ = z < minZ ? z : minZ; // Math.min(minZ, z);
+			minX = x < minX ? x : minX;
+			minY = y < minY ? y : minY;
+			minZ = z < minZ ? z : minZ;
 		}
 		
 		cx = (maxX + minX) / 2;
 		cy = (maxY + minY) / 2;
 		cz = (maxZ + minZ) / 2;
 		baseScale = 1.0 / (maxX - minX);
-		distance = -1.0 / Math.atan(22.5 * Math.PI / 180);
+		distance = -1.0 / Math.atan(degToRad(22.5));
 		
 		this.setScale(baseScale);
 		this.setCenterOfRotation([-cx, -cy, -cz]);
 		this.setPosition([0, 0, distance]);
-	}
+	};
 	
 	this.getModelViewMatrix = function() {
 		
 		if (hasValidMVMatrix) {
-			return mvMatrix;
+			return mModelView;
 		}
 		
-		var vq = visibleQuat; // quat4.create();
-		var rq = goalQuat; // quat4.create();
+		// quat4.slerp(vq, rq, 0.1);
+		quat4.nlerp(qRotation, qTargetRotation, 0.1);
+		quat4.toMat4(qRotation, mRotation);
 		
-		// mat4.rotationToQuat4(visibleRotation, vq);
-		// mat4.rotationToQuat4(rotationMatrix, rq);
-
+		mat4.identity(mModelView);
+		mat4.translate(mModelView, position);
+		mat4.multiply(mModelView, mRotation);
+		mat4.scale(mModelView, [scale[0] * zoom, scale[1] * zoom, scale[2] * zoom]);
+		mat4.translate(mModelView, center);
 		
-		var amt = 0.1;
-		vq[0] = vq[0] + (rq[0] - vq[0]) * amt;
-		vq[1] = vq[1] + (rq[1] - vq[1]) * amt;
-		vq[2] = vq[2] + (rq[2] - vq[2]) * amt;
-		vq[3] = vq[3] + (rq[3] - vq[3]) * amt;
+		hasValidMVMatrix = quat4.closeEnough(qRotation, qTargetRotation);
 		
-		
-		// quat4.slerp(vq, rq, 0.2);
-		quat4.normalize(vq);
-		quat4.toMat4(vq, visibleRotation);
-		
-		mat4.identity(mvMatrix);
-		mat4.translate(mvMatrix, pos);
-		mat4.multiply(mvMatrix, visibleRotation); // rotationMatrix);
-		mat4.scale(mvMatrix, [scale[0] * zoom, scale[1] * zoom, scale[2] * zoom]);
-		mat4.translate(mvMatrix, cor);
-		
-		// hasValidMVMatrix = true;
-		
-		return mvMatrix;
-	}
-	
-	this.resetRotation = function() {
-		quat4.set([0, 0, 0, 1], goalQuat);
-		mat4.identity(rotationMatrix);
-		hasValidMVMatrix = false;
-	}
+		return mModelView;
+	};
 	
 	// Add mouse event handlers to canvas
-	// Allows for rotation of the scene
+	// Allows for rotation of the model
 	var mouseDown = false,
 		lastMouseX = null,
 		lastMouseY = null,
-		hasDataToSend = false,
-		sendRotationMatrix = mat4.create(),
-		newRotationMatrix = mat4.create();
+		hasDataToSend = false;
 	
-	mat4.identity(sendRotationMatrix);
-	mat4.identity(newRotationMatrix);
-	
-	var handleMouseDown = function(event) {
+	function handleMouseDown(event) {
 		mouseDown = true;
 		lastMouseX = event.clientX;
 		lastMouseY = event.clientY;
+		event.preventDefault();
 	}
-	var handleMouseUp = function(event) {
+	function handleMouseUp(event) {
 		mouseDown = false;
 	}
-	var handleMouseMove = function(event) {
+	function handleMouseMove(event) {
 		
-		if (!mouseDown) { return; }
+		if (!mouseDown) {
+			return;
+		}
 		
 		var newX = event.clientX,
 			newY = event.clientY,
 			deltaX = newX - lastMouseX,
-			deltaY = newY - lastMouseY;
+			deltaY = newY - lastMouseY,
+			ax = degToRad(deltaX / 4),
+			ay = degToRad(deltaY / 4),
+			qx = quat4.create([-Math.sin(ay), 0, 0, Math.cos(ay)]),
+			qy = quat4.create([0, -Math.sin(ax), 0, Math.cos(ax)]),
+			rot = quat4.multiply(qy, qx);
 		
-		/*if (deltaX > 30) {
-			lastMouseX = newX;
-			lastMouseY = newY;
-			return;
-		}*/
-		
-		mat4.identity(newRotationMatrix);
-		mat4.rotateY(newRotationMatrix, degToRad(deltaX / 3));
-		mat4.rotateX(newRotationMatrix, degToRad(deltaY / 3));
-		mat4.multiply(newRotationMatrix, rotationMatrix, rotationMatrix);
-		
-		hasValidMVMatrix = false;
-
-		// TODO: Remove unnecessary conversions!
-		var rot = mat4.rotationToQuat4(newRotationMatrix);
-		quat4.multiply(goalQuat, rot);
+		quat4.multiply(qTargetRotation, rot);
 		
 		// ** For shared viewing **
-		quat4.multiply(sendQuat, rot);
-		mat4.multiply(newRotationMatrix, sendRotationMatrix, sendRotationMatrix);
+		quat4.multiply(qSendRotation, rot);
 		hasDataToSend = true;
 		// ************************
 
+		hasValidMVMatrix = false;
 		lastMouseX = newX;
 		lastMouseY = newY;
 	}
 
-	this.updateRotation = function(quat) {
-		quat4.multiply(goalQuat, quat);
-		
-		// quat4.toMat4(quat, newRotationMatrix);
-		// mat4.multiply(newRotationMatrix, rotationMatrix, rotationMatrix);
-		
-		// With matrix:
-		// mat4.multiply(mat, rotationMatrix, rotationMatrix);
-	}
+	this.resetRotation = function() {
+		quat4.set([0, 0, 0, 1], qTargetRotation);
+		hasValidMVMatrix = false;
+	};
+	
+	this.rotate = function(quat) {
+		quat4.multiply(qTargetRotation, quat);
+		hasValidMVMatrix = false;
+	};
+
+	this.setRotation = function(quat) {
+		quat4.set(quat, qTargetRotation);
+		hasValidMVMatrix = false;
+	};
+	
+	this.setRotationMatrix = function(mat) {
+		mat4.rotationToQuat4(mat, qTargetRotation);
+	};
 	
 	this.getSendRotation = function() {
 		
@@ -284,50 +229,28 @@ ModelController = function(canvas) {
 			return; // undefined
 		}
 		
-		var quat = new Array(4); // quat4.create();
-		// mat4.rotationToQuat4(sendRotationMatrix, quat);
-		// mat4.identity(sendRotationMatrix);
-		quat4.set(sendQuat, quat);
-		quat4.set([0, 0, 0, 1], sendQuat);
+		var quat = []; // quat4.create();
+		quat4.set(qSendRotation, quat);
+		quat4.set([0, 0, 0, 1], qSendRotation);
 		hasDataToSend = false;
 		return quat;
-		
-		/*
-		 With matrix:
-		var rot = new Array(16);
-		for (var i = 0; i < 16; i++) {
-			rot[i] = sendRotation[i];
-		}
-		mat4.identity(sendRotation);
-		hasDataToSend = false;
-		return rot;
-		 */
-	}
-
-	this.setRotation = function(quat) {
-		quat4.set(quat, goalQuat);
-	};
-	
-	this.setRotationMatrix = function(mat) {
-		mat4.set(mat, rotationMatrix);
 	};
 	
 	this.getFullRotation = function() {
-		var quat = quat4.create();
-		quat4.set(goalQuat, quat);
+		var quat = []; // quat4.create();
+		quat4.set(qTargetRotation, quat);
 		return quat;
-		/*mat4.identity(sendRotationMatrix);
-		hasDataToSend = false;
-		return rotationMatrix;*/
 	};
 	
 	canvas.addEventListener("mousedown", handleMouseDown, false);
 	document.addEventListener("mouseup", handleMouseUp, false);
+	document.addEventListener("mouseout", handleMouseUp, false);
 	document.addEventListener("mousemove", handleMouseMove, false);
 	
 	this.destroy = function() {
 		canvas.removeEventListener("mousedown", handleMouseDown);
 		document.removeEventListener("mouseup", handleMouseUp);
+		document.removeEventListener("mouseout", handleMouseUp, false);
 		document.removeEventListener("mousemove", handleMouseMove);
 		canvas = null;
 	};
