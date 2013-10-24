@@ -21,6 +21,10 @@ Our *Mediating Presence server* uses the Licode platform for its WebRTC communic
         cd install-directory
         mv licode/extras/basic_example/public/basicServer.js licode/extras/basic_example/basicServer.js
         y (to accept overwrite)
+        
+3.5 (This step will not be needed future versions)
+        Edit line 11 of the file basicServer.js to look like this:
+            config = require("./../../licode_config"),
 
 4. Start the server by running the following scripts:
 
