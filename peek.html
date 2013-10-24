@@ -53,7 +53,16 @@
 					imageData = videoContext.createImageData(160, 120),
 					depthCanvas = MediaExt.createCanvas(160, 120),
 					depthContext = depthCanvas.getContext("2d"),
-					depthImage = new Image();
+					depthImage = new Image(),
+					// Determine whether Uint32 is little- or big-endian.
+					// TODO: Use this for faster encoding using Uint16Array or Uint32Array
+					isLittleEndian = function() {
+						var buf = new ArrayBuffer(4),
+							buf8 = new Uint8Array(buf),
+							buf32 = new Uint32Array(buf);
+						buf32[0] = 0x0a0b0c0d;
+						return (buf8[0] === 0x0d);
+					}();
 				
 				depthImage.onload = null;
 				videoImage.onload = null;
@@ -78,6 +87,7 @@
 					}
                     videoImage.src = "";
                     videoImage.onload = function() {
+						// TODO: just callback with videoImage instead?
                         dstCanvas.getContext("2d").drawImage(videoImage, 0, 0, 160, 120);
                         callback(dstCanvas);
                     }
@@ -95,8 +105,8 @@
 					
 					while (i < len) {
 						z = depthData[i];
-						data[j + 0] = (z & 0xff00) >> 8;
-						data[j + 1] = (z & 0x00ff);
+						data[j + 0] = z >> 8; // (z & 0xff00) >> 8;
+						data[j + 1] = z & 0x00ff;
 						i += 1;
 						j += 4;
 					}
@@ -107,7 +117,7 @@
 				API.decodeDepth = function(dataURL, dst, callback) {
 					
 					if (!dataURL) {
-						return null;
+						return;
 					}
 					
                     depthImage.src = "";
@@ -116,23 +126,23 @@
                         
                         depthContext.drawImage(depthImage, 0, 0, 160, 120);
                     
-                        var data = depthContext.getImageData(0, 0, 160, 120).data,
-                            i = 0, j = 0, len = data.length, x = 0;
+						var data = depthContext.getImageData(0, 0, 160, 120).data,
+							i = 0, j = 0, len = data.length, x = 0;
 					
                         while (j < len) {
                             dst[i] = (data[j] << 8) | data[j + 1];
-                            x += data[j + 2];
+                            // x += data[j + 2];
                             i += 1;
                             j += 4;
                         }
 					
                         // Make sure the data is valid
-                        if (x === dst.length * 255) {
+						// if (x === dst.length * 255) {
                             callback(dst);
-                        } else {
+                        /*} else {
                             console.log("Invalid depth data...? " + x / dst.length);
                             callback(null);
-                        }
+                        }*/
                     }
                         
                     depthImage.src = dataURL;
@@ -301,10 +311,10 @@
 						var pd = displayedStreams[senderId], texture, depth;
 						
 						if (pd) {
-							texture = StreamCodec.decodeVideo(data.video, pd.bufferCanvas,
-															  function(result) {updateScene(senderId, result, null)}),
-							depth = StreamCodec.decodeDepth(data.depth, pd.depthBuffer,
-															function(result) {updateScene(senderId, null, result)});
+							StreamCodec.decodeVideo(data.video, pd.bufferCanvas,
+													function(result) { updateScene(senderId, result, null); }),
+							StreamCodec.decodeDepth(data.depth, pd.depthBuffer,
+													function(result) { updateScene(senderId, null, result); });
 							// updateScene(senderId, texture, depth);
 						}
 					}

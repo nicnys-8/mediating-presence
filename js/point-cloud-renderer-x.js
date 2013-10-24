@@ -134,7 +134,7 @@ PointCloudRendererX = function(canvas) {
 		
 		// instanceof CanvasImageData or something
 		if (image.width && image.height && image.data) {
-			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, image.width, image.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(image.data));
+			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, image.width, image.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(image.data.buffer));
 		} else {
 			// TODO: Should be Canvas or Image here, but add check to make sure
 			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);

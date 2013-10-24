@@ -247,7 +247,7 @@ if (window.self === window.top) {
 	
 	// Inject the Zigfu script
 	var s = document.createElement("script");
-	s.src = "js/lib/zig.js"; // http://cdn.zigfu.com/zigjs/zig.min.js";
+	s.src = "/js/lib/zig.js"; // http://cdn.zigfu.com/zigjs/zig.min.js";
 	/*s.onload = function() {
 		// KinectProxy.initPlugin();
 	};*/

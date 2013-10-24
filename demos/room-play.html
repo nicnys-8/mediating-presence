@@ -1,0 +1,203 @@
+
+<!DOCTYPE html>
+
+<html>
+    <head>
+        
+        <title>Mediating Presence</title>
+		
+		<link rel="stylesheet" type="text/css" href="/css/demo-room.css"/>
+		
+		<script type="text/javascript" src="/js/lib/jquery.js"></script>
+		<script type="text/javascript" src="/js/tab-control.js"></script>
+		<script type="text/javascript" src="/js/lib/erizo.js"></script>
+		<script type="text/javascript" src="/js/lynckia-client.js"></script>
+		<script type="text/javascript" src="/js/lib/webgl-utils.js"></script>
+        <script type="text/javascript" src="js/popup-manager.js"></script>
+		
+		<script>
+			
+			var VIDEO_RES_WIDTH = 640,
+				VIDEO_RES_HEIGHT = 480;
+			
+			var streamIDs = [],
+				streams = {},
+				thumbs = {},
+				childName = "play",
+				childController;
+			
+			function parseParam(name, searchString) {
+				
+				searchString = (searchString && searchString.toLowerCase()) || window.location.search;
+				name = name.toLowerCase();
+				
+				var regex = new RegExp("[\?\&]?" + name + "=([^\&]+)"),
+				result = regex.exec(searchString);
+				
+				if (result && result.length >= 2) {
+					return result[1];
+				}
+				
+				return null;
+			}
+			
+			TabControl.onLoad = function() {
+				
+				var childFrame = document.getElementById(childName);
+				childController = childFrame.contentWindow.TabControl;
+				childController.onActivate();
+				
+                // Try parsing the Lynckia room and username from the URL
+				try {
+					var search = window.location.search,
+					username = parseParam("username") || "John Smith",
+					roomId = parseParam("roomid");
+					
+					LynckiaClient.getDemoRooms(function(rooms) {
+											   var playRoom = rooms.play;
+											   if (playRoom) {
+											   LynckiaClient.accessRoom(username, playRoom._id);
+											   } else {
+												alert("Room doesn't exist!?");
+											   }
+											   });
+					// LynckiaClient.accessRoom(username, roomId);
+					
+				} catch (err) {
+					alert("Failed parsing parameters, continuing anyway...");
+				}
+				
+				// Start drawing video thumbnails
+				requestAnimFrame(drawThumbs);
+			};
+			
+			TabControl.onActivate = function() {};
+			TabControl.onDeactivate = function() {};
+			
+			TabControl.onLocalStreamInit = function(stream) {
+				addVideoStream(stream);
+				childController.setLocalStream(stream);
+			}
+			
+			TabControl.onStreamAdded = function(stream) {
+				stream.username = stream.getAttributes().username;
+				addVideoStream(stream);
+				childController.addStream(stream);
+			};
+			
+			TabControl.onStreamRemoved = function(stream) {
+				removeVideoStream(stream);
+				childController.removeStream(stream);
+			};
+			
+			TabControl.onMessageReceived = function(senderId, type, packet) {
+				if (packet.dst == childName) {
+					childController.onMessageReceived(senderId, packet.type, packet.data);
+				}
+			};
+			
+			
+			function addVideoStream(stream) {
+				
+				var streamID = stream.local ? "myStream" : stream.getID();
+				streams[streamID] = stream;
+				streamIDs.push(streamID);
+				
+				// Create a video element for the stream
+				var video = document.createElement("video");
+				video.width = VIDEO_RES_WIDTH;
+				video.height = VIDEO_RES_HEIGHT;
+				video.autoplay = true;
+				video.src = webkitURL.createObjectURL(stream.stream);
+				stream.video = video;
+				
+				// Create a thumbnail canvas for the video
+				var thumb = document.createElement("canvas");
+				thumb.width = 160;
+				thumb.height = 120;
+				thumb.id = "thumb" + streamID;
+				thumb.className = "video-thumb";
+				thumb.onclick = function() {
+					setCurrentStream(streamID);
+				}
+				thumbs[streamID] = thumb;
+				
+				document.getElementById("footer").appendChild(thumb);
+				setCurrentStream(streamID);
+			}
+			
+			function removeVideoStream(stream) {
+				
+				var streamID = stream.getID(),
+				thumb = thumbs[streamID],
+				index = streamIDs.indexOf(streamID);
+				
+				// Remove the stream ID
+				if (index != -1) {
+					streamIDs.splice(index, 1);
+				}
+				
+				// Remove the video
+				if (stream.video) {
+					stream.video.pause();
+					stream.video = null;
+				}
+				delete streams[streamID];
+				
+				// Remove the thumbnail div
+				if (thumb) {
+					thumb.parentNode.removeChild(thumb);
+					delete thumbs[streamID];
+				}
+				
+				// Update which stream is shown in the middle
+				if (streamID == currentStreamID) {
+					if (streamIDs.length == 0) {
+						setCurrentStream(null);
+						// currentStreamID = null;
+					} else {
+						setCurrentStream(streamIDs[index % streamIDs.length]);
+					}
+				}
+			}
+			
+			function drawThumbs() {
+				
+				requestAnimFrame(drawThumbs);
+				
+				for (var i = 0; i < streamIDs.length; i++) {
+					var streamID = streamIDs[i],
+					stream = streams[streamID];
+					if (stream && stream.video) {
+						var canvas = thumbs[streamID],
+						ctx = canvas.getContext("2d");
+						ctx.drawImage(stream.video, 0, 0, canvas.width, canvas.height);
+					}
+				}
+			}
+			
+			</script>
+        
+    </head>
+	
+	<body>
+		
+		<div id="popupBlanket">
+			<div id="popupContainer"></div>
+		</div>
+		
+		<div id="wrap">
+			<iframe id="play" src="/play.html" seamless>GAH!</iframe>
+		</div>
+		
+		<div id="footer">
+			<a href="http://www.ltu.se" target="_blank">
+				<img src="/images/ltu_logo_small.png" style="position:absolute; left:5px; top:20px;"></img>
+			</a>
+			<img src="/images/play-icon.png" style="position:absolute; right:5px; top:5px; height:90%;"></img>
+		</div>
+		
+    </body>
+	
+</html>
+

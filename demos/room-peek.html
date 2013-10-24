@@ -1,0 +1,131 @@
+
+<!DOCTYPE html>
+
+<html>
+    <head>
+        
+        <title>Kinect Telepresence</title>
+
+		<link rel="stylesheet" type="text/css" href="/css/demo-room.css"/>
+		
+		<script type="text/javascript" src="/js/lib/jquery.js"></script>
+		<script type="text/javascript" src="/js/lib/sylvester.js"></script>
+		<script type="text/javascript" src="/js/geometry.js"></script>
+		<script type="text/javascript" src="/js/image-handling.js"></script>
+		<script type="text/javascript" src="/js/tab-control.js"></script>
+        <script type="text/javascript" src="/js/kinect-touch-controller.js"></script>
+		<script type="text/javascript" src="/js/kinect-proxy-zigfu.js"></script>
+		<script type="text/javascript" src="/js/lib/erizo.js"></script>
+		<script type="text/javascript" src="/js/lynckia-client.js"></script>
+		<script type="text/javascript" src="/js/lib/webgl-utils.js"></script>
+        
+		<script>
+			
+			var streamIDs = [],
+				streams = {},
+				thumbs = {},
+				childName = "share",
+				childController;
+			
+			function parseParam(name, searchString) {
+				
+				searchString = (searchString && searchString.toLowerCase()) || window.location.search;
+				name = name.toLowerCase();
+				
+				var regex = new RegExp("[\?\&]?" + name + "=([^\&]+)"),
+				result = regex.exec(searchString);
+				
+				if (result && result.length >= 2) {
+					return result[1];
+				}
+				
+				return null;
+			}
+			
+			TabControl.onLoad = function() {
+				
+				var childFrame = document.getElementById(childName);
+				childController = childFrame.contentWindow.TabControl;
+				childController.onActivate();
+				
+                // Try parsing the Lynckia room and username from the URL
+				try {
+					var search = window.location.search,
+						username = parseParam("username") || "John Smith",
+						roomId = parseParam("roomid");
+					
+					LynckiaClient.getDemoRooms(function(rooms) {
+												var peekRoom = rooms.peek;
+												if (peekRoom) {
+													LynckiaClient.accessRoom(username,
+																			 peekRoom._id,
+																			 {
+																			 audio:true,
+																			 video:false,
+																			 data:true,
+																			 });
+												} else {
+													alert("Room doesn't exist!?");
+												}
+											   });
+					// LynckiaClient.accessRoom(username, roomId);
+					
+				} catch (err) {
+					alert("Failed parsing parameters, continuing anyway...");
+				}
+			};
+			
+			TabControl.onActivate = function() {};
+			TabControl.onDeactivate = function() {};
+			
+			TabControl.onLocalStreamInit = function(stream) {
+				addVideoStream(stream);
+				childController.setLocalStream(stream);
+			}
+			
+			TabControl.onStreamAdded = function(stream) {
+				stream.username = stream.getAttributes().username;
+				addVideoStream(stream);
+				childController.addStream(stream);
+			};
+			
+			TabControl.onStreamRemoved = function(stream) {
+				removeVideoStream(stream);
+				childController.removeStream(stream);
+			};
+			
+			TabControl.onMessageReceived = function(senderId, type, packet) {
+				if (packet.dst == childName) {
+					childController.onMessageReceived(senderId, packet.type, packet.data);
+				}
+			};
+            
+			TabControl.onKinectInit = function(proxy) {
+				childController.onKinectInit(proxy);
+			};
+			
+			TabControl.onNewKinectData = function(videoData, depthData, rawVideo, rawDepth) {
+				childController.onNewKinectData(videoData, depthData, rawVideo, rawDepth);
+			};
+			
+		</script>
+        
+    </head>
+	
+	<body>
+        
+		<div id="wrap">
+			<iframe id="share" src="/peek.html" seamless>GAH!</iframe>
+		</div>
+		
+		<div id="footer">
+			<a href="http://www.ltu.se" target="_blank">
+				<img src="/images/ltu_logo_small.png" style="position:absolute; left:5px; top:20px;"></img>
+			</a>
+			<img src="/images/peek-icon.png" style="position:absolute; right:5px; top:5px; height:90%;"></img>
+		</div>
+        
+    </body>
+	
+</html>
+

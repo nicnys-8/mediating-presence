@@ -1,0 +1,238 @@
+
+<!DOCTYPE html>
+
+<html>
+    <head>
+        
+        <title>Demos</title>
+        
+        <link rel="stylesheet" type="text/css" href="css/pb.css"/>
+        <style type="text/css">
+			
+           body {
+				background:url('/images/paper.jpg');
+                text-align: center;
+			}
+			
+		</style>
+        
+        <script src="http://ec2-54-228-160-5.eu-west-1.compute.amazonaws.com:3005/socket.io/socket.io.js"></script>
+        <script src="js/lib/jquery.js"></script>
+		<script src="js/lynckia-client.js"></script>
+		
+		<script>
+			
+            var rooms,
+				roomDictionary = {},
+				roomTable,
+				username;
+            
+            function loginButtonClicked() {
+                var newUsername = $("#loginField").val();
+                if (newUsername.length > 0) {
+                    username = newUsername;
+                    $("#loginDiv").hide();
+                    $("#roomDiv").show();
+                }
+            };
+            
+            /**
+             Called when the page body has loaded
+             */
+            function load() {
+				/*
+                // var socket = io.connect("http://localhost:3005");
+                var socket = io.connect("ec2-54-228-160-5.eu-west-1.compute.amazonaws.com:3005");
+                
+                socket.on("roomAdded",
+						  function (data) {
+                          var room = data.room;
+                          console.log("Broadcast message received from server: Room with name " + room.name + " has been added");
+                          // If the room isn't already displayed, display it
+                          if (!roomDictionary[room._id]) addRoomInfo(room);
+                          });
+                
+                socket.on("roomDeleted",
+                          function (data) {
+                          console.log("Broadcast message received from server: Room with ID " + data.roomId + " has been deleted");
+                          removeRoomInfo(data.roomId);
+                          });
+                
+                roomTable = document.getElementById("roomTable");
+                
+                // Ask for a list of all rooms
+                LynckiaClient.getRooms(displayRooms);
+                // Ask for new the room list every two seconds, just to be safe...
+                //setInterval(updateRoomList, 10000);
+				 */
+            };
+            
+            /**
+             Handles server responses to user requests
+             */
+            function onServerResponse(message) {
+                if (message.length >= 5 &&
+                    message.substring(0, 7) == "Error: ") {
+                    alert(message.substring(7));
+                } else {
+                    console.log("Received the following answer from the server: " + message);
+                }
+                $(":button").removeAttr("disabled");
+            };
+            
+            /**
+             Asks the server for a list of all rooms, setting the callback function
+             for when they are received
+             */
+            function updateRoomList() {
+                LynckiaClient.getRooms(displayRooms);
+            };
+            
+            /**
+             Displays all rooms returned from the server
+             */
+            function displayRooms(roomList) {
+                rooms = JSON.parse(roomList);
+                for (var i = 0; i < rooms.length; i++) {
+                    var room = rooms[i];
+                    // If the room doesn't already exists, add it
+                    if (!roomDictionary[room._id]) addRoomInfo(room);
+                }
+            };
+            
+            /**
+             Display information and buttons describing the specified room
+             */
+            function addRoomInfo(room) {
+                
+                var row = document.createElement("tr");
+                roomTable.appendChild(row)
+                
+                var nameCell = document.createElement("td");
+                var joinCell = document.createElement("td");
+                var deleteCell = document.createElement("td");
+                
+                row.appendChild(nameCell);
+                row.appendChild(joinCell);
+                row.appendChild(deleteCell);
+                
+                // Display the name of the room
+                nameCell.innerHTML = room.name;
+                
+                // Add the div to the dictionary
+                roomDictionary[room._id] = row;
+                
+                // Add the button for joining a room
+                var joinButton = document.createElement("button");
+                joinButton.innerHTML = "Join";
+                // Make the button send the user to the main page,
+                // with the room ID passed as a URL argument
+                joinButton.onclick = function() {
+                    window.location.href = "/room.html?username=" + username + "&roomId=" + room._id;
+                }
+                joinCell.appendChild(joinButton);
+                
+                // Add the button for deleting a room
+                var deleteButton = document.createElement("button");
+                deleteButton.innerHTML = "Delete";
+                // Definition of the function for handling room deletion
+                deleteButton.onclick = function() {
+                    LynckiaClient.deleteRoom(room.name, onServerResponse);
+                    $(":button").attr("disabled", true); // Disable all buttons
+                };
+                deleteCell.appendChild(deleteButton);
+            };
+            
+            /**
+             Remove the displayed room information
+             */
+            function removeRoomInfo(roomId) {
+                if (roomDictionary[roomId]) {
+                    roomTable.removeChild(roomDictionary[roomId]);
+                    delete roomDictionary[roomId];
+                }
+            };
+            
+            /**
+             Sends a request to the server to create a new room
+             */
+            function createRoomButtonClicked() {
+                var roomName = document.getElementById("roomName").value;
+                // second argument is the callback function
+                LynckiaClient.createRoom(roomName, onServerResponse);
+                $(":button").attr("disabled", true); // Disable all buttons
+            };
+            
+            /**
+             If the parameter 'event' is an enter key press,
+             the input method 'funct' is called
+             @param event The event to check
+             @param funct The function to call
+             */
+            function executeOnEnterKey(event, func) {
+                var key = event.keyCode || event.which;
+                if (key == 13) {
+                    func();
+                }
+            }
+            
+			</script>
+    </head>
+	
+	<body onload="load();">
+        
+        <a href="http://www.ltu.se" target="_blank">
+			<img src="images/ltu_logo_small.png" style="position:absolute; left:5px; top:5px;"></img>
+		</a>
+        
+		<!--
+        <div id="loginDiv">
+            Write your user name:
+            <input id="loginField" type="text" rows="1" cols="20" onkeypress="executeOnEnterKey(event, loginButtonClicked);" style="font-size:125%; padding:0.45em; margin-right:-5px; height:21px;">
+            </input>
+            <button id="loginBtn" onclick="loginButtonClicked()" style="margin-left:0px;">
+                Log in
+            </button>
+        </div>
+        -->
+		
+		<div style="margin-top:120px;">
+			
+			<h1 style="font-size:4em; font-weight:200;">Mediating Presence</h1>
+			<p style="position:relative; width:600px; left:50%; margin-left:-300px; margin-top:-30px;">
+			Select a demo! You will need a Kinect (or other OpenNI compatible sensor) and the <a href="http://www.zigfu.com">Zigfu</a> plugin installed in order for the Peek demo to work.
+			</p>
+			
+			<div style="position:relative; width:640px; left:50%; margin-left:-320px;">
+				<div style="float:left; width:200px;">
+					<a href="/demos/room-share.html">
+						<img src="images/share-icon-text.png"></img>
+					</a>
+					<p style="margin-top:-5px;">
+						Share 3D-models and play around with them together!
+					</p>
+				</div>
+				
+				<div style="float:left; width:200px; margin-left:20px;">
+					<a href="/demos/room-play.html">
+						<img src="images/play-icon-text.png"></img>
+					</a>
+					<p style="margin-top:-5px;">
+						Play a multiplayer version of the classic puzzle game Klotski!
+					</p>
+				</div>
+				
+				<div style="float:left; width:200px; margin-left:20px;">
+					<a href="/demos/room-peek.html">
+						<img src="images/peek-icon-text.png"></img>
+					</a>
+					<p style="margin-top:-5px;">
+						3D video chat with motion parallax!
+					</p>
+				</div>
+			</div>
+		</div>
+		
+	</body>
+</html>
+

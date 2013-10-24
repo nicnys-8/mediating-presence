@@ -163,8 +163,8 @@ ModelController = function(canvas) {
 	// Add mouse event handlers to canvas
 	// Allows for rotation of the model
 	var mouseDown = false,
-		lastMouseX = null,
-		lastMouseY = null,
+		lastMouseX,
+		lastMouseY,
 		hasDataToSend = false;
 	
 	function handleMouseDown(event) {
@@ -244,13 +244,13 @@ ModelController = function(canvas) {
 	
 	canvas.addEventListener("mousedown", handleMouseDown, false);
 	document.addEventListener("mouseup", handleMouseUp, false);
-	document.addEventListener("mouseout", handleMouseUp, false);
+	// document.addEventListener("mouseout", function(e){handleMouseUp(e); console.log("out");}, false);
 	document.addEventListener("mousemove", handleMouseMove, false);
 	
 	this.destroy = function() {
 		canvas.removeEventListener("mousedown", handleMouseDown);
 		document.removeEventListener("mouseup", handleMouseUp);
-		document.removeEventListener("mouseout", handleMouseUp, false);
+		// document.removeEventListener("mouseout", handleMouseUp);
 		document.removeEventListener("mousemove", handleMouseMove);
 		canvas = null;
 	};
