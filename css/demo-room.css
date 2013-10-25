@@ -50,6 +50,15 @@ iframe {
 	border-top:1px solid black;
 }
 
+.video-thumb {
+	position:relative;
+	display:inline;
+	margin:10px;
+	width:160px;
+	height:120px;
+	background-color:black;
+}
+
 #popupBlanket {
 	background-color:rgba(0, 0, 0, 0.5);
 	/* *background:none;*/

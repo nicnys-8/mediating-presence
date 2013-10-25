@@ -211,12 +211,18 @@ app.post("/getRoom/", getRoom);
  =======================*/
 
 function createDemoRooms() {
-	Nuve.API.createRoom("peek", function(room) { demoRooms["peek"] = room });
-	Nuve.API.createRoom("share", function(room) { demoRooms["share"] = room });
-	Nuve.API.createRoom("play", function(room) { demoRooms["play"] = room });
+	Nuve.API.createRoom("peek",
+						function(room) {
+						demoRooms["peek"] = room
+						Nuve.API.createRoom("share",
+											function(room) {
+											demoRooms["share"] = room
+											Nuve.API.createRoom("play", function(room) { demoRooms["play"] = room });
+											});
+						});
 }
 
-function getDemoRooms() {
+function getDemoRooms(req, res) {
 	"use strict";
 	/*var rooms = [], name;
 	for (name in demoRooms) {
