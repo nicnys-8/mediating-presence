@@ -117,13 +117,9 @@
 				thumb.height = 120;
 				thumb.id = "thumb" + streamID;
 				thumb.className = "video-thumb";
-				thumb.onclick = function() {
-					setCurrentStream(streamID);
-				}
 				thumbs[streamID] = thumb;
 				
 				document.getElementById("footer").appendChild(thumb);
-				setCurrentStream(streamID);
 			}
 			
 			function removeVideoStream(stream) {
@@ -148,16 +144,6 @@
 				if (thumb) {
 					thumb.parentNode.removeChild(thumb);
 					delete thumbs[streamID];
-				}
-				
-				// Update which stream is shown in the middle
-				if (streamID == currentStreamID) {
-					if (streamIDs.length == 0) {
-						setCurrentStream(null);
-						// currentStreamID = null;
-					} else {
-						setCurrentStream(streamIDs[index % streamIDs.length]);
-					}
 				}
 			}
 			
