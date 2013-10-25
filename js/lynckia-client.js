@@ -233,5 +233,7 @@ var LynckiaClient = LynckiaClient || function() {
 		
 		httpGet("/gets3policy", postToS3);
 	};
+	
+	return API;
 }();
 
