@@ -18,26 +18,12 @@
 		<script type="text/javascript" src="/js/lib/erizo.js"></script>
 		<script type="text/javascript" src="/js/lynckia-client.js"></script>
 		<script type="text/javascript" src="/js/lib/webgl-utils.js"></script>
-        
+        <script type="text/javascript" src="/js/param.js"></script>
+		
 		<script>
 			
 			var childName = "peek",
 				childController;
-			
-			function parseParam(name, searchString) {
-				
-				searchString = (searchString && searchString.toLowerCase()) || window.location.search;
-				name = name.toLowerCase();
-				
-				var regex = new RegExp("[\?\&]?" + name + "=([^\&]+)"),
-				result = regex.exec(searchString);
-				
-				if (result && result.length >= 2) {
-					return result[1];
-				}
-				
-				return null;
-			}
 			
 			TabControl.onLoad = function() {
 				
