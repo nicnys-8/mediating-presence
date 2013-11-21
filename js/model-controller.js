@@ -82,6 +82,9 @@ ModelController = function(canvas) {
 			hasValidMVMatrix = false;
 		}
 	};
+	this.getPosition = function(dst) {
+		vec3.set(position, dst);
+	}
 	
 	// RENAME!
 	this.setScale = function(val) {
