@@ -230,7 +230,30 @@
                 // **********************
                 
                 document.getElementById("fileSelect").addEventListener("change", function () { readFiles(this.files); }, false);
+                
+                //Nicke
+                WIDTH = 320;
+                HEIGHT = 240;
+
+                
+                var inputCanvas = document.createElement("canvas");
+                inputCanvas.width = WIDTH;
+                inputCanvas.height = HEIGHT;
+                
+                var inputVideo = document.createElement("video");
+                inputVideo.width = w;
+                inputVideo.height = h;
+                inputVideo.autoplay = true;
+                                
+                var tracker = new headtrackr.Tracker({ calcAngles : true, headPosition : false/*, ui : false */ });
+                tracker.init(inputVideo, inputCanvas);
+                tracker.start();
+                
+                document.addEventListener("facetrackingEvent", function() {
+                                          console.log(event.x);
+                                          });
             };
+            
 			
 			TabControl.onActivate = function() {
 				renderLoopID = requestAnimFrame(drawScene);
