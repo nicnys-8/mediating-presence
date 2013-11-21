@@ -1,0 +1,731 @@
+
+
+<html>
+    <head>
+        
+        <title>Share 3D models</title>
+        
+		<script type="text/javascript" src="js/tab-control.js"></script>
+		
+        <script type="text/javascript" src="js/mediaext.js"></script>
+        <script type="text/javascript" src="js/lib/webgl-utils.js"></script>
+        <script type="text/javascript" src="js/lib/glMatrix-0.9.5.min.js"></script>
+        <script type="text/javascript" src="js/lib/headtrackr.min.js"></script>
+		<script type="text/javascript" src="js/model-controller.js"></script>
+        <script type="text/javascript" src="js/point-cloud-renderer.js"></script>
+		<script type="text/javascript" src="js/phong-renderer.js"></script>
+		<script type="text/javascript" src="js/phong-renderer-ext.js"></script>
+		<script type="text/javascript" src="js/rgba-mesh-renderer.js"></script>
+		<script type="text/javascript" src="js/anaglyph-renderer.js"></script>
+		<script type="text/javascript" src="js/ply-parser.js"></script>
+		
+        <link rel="stylesheet" type="text/css" href="css/pb.css"/>
+        <link rel="stylesheet" type="text/css" href="css/pointcloud.css"/>
+		
+		<script type="text/javascript">
+			
+			/**
+			Functions for converting colors between "#RRGGBB" and [r, g, b] 
+			 (hex string to normalized float array)
+			*/
+			var ColorConvert = function() {
+				
+				const hexStr = "0123456789abcdef", maskUpper = 0xf0, maskLower = 0x0f, norm = 1.0 / 255.0;
+				var API = {},
+					clamp = function(val, lower, upper) {
+						return (val < lower) ? lower : (val > upper) ? upper : val;
+					};
+				
+				API.hexToRGB = function(value, dst) {
+					if (!dst) { dst = []; }
+					var R = ((hexStr.indexOf(value[1])) << 4 | hexStr.indexOf(value[2])) * norm,
+						G = ((hexStr.indexOf(value[3])) << 4 | hexStr.indexOf(value[4])) * norm,
+						B = ((hexStr.indexOf(value[5])) << 4 | hexStr.indexOf(value[6])) * norm;
+					dst[0] = R;
+					dst[1] = G;
+					dst[2] = B;
+					return dst;
+				};
+				
+				API.RGBToHex = function(rgb) {
+					var R, G, B, hex;
+					R = clamp(Math.round(rgb[0] * 255), 0, 255);
+					G = clamp(Math.round(rgb[1] * 255), 0, 255);
+					B = clamp(Math.round(rgb[2] * 255), 0, 255);
+					hex = "#" + hexStr[(R & maskUpper) >> 4] + hexStr[R & maskLower] +
+								hexStr[(G & maskUpper) >> 4] + hexStr[G & maskLower] +
+								hexStr[(B & maskUpper) >> 4] + hexStr[B & maskLower];
+					return hex;
+				};
+				
+				return API;
+			}();
+			
+		</script>
+			
+        <script type="text/javascript">
+			
+			var glCanvas,
+				renderer,
+				controller,
+				model,
+				clearButton,
+				sendRotTimer = null,
+				isOwner = false,
+				currentModelURL,
+				renderLoopID,
+				rotationIntervalID,
+				sendCount = 0,
+				SEND_ALL_INTERVAL = 30,
+				UNIFORM_DEFAULTS = function(name) {
+					var values = {
+						specular : [1, 0, 0],
+						diffuse : [0, 0.6, 1],
+						shininess : 0.1,
+						lightPos : [0, 0, 0],
+						zoom : 1.0,
+						blobbiness : 0.0
+					};
+					if (name) {
+						return values[name];
+					}
+					return values;
+				},
+				uniforms = function() {
+					
+					var updatedValues = [],
+					
+					markAsChanged = function(name) {
+						if (updatedValues.indexOf(name) === -1) {
+							updatedValues.push(name);
+						}
+					},
+					
+					clearUpdates = function() {
+						var updates;
+						if (updatedValues.length === 0) {
+							return; // undefined
+						}
+						updates = {};
+						for (var i = 0; i < updatedValues.length; i++) {
+							updates[updatedValues[i]] = uniforms[updatedValues[i]].value;
+						}
+						updatedValues = [];
+						return updates;
+					},
+					
+					setValue = function(name, value) {
+						uniforms[name].value = value;
+						syncControls(name);
+						markAsChanged(name);
+					},
+					
+					setElement = function(name, index, value) {
+						uniforms[name].value[index] = Number(value);
+						syncControls(name);
+						markAsChanged(name);
+					},
+					
+					update = function(data) {
+						for (var prop in data) {
+							if (uniforms.hasOwnProperty(prop)) {
+								setValue(prop, data[prop]);
+							}
+						}
+						clearUpdates();
+					},
+					
+					getType = function(name) {
+						var prop = uniforms[name];
+						if (prop && prop.type) {
+							return prop.type;
+						}
+						// return undefined;
+					},
+					
+					reset = function() {
+						update(UNIFORM_DEFAULTS());
+					};
+					
+					return {
+						specular : {
+							value:UNIFORM_DEFAULTS("specular"),
+							type:"color"
+						},
+						diffuse : {
+							value:UNIFORM_DEFAULTS("diffuse"),
+							type:"color"
+						},
+						shininess : {
+							value:UNIFORM_DEFAULTS("shininess"),
+							type:"float"
+						},
+						lightPos : {
+							value:UNIFORM_DEFAULTS("lightPos"),
+							type:"vec3"
+						},
+						zoom : {
+							value:UNIFORM_DEFAULTS("zoom"),
+							type:"float"
+						},
+						blobbiness : {
+							value:UNIFORM_DEFAULTS("blobbiness"),
+							type:"float"
+						},
+						
+						getType : getType,
+						markAsChanged : markAsChanged,
+						clearUpdates : clearUpdates,
+						setValue : setValue,
+						setElement : setElement,
+						update : update,
+						reset : reset
+					};
+				}();
+			
+			
+			TabControl.onLoad = function() {
+                
+				// Make sure the WebGL framebuffer is the correct size
+				var onResize = function() {
+					if (glCanvas) {
+						glCanvas.width = glCanvas.offsetWidth;
+						glCanvas.height = glCanvas.offsetHeight;
+					}
+				};
+				window.addEventListener("resize", onResize, false);
+				
+				// Synchronize the control panel with the default uniform values
+				for (var i in uniforms) {
+					syncControls(i);
+				}
+				
+				clearButton = document.getElementById("clearButton");
+				
+				// **********************
+                // Drag and drop with File API
+                var dropbox = document.getElementById("dropbox"),
+					state = document.getElementById("status");
+                
+                if (typeof window.FileReader === "undefined") {
+                    state.className = "fail";
+                    state.innerHTML = "File API unavailable, change browser!!!! :)";
+                } else {
+                    state.className = "success";
+                }
+                
+                document.ondragenter = function () { dropbox.className = "hover"; return false; };
+                document.ondragleave = function () { dropbox.className = ""; return false; };
+                document.ondragover = function () { dropbox.className = "hover"; return false; };
+                document.ondragend = function () { return false; };
+                document.ondrop = function (e) {
+					var files = e.dataTransfer.files;
+					if (files && files.length) {
+						dropbox.className = "";
+						e.preventDefault();
+						readFiles(e.dataTransfer.files);
+						// return false;
+					}
+                };
+                // **********************
+                
+                document.getElementById("fileSelect").addEventListener("change", function () { readFiles(this.files); }, false);
+            };
+			
+			TabControl.onActivate = function() {
+				renderLoopID = requestAnimFrame(drawScene);
+				rotationIntervalID = setInterval(sendRotation, 100);
+			};
+			
+			TabControl.onDeactivate = function() {
+				cancelAnimFrame(renderLoopID);
+				clearInterval(rotationIntervalID);
+			};
+			
+			TabControl.onLocalStreamInit = function(stream) {
+			};
+			
+			TabControl.onStreamAdded = function(stream) {
+				if (currentModelURL) {
+					// Resend the shared model to new users
+					TabControl.sendMessage("share", "model", currentModelURL);
+				}
+			};
+			
+			TabControl.onStreamRemoved = function(stream) {
+				// TODO: Handle owner leaving
+			};
+			
+			TabControl.onMessageReceived = function(senderId, type, data) {
+				
+				switch (type) {
+					case "rot":
+						if (data.rot && controller) {
+							controller.rotate(data.rot);
+						}
+						if (data.uniforms) {
+							uniforms.update(data.uniforms);
+						}
+						break;
+					case "sync":
+						if (controller) {
+							controller.setRotation(data.rot);
+						}
+						uniforms.update(data.uniforms);
+						break;
+					case "model":
+						if (data == currentModelURL) {
+							// Model is already being displayed (probably), do nothing
+						} else {
+							// Display the model and start sending updates
+							loadModelAtURL(data);
+						}
+						break;
+					case "clear":
+						clearGLCanvas(false);
+						break;
+				}
+			};
+			
+			TabControl.onKinectInit = function(proxy) {};
+			TabControl.onNewKinectData = function(videoData, depthData) {};
+			
+			/**
+			 Creates a FileReader and tries to parse a 3D model
+			 from the first file in @param files
+			 */
+            function readFiles(files) {
+                
+                var file = files[0];
+                
+                var splitName = file.name.split(".");
+                if (splitName.length < 2 || splitName[1] !== "ply") {
+                    alert("I ONLY ACCEPT .ply FILES! ." + splitName[1] + " FILES ANGER ME! >:(");
+                    return;
+                }
+                
+                var progress = document.getElementById("progressBar"),
+					dropbox = document.getElementById("dropbox"),
+					reader = new FileReader();
+				
+                reader.onerror = function(e) {
+					var error = e.target.error;
+					switch (error.code) {
+						case error.NOT_FOUND_ERR:
+							alert("File Not Found!");
+							break;
+						case error.NOT_READABLE_ERR:
+							alert("File is not readable");
+							break;
+						case error.ABORT_ERR:
+							break;
+						default:
+							alert("An error occurred reading this file.");
+							break;
+					};
+				};
+				
+                reader.onprogress = function(e) {
+					// e is a ProgressEvent
+					if (e.lengthComputable) {
+						var percentLoaded = Math.round((e.loaded / e.total) * 100);
+						// Increase the progress bar length.
+						progress.value = percentLoaded;
+					}
+				};
+                
+				reader.onabort = function(e) {
+                    alert("File read cancelled");
+                };
+                
+				reader.onloadstart = function(e) {
+					progress.value = 0;
+                    progress.className = "loading";
+                };
+                
+				reader.onload = function (e) {
+                    // Ensure that the progress bar displays 100% at the end.
+                    progress.value = 100;
+                    
+					var result;
+					
+					try {
+						result = Ply.parse(e.target.result);
+						// console.log(result);
+					} catch (error) {
+						alert("Error parsing model. " + error);
+						return;
+					}
+					
+					if (displayModel(result)) {
+						// Upload the file to S3 (hacky way to get LynckiaClient?)
+						// Only upload after making sure the model can be loaded
+						window.top.LynckiaClient.uploadFile(file,
+															{
+															success: function(url) {
+																isOwner = true;
+																currentModelURL = url;
+																TabControl.sendMessage("share", "model", url);
+															},
+															progress: function(e) {
+															},
+															fail:function(e) {
+																alert("Failed uploading file. " + e);
+															}
+															});
+						
+					}
+					
+					progress.className = "";
+					
+					/*
+					 setTimeout(function() {
+					 progress.className = "";
+					 displayModel(result);
+					 }, 0);
+					 */
+                };
+				
+                // console.log('Reading file:');
+                // console.log(file);
+				reader.readAsArrayBuffer(file); // .readAsDataURL.readAsText
+			}
+			
+			function loadModelAtURL(url) {
+				
+				var xhr = new XMLHttpRequest();
+				xhr.open("GET", url, true);
+				xhr.responseType = "arraybuffer";
+				
+				xhr.onload = function(e) {
+					
+					var result;
+					
+					try {
+						result = Ply.parse(xhr.response);
+						// console.log(result);
+					} catch (error) {
+						alert("Error parsing model. " + error);
+						return;
+					}
+					
+					displayModel(result);
+				};
+				
+				xhr.send();
+				
+				currentModelURL = url;
+				isOwner = false;
+			}
+			
+			/**
+			 Send rotation increment, if any (for shared model viewing)
+			 Updated: Also send changed uniform values
+			 */
+			function sendRotation() {
+				
+				var sendRot, sendUnif, data, doSend, type;
+				
+				if (controller) {
+					
+					if (isOwner && sendCount++ % SEND_ALL_INTERVAL == 0) {
+						type = "sync";
+						sendRot = controller.getFullRotation();
+						// HACK :)
+						uniforms.markAsChanged("specular");
+						uniforms.markAsChanged("diffuse");
+						uniforms.markAsChanged("shininess");
+						uniforms.markAsChanged("lightPos");
+						uniforms.markAsChanged("zoom");
+						uniforms.markAsChanged("blobbiness");
+						sendUnif = uniforms.clearUpdates();
+					} else {
+						type = "rot";
+						sendRot = controller.getSendRotation();
+						sendUnif = uniforms.clearUpdates();
+					}
+					
+					data = {};
+					doSend = false;
+					
+					if (sendRot) {
+						data.rot = sendRot;
+						doSend = true;
+					}
+					if (sendUnif) {
+						data.uniforms = sendUnif;
+						doSend = true;
+					}
+					
+					if (doSend) {
+						TabControl.sendMessage("share", type, data);
+					}
+				}
+			}
+			
+			
+			/**
+			 Updates control panel inputs (to keep things in sync).
+			 */
+			function syncControls(name) {
+				
+				var uniform = uniforms[name], val;
+
+				if (uniform
+					&& uniform.hasOwnProperty("type")
+					&& uniform.hasOwnProperty("value")) {
+
+					val = uniform.value;
+					switch (uniform.type) {
+						case "float":
+							document.getElementById(name).value = val;
+							break;
+						case "vec3":
+							document.getElementById(name + "0").value = val[0];
+							document.getElementById(name + "1").value = val[1];
+							document.getElementById(name + "2").value = val[2];
+							break;
+						case "color":
+							document.getElementById(name + "0").value = val[0];
+							document.getElementById(name + "1").value = val[1];
+							document.getElementById(name + "2").value = val[2];
+							document.getElementById(name + "Color").value = ColorConvert.RGBToHex(val);
+							break;
+						default:
+							break;
+					}
+				}
+			}
+			
+			/**
+			 Creates a WebGL canvas and a controller and displays the model
+			 */
+			function displayModel(aModel) {
+				
+				clearGLCanvas(false);
+				
+				// Create the WebGL canvas
+				glCanvas = document.createElement("canvas");
+				glCanvas.className = "gl-canvas";
+				document.getElementById("container").appendChild(glCanvas);
+				
+				// Set size of canvas (to allocate framebuffer memory)
+				glCanvas.width = glCanvas.offsetWidth;
+				glCanvas.height = glCanvas.offsetHeight;
+				
+				// Select renderer
+				if (aModel.pos) {
+					if (!aModel.faces) {
+						// No faces means it's a point cloud
+						if (aModel.colors) {
+							renderer = new PointCloudRenderer(glCanvas);
+							renderer.bufferData(aModel.pos, aModel.colors);
+						}
+					} else {
+						if (aModel.normals) {
+							renderer = new AnaglyphRenderer(glCanvas); // new PhongRendererExt(glCanvas);
+							renderer.bufferData(aModel.pos, aModel.normals, aModel.faces);
+						} else if (aModel.colors) {
+							renderer = new MeshRenderer(glCanvas);
+							renderer.bufferData(aModel.pos, aModel.colors, aModel.faces);
+						}
+					}
+				}
+				
+				if (renderer) {
+					
+					// Create a controller for the models
+					controller = new ModelController(glCanvas);
+					controller.calculateInitalTransform(aModel.pos);
+					
+					uniforms.reset();
+					
+					dropbox.style.display = "none";
+					clearButton.disabled = false;
+				
+					return true;
+				} else {
+					// No suitable renderer found, clear canvas
+					// TODO: Alert or something?
+					clearGLCanvas(false);
+					return false;
+				}
+			}
+			
+			/**
+			 Removes the WebGL canvas and (tries?) to free GPU memory
+			 */
+			function clearGLCanvas(share) {
+				
+				// Destroy the renderer
+				if (renderer) {
+					renderer.destroy();
+					renderer = null;
+					model = null;
+				}
+				
+				// Destroy the controller
+				if (controller) {
+					controller.destroy();
+					controller = null;
+				}
+				
+				// Remove the canvas
+				if (glCanvas) {
+					glCanvas.parentNode.removeChild(glCanvas);
+					glCanvas = null;
+				}
+				
+				dropbox.style.display = "block";
+				
+				clearButton.disabled = true;
+				
+				if (share) {
+					TabControl.sendMessage("share", "clear", {});
+				}
+			}
+			
+			/**
+			 Sets shader uniforms and renders the model
+			 */
+			function drawScene() {
+				
+				renderLoopID = requestAnimFrame(drawScene);
+				
+				var pos = [];
+				
+				if (renderer) {
+					
+					if (renderer.setSpecular) {
+						// renderer.setSpecular(uniforms.specular.value);
+						// renderer.setDiffuse(uniforms.diffuse.value);
+						// renderer.setAmbient(uniforms.ambient.value);
+						// renderer.setShininess(uniforms.shininess.value);
+						
+						renderer.setLeftEyeColor(uniforms.specular.value);
+						renderer.setRightEyeColor(uniforms.diffuse.value);
+						renderer.setEyeOffset(uniforms.shininess.value);
+						
+						renderer.setLightPos(uniforms.lightPos.value);
+						renderer.setZoom(uniforms.zoom.value);
+						renderer.setBlobbiness(uniforms.blobbiness.value);
+						
+						controller.getPosition(pos)
+						renderer.setLookAtPoint(pos);
+					}
+					
+					controller.setZoom(uniforms.zoom.value);
+					var mvMatrix = controller.getModelViewMatrix();
+					renderer.setModelViewMatrix(mvMatrix);
+					renderer.render();
+				}
+			}
+			
+            </script>
+        
+    </head>
+	
+	<body>
+        
+		<div id="sidebar-left">
+			
+			<div class="control-panel" id="controls-left">
+				
+				<h2>Material</h2>
+				<h3>Left Eye <input id="specularColor" type="color"
+					onchange="uniforms.setValue('specular', ColorConvert.hexToRGB(this.value));"/></h3>
+				<table>
+					<tr>
+						<td style="text-align:right;">Red</td>
+						<td><input id="specular0" type="range" min=0 max=1 step=0.004
+							onchange="uniforms.setElement('specular', 0, this.value);"/></td>
+					</tr><tr>
+						<td style="text-align:right;">Green</td>
+						<td><input id="specular1" type="range" min=0 max=1 step=0.004
+							onchange="uniforms.setElement('specular', 1, this.value);"/></td>
+					</tr><tr>
+						<td style="text-align:right;">Blue</td>
+						<td><input id="specular2" type="range" min=0 max=1 step=0.004
+							onchange="uniforms.setElement('specular', 2, this.value);"/></td>
+					</tr>
+				</table>
+				
+				<h3>Right Eye <input id="diffuseColor" type="color"
+					onchange="uniforms.setValue('diffuse', ColorConvert.hexToRGB(this.value));"/></h3>
+				<table>
+					<tr>
+						<td style="text-align:right;">Red</td>
+						<td><input id="diffuse0" type="range" min=0 max=1 step=0.004
+							onchange="uniforms.setElement('diffuse', 0, this.value);"/></td>
+					</tr><tr>
+						<td style="text-align:right;">Green</td>
+						<td><input id="diffuse1" type="range" min=0 max=1 step=0.004
+							onchange="uniforms.setElement('diffuse', 1, this.value);"/></td>
+					</tr><tr>
+						<td style="text-align:right;">Blue</td>
+						<td><input id="diffuse2" type="range" min=0 max=1 step=0.004
+							onchange="uniforms.setElement('diffuse', 2, this.value);"/></td>
+					</tr>
+				</table>
+				
+				<h3>Eye Separation</h3>
+				<input id="shininess" type="range" min=0 max=0.5 value=0.1 step=0.004
+					onchange="uniforms.setValue('shininess', this.value);"/>
+				
+			</div>
+			
+		</div>
+		
+		<div id="content">
+			
+			<h1>Share 3D models</h1>
+			
+			<div id="container">
+				<div id="dropbox">
+					<p id="status">Drop a .ply file here, or use this fine button:</br><input type="file" id="fileSelect"></p>
+					<progress id="progressBar" value=0 max=100></progress>
+				</div>
+			</div>
+		</div>
+		
+		<div id="sidebar-right">
+			
+			<div class="control-panel" id="controls-right">
+				
+				<h2>Light</h2>
+				<h3>Position</h3>
+				<table>
+					<tr>
+						<td style="text-align:right;">x</td>
+						<td><input id="lightPos0" type="range" min=-5 max=5 value=0 step=0.05
+							onchange="uniforms.setElement('lightPos', 0, this.value);"/></td>
+					</tr><tr>
+						<td style="text-align:right;">y</td>
+						<td><input id="lightPos1" type="range" min=-5 max=5 value=0 step=0.05
+							onchange="uniforms.setElement('lightPos', 1, this.value);"/></td>
+					</tr><tr>
+						<td style="text-align:right;">z</td>
+						<td><input id="lightPos2" type="range" min=-5 max=5 value=0 step=0.05
+							onchange="uniforms.setElement('lightPos', 2, this.value);"/></td>
+					</tr>
+				</table>
+				<h2>Misc.</h2>
+				<h3>BLOB!</h3>
+				<input id="blobbiness" type="range" min=-0.125 max=0.125 value=0 step=0.00125
+					onchange="uniforms.setValue('blobbiness', this.value);"/><br>
+				
+				<h3>Zoom</h3>
+				<input id="zoom" type="range" min=0 max=2 value=1 step=0.01
+					onchange="uniforms.setValue('zoom', this.value);"/>
+			</div>
+			
+			<button id="clearButton" onclick="clearGLCanvas(true);"
+				style="padding:1em; margin:0em;" disabled=true>Clear</button>
+		</div>
+		
+		</div>
+        
+	
+	</body>
+    
+</html>
