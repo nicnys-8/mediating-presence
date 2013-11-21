@@ -607,10 +607,11 @@
                 
                 document.addEventListener("facetrackingEvent", function (event) {
                                           // Change coordinates to values between -1 and 1
-                                          var x = -(2 * (event.x / WIDTH) - 1);
-                                          var y = -2 * (2 * (event.y / HEIGHT) - 1);
+                                          var x = 2 * (event.x / WIDTH) - 1;
+                                          var y = 2 * (event.y / HEIGHT) - 1;
                                           viewPoint[0] = x;
                                           viewPoint[1] = y;
+                                          //renderer.setViewPointMundo(x, y);
                                           });
             }
 			
@@ -641,7 +642,8 @@
 						
 						controller.getPosition(pos);
 						renderer.setLookAtPoint(pos);
-                        renderer.setViewPoint(viewPoint);
+                        //renderer.setViewPoint(viewPoint);
+                        renderer.setViewPointMundo(viewPoint[0], viewPoint[1]);
 					}
 					
 					controller.setZoom(uniforms.zoom.value);
