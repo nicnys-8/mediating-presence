@@ -593,6 +593,21 @@
 				
 				var pos = [];
 				
+				var d = 0.04;
+				
+				if (upPressed) {
+					viewPoint[1] += d;
+				}
+				if (downPressed) {
+					viewPoint[1] -= d;
+				}
+				if (leftPressed) {
+					viewPoint[0] -= d;
+				}
+				if (rightPressed) {
+					viewPoint[0] += d;
+				}
+				
 				if (renderer) {
 					
 					if (renderer.setSpecular) {
@@ -611,6 +626,7 @@
 						
 						controller.getPosition(pos)
 						renderer.setLookAtPoint(pos);
+						renderer.setViewPoint(viewPoint);
 					}
 					
 					controller.setZoom(uniforms.zoom.value);
@@ -620,6 +636,42 @@
 				}
 			}
 			
+			
+			// *****************
+			// TESTING renderer.setViewPoint
+			// *****************
+			
+			var viewPoint = vec3.create([0, 0, 0]);
+			var upPressed = false,
+				downPressed = false,
+				leftPressed = false,
+				rightPressed = false;
+			
+			// Keyboard controls
+			window.addEventListener('keydown', function(evt) {
+									switch (evt.keyCode) {
+									case 38: // Up arrow
+									upPressed = true; break;
+									case 40: // Down arrow
+									downPressed = true; break;
+									case 37: // Left arrow
+									leftPressed = true; break;
+									case 39: // Right arrow
+									rightPressed = true; break;
+									}}, true);
+									
+			window.addEventListener('keyup', function(evt) {
+									switch (evt.keyCode) {
+									case 38: // Up arrow
+										upPressed = false; break;
+									case 40: // Down arrow
+										downPressed = false; break;
+									case 37: // Left arrow
+										leftPressed = false; break;
+									case 39: // Right arrow
+										rightPressed = false; break;
+									}}, true);
+															
             </script>
         
     </head>

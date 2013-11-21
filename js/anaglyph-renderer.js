@@ -236,6 +236,20 @@ AnaglyphRenderer = function(canvas) {
 		vec3.set(vec, lookAt);
 	};
 	
+	var tmpCamera = mat4.create(),
+		tmpEye = vec3.create();
+	
+	this.setViewPoint = function(vec) {
+		mat4.lookAt(vec, lookAt, [0, 1, 0], tmpCamera);
+		var xVec = vec3.create([tmpCamera[0], tmpCamera[1], tmpCamera[2]]);
+		
+		vec3.scale(xVec, eyeOffset, tmpEye);
+		vec3.add(vec, tmpEye, leftEyePos);
+	
+		vec3.scale(xVec, -eyeOffset, tmpEye);
+		vec3.add(vec, tmpEye, rightEyePos);
+	};
+	
 	function drawFromView(eyePos, dstColor) {
 		
 		gl.activeTexture(gl.TEXTURE0);
