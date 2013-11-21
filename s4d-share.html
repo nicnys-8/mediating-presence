@@ -234,27 +234,32 @@
                 //Nicke
                 WIDTH = 320;
                 HEIGHT = 240;
-
                 
                 var inputCanvas = document.createElement("canvas");
                 inputCanvas.width = WIDTH;
                 inputCanvas.height = HEIGHT;
                 
                 var inputVideo = document.createElement("video");
-                inputVideo.width = w;
-                inputVideo.height = h;
+                inputVideo.width = WIDTH;
+                inputVideo.height = HEIGHT;
                 inputVideo.autoplay = true;
                                 
                 var tracker = new headtrackr.Tracker({ calcAngles : true, headPosition : false/*, ui : false */ });
                 tracker.init(inputVideo, inputCanvas);
                 tracker.start();
                 
-                document.addEventListener("facetrackingEvent", function() {
-                                          console.log(event.x);
-                                          });
+                document.addEventListener("facetrackingEvent", updateViewPoint);
+                
+                function updateViewPoint(event) {
+                    // Change coordinates to values between -1 and 1
+                    var x = 2 * (event.x / WIDTH) - 1;
+                    var y = 2 * (event.y / HEIGHT) - 1;
+                    var z = 0;
+                    var headPosition = [x, y, z];
+                    renderer.setViewPoint(headPosition);
+                };
             };
-            
-			
+                			
 			TabControl.onActivate = function() {
 				renderLoopID = requestAnimFrame(drawScene);
 				rotationIntervalID = setInterval(sendRotation, 100);
