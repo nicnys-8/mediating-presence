@@ -596,12 +596,14 @@
                 inputCanvas.width = WIDTH;
                 inputCanvas.height = HEIGHT;
                 
-                var inputVideo = document.createElement("video");
+                //var inputVideo = document.createElement("video");
+                var inputVideo = document.getElementById("input-video");
                 inputVideo.width = WIDTH;
                 inputVideo.height = HEIGHT;
                 inputVideo.autoplay = true;
+                //document.body.appendChild(inputVideo);
                 
-                var tracker = new headtrackr.Tracker({ calcAngles : true, headPosition : false/*, ui : false */ });
+                var tracker = new headtrackr.Tracker({ calcAngles : true, headPosition : true/*, ui : false */ });
                 tracker.init(inputVideo, inputCanvas);
                 tracker.start();
                 
@@ -612,6 +614,10 @@
                                           viewPoint[0] = x;
                                           viewPoint[1] = y;
                                           //renderer.setViewPointMundo(x, y);
+                                          });
+                
+                document.addEventListener("headtrackingEvent", function (event) {
+                                          console.log(event.z);
                                           });
             }
 			
@@ -643,7 +649,7 @@
 						controller.getPosition(pos);
 						renderer.setLookAtPoint(pos);
                         //renderer.setViewPoint(viewPoint);
-                        renderer.setViewPointMundo(viewPoint[0], viewPoint[1]);
+                        renderer.setViewPointMundoTarget(viewPoint[0], viewPoint[1]);
 					}
 					
 					controller.setZoom(uniforms.zoom.value);
@@ -705,6 +711,8 @@
 					onchange="uniforms.setValue('shininess', this.value);"/>
 				
 			</div>
+            
+            <video id="input-video"></video>
 			
 		</div>
 		
