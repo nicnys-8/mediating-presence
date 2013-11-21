@@ -208,6 +208,10 @@ AnaglyphRenderer = function(canvas) {
 	var rightEyeColor = vec3.create([0, 1, 1]);
 	var tmpMatrix = mat4.create();
 	
+	var mundoX = 0, mundoY = 0;
+	var mundoTargetX = 0, mundoTargetY = 0;
+	var lerpAmount = 0.1;
+	
 	/*// Enable additive blending
 	gl.enable(gl.BLEND);
 	gl.blendFunc(gl.ONE, gl.ONE);
@@ -251,12 +255,14 @@ AnaglyphRenderer = function(canvas) {
 	};
 	
 	this.setViewPointMundo = function(x, y) {
-	
+		
 		mat4.lookAt([x, y, 0], lookAt, [0, 1, 0], tmpCamera);
 		
 		var xVec = vec3.create([tmpCamera[0], tmpCamera[1], tmpCamera[2]]);
 		var zVec = vec3.create([tmpCamera[8], tmpCamera[9], tmpCamera[10]]);
-
+		
+		// console.log(vec3.length(zVec));
+		
 		vec3.normalize(zVec);
 		vec3.scale(zVec, vec3.length(lookAt));
 		vec3.add(lookAt, zVec, zVec);
@@ -267,6 +273,11 @@ AnaglyphRenderer = function(canvas) {
 		
 		vec3.scale(xVec, -eyeOffset, tmpEye);
 		vec3.add(zVec, tmpEye, rightEyePos);
+	};
+	
+	this.setViewPointMundoTarget = function(x, y) {
+		mundoTargetX = x;
+		mundoTargetY = y;
 	};
 	
 	function drawFromView(eyePos, dstColor) {
@@ -299,6 +310,10 @@ AnaglyphRenderer = function(canvas) {
 	}
 	
 	this.render = function() {
+		
+		mundoX += (mundoTargetX - mundoX) * lerpAmount;
+		mundoY += (mundoTargetY - mundoY) * lerpAmount;
+		this.setViewPointMundo(mundoX, mundoY);
 		
 		gl.viewport(0, 0, canvas.width, canvas.height);
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
