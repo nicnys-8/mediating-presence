@@ -593,7 +593,7 @@
 				
 				var pos = [];
 				
-				var d = 0.04;
+				var d = 0.2;
 				
 				if (upPressed) {
 					viewPoint[1] += d;
@@ -626,7 +626,7 @@
 						
 						controller.getPosition(pos)
 						renderer.setLookAtPoint(pos);
-						renderer.setViewPoint(viewPoint);
+						renderer.setViewPointMundo(viewPoint[0], viewPoint[1]);
 					}
 					
 					controller.setZoom(uniforms.zoom.value);
