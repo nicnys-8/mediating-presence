@@ -207,18 +207,19 @@
 			
             </style>
 		
-		<script type="text/javascript" src="js/lib/jquery.js"></script>
-		<script type="text/javascript" src="js/lib/sylvester.js"></script>
-		<script type="text/javascript" src="js/geometry.js"></script>
-		<script type="text/javascript" src="js/image-handling.js"></script>
-		<script type="text/javascript" src="js/tab-control.js"></script>
-        <script type="text/javascript" src="js/kinect-touch-controller.js"></script>
-		<script type="text/javascript" src="js/kinect-proxy-zigfu.js"></script>
-		<script type="text/javascript" src="js/lib/erizo.js"></script>
-		<script type="text/javascript" src="js/lynckia-client.js"></script>
-		<script type="text/javascript" src="js/lib/webgl-utils.js"></script>
-		<script type="text/javascript" src="js/popup-manager.js"></script>
-        
+		<script type="text/javascript" src="/js/lib/jquery.js"></script>
+		<script type="text/javascript" src="/js/lib/sylvester.js"></script>
+		<script type="text/javascript" src="/js/geometry.js"></script>
+		<script type="text/javascript" src="/js/image-handling.js"></script>
+		<script type="text/javascript" src="/js/tab-control.js"></script>
+        <script type="text/javascript" src="/js/kinect-touch-controller.js"></script>
+		<script type="text/javascript" src="/js/kinect-proxy-zigfu.js"></script>
+		<script type="text/javascript" src="/js/lib/erizo.js"></script>
+		<script type="text/javascript" src="/js/lynckia-client.js"></script>
+		<script type="text/javascript" src="/js/lib/webgl-utils.js"></script>
+		<script type="text/javascript" src="/js/popup-manager.js"></script>
+        <script type="text/javascript" src="/js/param.js"></script>
+		
 		<script>
 			
 			const VIDEO_RES_WIDTH = 640, VIDEO_RES_HEIGHT = 480;
@@ -399,16 +400,8 @@
 				
                 // Try parsing the Lynckia room and username from the URL
 				try {
-					var paramString = window.location.search.replace("?", "");
-					var params = paramString.split("&");
-					
-					var tempArray = params[0].split("=");
-					username = tempArray[1];
-					
-					tempArray = params[1].split("=");
-					var roomId = tempArray[1];
-					
-					LynckiaClient.setTabControl(TabControl);
+					var username = parseParam("username") || "John Smith",
+						roomId = parseParam("roomid");
 					LynckiaClient.accessRoom(username, roomId);
                 
 				} catch (err) {

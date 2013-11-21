@@ -13,7 +13,8 @@
 		<script type="text/javascript" src="/js/lib/erizo.js"></script>
 		<script type="text/javascript" src="/js/lynckia-client.js"></script>
 		<script type="text/javascript" src="/js/lib/webgl-utils.js"></script>
-        <script type="text/javascript" src="js/popup-manager.js"></script>
+        <script type="text/javascript" src="/js/popup-manager.js"></script>
+		<script type="text/javascript" src="/js/param.js"></script>
 		
 		<script>
 			
@@ -26,21 +27,6 @@
 				childName = "play",
 				childController;
 			
-			function parseParam(name, searchString) {
-				
-				searchString = (searchString && searchString.toLowerCase()) || window.location.search;
-				name = name.toLowerCase();
-				
-				var regex = new RegExp("[\?\&]?" + name + "=([^\&]+)"),
-				result = regex.exec(searchString);
-				
-				if (result && result.length >= 2) {
-					return result[1];
-				}
-				
-				return null;
-			}
-			
 			TabControl.onLoad = function() {
 				
 				var childFrame = document.getElementById(childName);
@@ -50,7 +36,7 @@
                 // Try parsing the Lynckia room and username from the URL
 				try {
 					var search = window.location.search,
-					username = parseParam("username") || "John Smith",
+						username = parseParam("username") || "John Smith",
 					roomId = parseParam("roomid");
 					
 					LynckiaClient.getDemoRooms(function(rooms) {

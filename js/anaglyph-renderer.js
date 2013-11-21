@@ -42,9 +42,15 @@ AnaglyphRenderer = function(canvas) {
 				 "uniform vec3 matAmbient;",
 				 "uniform float matShininess;",
 				 "uniform float blobbiness;",
+<<<<<<< HEAD
 				 
 				 "uniform sampler2D texture;",
 				 "uniform vec2 canvasSize;",
+=======
+                 
+                 "uniform vec2 canvasSize",
+                 "uniform sampler2D texture;",
+>>>>>>> 11f2d4a07b4f7acdf6816882b5e0ebaf9a755d04
 				 
 				 "void main(void) {",
 				 
@@ -69,12 +75,16 @@ AnaglyphRenderer = function(canvas) {
 				 
 					"float brightness = max(max(color.r, color.g), color.b);",
 				 
+<<<<<<< HEAD
 					"vec2 uv = gl_FragCoord.xy / canvasSize;",
 					"uv.y = 1.0 - uv.y;",
 				 
 					"vec4 colorIn = texture2D(texture, uv);",
 				 
 					"gl_FragColor = vec4(colorIn.rgb + dstColor * brightness, 1.0);",
+=======
+					"gl_FragColor = texture2D(texture, gl_FragCoord.xy / canvasSize) + vec4(dstColor * brightness, 1.0);",
+>>>>>>> 11f2d4a07b4f7acdf6816882b5e0ebaf9a755d04
 				 "}",
 				  ].join("\n");
 		
@@ -108,9 +118,15 @@ AnaglyphRenderer = function(canvas) {
 	prog.unifZoom = gl.getUniformLocation(prog, "zoom");
 	
 	prog.unifDstColor = gl.getUniformLocation(prog, "dstColor");
+<<<<<<< HEAD
 	
 	prog.unifTexture = gl.getUniformLocation(prog, "texture");
 	prog.unifCanvasSize = gl.getUniformLocation(prog, "canvasSize");
+=======
+    
+    prog.unifTexture = gl.getUniformLocation(prog, "texture");
+    prog.unifCanvasSize = gl.getUniformLocation(prog, "canvasSize");
+>>>>>>> 11f2d4a07b4f7acdf6816882b5e0ebaf9a755d04
 	
 	
 	// Set transparent background
@@ -208,11 +224,17 @@ AnaglyphRenderer = function(canvas) {
 	var tmpMatrix = mat4.create();
 	
 	// Enable additive blending
+<<<<<<< HEAD
 	/*gl.enable(gl.BLEND);
 	gl.blendFunc(gl.ONE, gl.ONE);
 	gl.disable(gl.DEPTH_TEST);*/
 	
 	var texture = WebGLUtils.createTexture(gl);
+=======
+	gl.enable(gl.BLEND);
+	gl.blendFunc(gl.ONE, gl.ONE);
+	gl.disable(gl.DEPTH_TEST);
+>>>>>>> 11f2d4a07b4f7acdf6816882b5e0ebaf9a755d04
 	
 	this.setLeftEyeColor = function(rgb) {
 		vec3.set(rgb, leftEyeColor);
@@ -237,12 +259,15 @@ AnaglyphRenderer = function(canvas) {
 	
 	function drawFromView(eyePos, dstColor) {
 		
+<<<<<<< HEAD
 		gl.activeTexture(gl.TEXTURE0);
 		gl.bindTexture(gl.TEXTURE_2D, texture);
 		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
 		gl.uniform1i(prog.unifTexture, 0);
 		gl.uniform2f(prog.unifCanvasSize, canvas.width, canvas.height);
 		
+=======
+>>>>>>> 11f2d4a07b4f7acdf6816882b5e0ebaf9a755d04
 		mat4.identity(cameraMatrix);
 		mat4.lookAt(eyePos, lookAt, [0, 1, 0], cameraMatrix);
 		mat4.multiply(cameraMatrix, mvMatrix, tmpMatrix);
@@ -260,6 +285,12 @@ AnaglyphRenderer = function(canvas) {
 		gl.uniform1f(prog.unifZoom, zoom);
 		
 		gl.uniform3fv(prog.unifDstColor, dstColor);
+<<<<<<< HEAD
+=======
+        
+        gl.uniform3fv(prog.unifDstColor, dstColor);
+        gl.uniform3fv(prog.unifDstColor, dstColor);
+>>>>>>> 11f2d4a07b4f7acdf6816882b5e0ebaf9a755d04
 
 		gl.drawElements(gl.TRIANGLES, indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
 	}
@@ -280,8 +311,11 @@ AnaglyphRenderer = function(canvas) {
 		mat4.perspective(45, canvas.width / canvas.height, 0.1, 2000.0, pMatrix);
 		
 		drawFromView(rightEyePos, rightEyeColor);
+<<<<<<< HEAD
 		
 		gl.clear(gl.DEPTH_BUFFER_BIT);
+=======
+>>>>>>> 11f2d4a07b4f7acdf6816882b5e0ebaf9a755d04
 		drawFromView(leftEyePos, leftEyeColor);
 	};
 	

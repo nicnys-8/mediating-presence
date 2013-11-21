@@ -156,9 +156,12 @@ var LynckiaClient = LynckiaClient || function() {
 		room.addEventListener("room-connected", function (roomEvent) {
 							  localStream.room = room;
 							  TabControl.setLocalStream(localStream);
-							  // After this, it doesn't work
 							  room.publish(localStream);
 							  subscribeToStreams(roomEvent.streams);
+                              
+                              if (localStream.video) {
+                              	localStream.video.volume = 0; // Mute the local video to avoid feedback
+                              }
 							  });
 		
 		room.addEventListener("stream-subscribed", function(streamEvent) {

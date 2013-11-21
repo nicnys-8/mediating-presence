@@ -261,7 +261,7 @@ setInterval(function() {
 
 function createS3Policy() {
     
-	var s3Policy, s3PolicyBase64, date, filename;
+	var s3Policy, s3PolicyBase64, s3Credentials, date, filename;
 	
     date = new Date();
     filename = remainingPolicies; // This gives us a unique filename
