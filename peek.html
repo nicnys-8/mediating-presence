@@ -4,6 +4,9 @@
         
         <title>Peek!</title>
         
+		<script type="text/javascript" src="js/geometry.js"></script>
+		<script type="text/javascript" src="js/kinect-touch-controller.js"></script>
+		
 		<script type="text/javascript" src="js/tab-control.js"></script>
         <script type="text/javascript" src="js/mediaext.js"></script>
         <script type="text/javascript" src="js/lib/webgl-utils.js"></script>
@@ -446,9 +449,10 @@
 					 */
 				}
 				
-				controller.setScaleVec([1.0, -1.0, -zScale]);
-                controller.setCenterOfRotation([-80, -60, -1000]);
-				controller.setPosition([0, 0, -200]);
+				// controller.setScaleVec([1.0, -1.0, zScale]);
+                controller.setScale(0.125);
+				controller.setCenterOfRotation([0, 0, 500]); // 500]);
+				controller.setPosition([0, 0, -50]);
 				
 				renderer.setUseVideo(useVideo);
 				renderer.setLookAtPoint([0, 0, -200]);
@@ -492,6 +496,7 @@
 					pd.renderer.setParallax(value);
 				}
 			}
+
 			
             </script>
         

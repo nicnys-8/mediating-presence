@@ -104,6 +104,67 @@ PointCloudRendererX = function(canvas) {
 	vertexBuffer.itemSize = 3;
 	vertexBuffer.numItems = 0;
 	
+	
+	
+	// ****************************************************
+	// *** Extra shader program for drawing the frustum ***
+	
+	var vsStr2 = [
+				  "attribute vec3 pos;",
+				  "uniform mat4 mat;",
+				  "void main(void) {",
+				  "gl_Position = mat * vec4(pos, 1.0);",
+				  "}",
+				  ].join("\n");
+	
+	var fsStr2 = [
+				  "precision mediump float;",
+				  "void main(void) {",
+				  "gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);",
+				  "}",
+				  ].join("\n");
+	
+	// Create the shader program
+	var boxProg = WebGLUtils.createProgram(gl, vsStr2, fsStr2);
+	
+	gl.useProgram(boxProg);
+	
+	// Store the attribute and uniform locations as properties of the program
+	prog.attrPosition = gl.getAttribLocation(boxProg, "pos");
+	gl.enableVertexAttribArray(boxProg.attrPosition);
+	prog.uMathurman = gl.getUniformLocation(boxProg, "mat");
+	
+	// Create buffers for point cloud data
+	var boxBuffer = gl.createBuffer();
+	boxBuffer.itemSize = 3;
+	boxBuffer.numItems = 0;
+	
+	var box = new Float32Array([
+								-1, -1, -1,		1, -1, -1,
+								1, -1, -1,		1, 1, -1,
+								1, 1, -1,		-1, 1, -1,
+								-1, 1, -1,		-1, -1, -1,
+								
+								-1, -1, 1,		1, -1, 1,
+								1, -1, 1,		1, 1, 1,
+								1, 1, 1,		-1, 1, 1,
+								-1, 1, 1,		-1, -1, 1,
+								
+								-1, -1, -1,		-1, -1, 1,
+								1, -1, -1,		1, -1, 1,
+								1, 1, -1,		1, 1, 1,
+								-1, 1, -1,		-1, 1, 1,
+								]);
+	
+	gl.bindBuffer(gl.ARRAY_BUFFER, boxBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, box, gl.STATIC_DRAW);
+	boxBuffer.numItems = box.length / boxBuffer.itemSize;
+	
+	var boxMat = mat4.create();
+	// ****************************************************
+	
+	
+	
 	var mvMatrix = mat4.create(),
 		pMatrix = mat4.create(),
 		cameraMatrix = mat4.create();
@@ -214,17 +275,40 @@ PointCloudRendererX = function(canvas) {
 	}
 	
 	
+	// Inverse projection matrix for Kinect.
+	var mProjKinect = mat4.create();
+	mat4.perspective(45.6, 1.28, 500, 2000.0, mProjKinect);
+	mat4.inverse(mProjKinect);
+	
+	var mCenterBox = mat4.create();
+	mat4.identity(mCenterBox);mat4.scale(mCenterBox, [1, -1, 1]);
+	mat4.translate(mCenterBox, [-1, -1, -1]);
+	mat4.scale(mCenterBox, [2 / 160, 2 / 120, 2 / 1500]); mat4.translate(mCenterBox, [0, 0, -500]);
+	
+	var testGrej = mat4.create();
+	
 	// TODO: Add boolean parameter that specifies if requestAnimationFrame should be called?
 	this.render = function() {
 		
 		gl.viewport(0, 0, canvas.width, canvas.height);
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 		
+		gl.useProgram(prog);
+		
 		mat4.perspective(45, canvas.width / canvas.height, 50.0, 1000.0, pMatrix);
 		
 		mat4.identity(cameraMatrix);
 		mat4.lookAt(eye, lookAt, [0, 1, 0], cameraMatrix);
 		mat4.multiply(cameraMatrix, mvMatrix, mvMatrix);
+		
+		// ***************
+		mat4.multiply(pMatrix, mvMatrix, boxMat);
+		mat4.multiply(boxMat, mProjKinect, boxMat);
+		// ***************
+		
+		
+		mat4.multiply(mProjKinect, mCenterBox, testGrej);
+		mat4.multiply(mvMatrix, testGrej, mvMatrix);
 		
 		gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
 		gl.vertexAttribPointer(prog.attrPosition, vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
@@ -243,6 +327,15 @@ PointCloudRendererX = function(canvas) {
 		gl.uniform2fv(prog.unifUVOffset, uvOffset);
 		
 		gl.drawArrays(gl.POINTS, 0, vertexBuffer.numItems);
+		
+		
+		
+		
+		gl.useProgram(boxProg);
+		gl.bindBuffer(gl.ARRAY_BUFFER, boxBuffer);
+		gl.vertexAttribPointer(prog.attrPosition, boxBuffer.itemSize, gl.FLOAT, false, 0, 0);
+		gl.uniformMatrix4fv(prog.uMathurman, false, boxMat);
+		gl.drawArrays(gl.LINES, 0, boxBuffer.numItems);
 	}
 	
 	var parallax = 0.33;
