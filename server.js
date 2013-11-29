@@ -2,14 +2,17 @@
 
 var MAX_ROOM_LENGTH = 20;
 
-var express = require("express"),
+var licodePath = "/home/ubuntu/licode/"; // Change this!
+
+var express = require(licodePath + "node_modules/express"),
+	io = require(licodePath + "node_modules/socket.io").listen(3005),
 	net = require("net"),
-	Nuve = require("./nuve"),
 	fs = require("fs"),
-	io = require("socket.io").listen(3005),
 	https = require("https"),
-	config = require("./../licode/licode_config"),
-	crypto = require( "crypto" );
+	crypto = require("crypto"),
+	config = require(licodePath + "licode_config"),
+	Nuve = require("./nuve");
+
 
 /*
  Dictionary containing room information-
@@ -74,12 +77,13 @@ function createToken(req, res) {
 	
 	// Empty strings are not allowed
 	if (username.length == 0) {
+		console.log("Error: An empty string is not a username");
 		res.send("Error: An empty string is not a username");
 		return;
 	}
 	// If the username was not an empty string, create the token
 	Nuve.API.createToken(roomId, username, role, function (token) {
-					  // console.log("Answering with token", token);
+					  console.log("Answering with token", token);
 					  res.send(token);
 					  });
 }
@@ -109,6 +113,7 @@ function createRoom(req, res) {
 	}
 	
 	if (errorMessage) {
+		console.log(errorMessage);
 		res.send(errorMessage);
 		return;
 	}
