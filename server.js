@@ -8,7 +8,7 @@ var express = require("express"),
 	fs = require("fs"),
 	io = require("socket.io").listen(3005),
 	https = require("https"),
-	config = require("./../../lynckia_config"),
+	config = require("./../licode/licode_config"),
 	crypto = require( "crypto" );
 
 /*
