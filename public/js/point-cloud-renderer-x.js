@@ -300,15 +300,15 @@ PointCloudRendererX = function(canvas) {
 	// coordinates in the RGB camera image (test)
 	
 	var mRGBCamProj = mat4.create();
-	mat4.perspective(48.6, 1.28, 500, 2000, mRGBCamProj);
+	mat4.perspective(48.6, 4 / 3, 500, 2000, mRGBCamProj);
 	
 	var mDepthToRGBCam = mat4.create();
-	mat4.lookAt([25, 0, 0], [25, 0, -1], [0, 1, 0], mDepthToRGBCam);
+	mat4.lookAt([-25, 0, 0], [-25, 0, -1], [0, 1, 0], mDepthToRGBCam);
 
 	var mCubeToTex = mat4.create();
 	mat4.identity(mCubeToTex);
-	mat4.scale([0.5, 0.5, 0.5], mCubeToTex);
-	mat4.translate([1, 1, 1], mCubeToTex);
+	mat4.translate(mCubeToTex, [0.5, 0.5, 0.5]);
+	mat4.scale(mCubeToTex, [0.5, -0.5, 0.5]);
 	
 	var mDepthToTex = mat4.create();
 	mat4.identity(mDepthToTex);
