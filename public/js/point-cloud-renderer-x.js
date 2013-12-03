@@ -9,7 +9,8 @@ PointCloudRendererX = function(canvas) {
 				
 				 "uniform mat4 uMVMatrix;",
 				 "uniform mat4 uPMatrix;",
-			
+				 "uniform mat4 uTexCoordMatrix;",
+				 
 				 /* Not used atm (values hard coded)
 				 "uniform vec2 textureSize;",
 				 "uniform float pointSize;",
@@ -29,8 +30,11 @@ PointCloudRendererX = function(canvas) {
 				 
 					"vec4 pos = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);",
 				 
-					"uv = vec2((x + uvOffset.x) * uvScale.x / 160.0, (y + uvOffset.y) * uvScale.y / 120.0);",
-					
+					// "uv = vec2((x + uvOffset.x) * uvScale.x / 160.0, (y + uvOffset.y) * uvScale.y / 120.0);",
+				 
+					"vec4 texCoords = uTexCoordMatrix * vec4(aVertexPosition, 1.0);",
+					"uv = texCoords.xy / texCoords.w;",
+				 
 					"if (z < 1000.0) {",
 						"uv2 = vec2((z - 500.0) / 500.0, 0.0);",
 					"} else {",
@@ -87,6 +91,8 @@ PointCloudRendererX = function(canvas) {
 	
 	prog.unifMatrixP = gl.getUniformLocation(prog, "uPMatrix");
 	prog.unifMatrixMV = gl.getUniformLocation(prog, "uMVMatrix");
+	prog.unifMatrixTC = gl.getUniformLocation(prog, "uTexCoordMatrix");
+	
 	prog.unifTex = gl.getUniformLocation(prog, "tex");
 	prog.unifHSVTex = gl.getUniformLocation(prog, "hsvTex");
 	prog.unifBrightness = gl.getUniformLocation(prog, "brightness");
@@ -275,15 +281,44 @@ PointCloudRendererX = function(canvas) {
 	}
 	
 	
+	// ***************
 	// Inverse projection matrix for Kinect.
 	var mProjKinect = mat4.create();
-	mat4.perspective(45.6, 1.28, 500, 2000.0, mProjKinect);
+	mat4.perspective(45.6, 1.28, 500, 2000, mProjKinect);
 	mat4.inverse(mProjKinect);
 	
 	var mCenterBox = mat4.create();
 	mat4.identity(mCenterBox);mat4.scale(mCenterBox, [1, -1, 1]);
 	mat4.translate(mCenterBox, [-1, -1, -1]);
 	mat4.scale(mCenterBox, [2 / 160, 2 / 120, 2 / 1500]); mat4.translate(mCenterBox, [0, 0, -500]);
+	// ***************
+	
+	
+	
+	// ***************
+	// Matrix for converting depth pixels to texture
+	// coordinates in the RGB camera image (test)
+	
+	var mRGBCamProj = mat4.create();
+	mat4.perspective(48.6, 1.28, 500, 2000, mRGBCamProj);
+	
+	var mDepthToRGBCam = mat4.create();
+	mat4.lookAt([25, 0, 0], [25, 0, -1], [0, 1, 0], mDepthToRGBCam);
+
+	var mCubeToTex = mat4.create();
+	mat4.identity(mCubeToTex);
+	mat4.scale([0.5, 0.5, 0.5], mCubeToTex);
+	mat4.translate([1, 1, 1], mCubeToTex);
+	
+	var mDepthToTex = mat4.create();
+	mat4.identity(mDepthToTex);
+	mat4.multiply(mDepthToTex, mCubeToTex, mDepthToTex);
+	mat4.multiply(mDepthToTex, mRGBCamProj, mDepthToTex);
+	mat4.multiply(mDepthToTex, mDepthToRGBCam, mDepthToTex);
+	mat4.multiply(mDepthToTex, mProjKinect, mDepthToTex);
+	mat4.multiply(mDepthToTex, mCenterBox, mDepthToTex);
+	// ***************
+	
 	
 	var testGrej = mat4.create();
 	
@@ -315,6 +350,11 @@ PointCloudRendererX = function(canvas) {
 		
 		gl.uniformMatrix4fv(prog.unifMatrixP, false, pMatrix);
 		gl.uniformMatrix4fv(prog.unifMatrixMV, false, mvMatrix);
+		
+		// *************
+		gl.uniformMatrix4fv(prog.unifMatrixTC, false, mDepthToTex);
+		// *************
+		
 		gl.uniform1f(prog.unifBrightness, brightness);
 
 		gl.activeTexture(gl.TEXTURE0);
