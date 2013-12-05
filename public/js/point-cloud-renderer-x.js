@@ -89,17 +89,17 @@ PointCloudRendererX = function(canvas) {
 	prog.attrPosition = gl.getAttribLocation(prog, "aVertexPosition");
 	gl.enableVertexAttribArray(prog.attrPosition);
 	
-	prog.unifMatrixP = gl.getUniformLocation(prog, "uPMatrix");
-	prog.unifMatrixMV = gl.getUniformLocation(prog, "uMVMatrix");
-	prog.unifMatrixTC = gl.getUniformLocation(prog, "uTexCoordMatrix");
+	prog.uMatrixP = gl.getUniformLocation(prog, "uPMatrix");
+	prog.uMatrixMV = gl.getUniformLocation(prog, "uMVMatrix");
+	prog.uMatrixTC = gl.getUniformLocation(prog, "uTexCoordMatrix");
 	
-	prog.unifTex = gl.getUniformLocation(prog, "tex");
-	prog.unifHSVTex = gl.getUniformLocation(prog, "hsvTex");
-	prog.unifBrightness = gl.getUniformLocation(prog, "brightness");
-	prog.unifUseVideo = gl.getUniformLocation(prog, "useVideo");
+	prog.uVideoTex = gl.getUniformLocation(prog, "tex");
+	prog.uHSVTex = gl.getUniformLocation(prog, "hsvTex");
+	prog.uBrightness = gl.getUniformLocation(prog, "brightness");
+	prog.uUseVideo = gl.getUniformLocation(prog, "useVideo");
 	
-	prog.unifUVScale = gl.getUniformLocation(prog, "uvScale");
-	prog.unifUVOffset = gl.getUniformLocation(prog, "uvOffset");
+	prog.uUVScale = gl.getUniformLocation(prog, "uvScale");
+	prog.uUVOffset = gl.getUniformLocation(prog, "uvOffset");
 	
 	// Set black background
 	gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -281,16 +281,51 @@ PointCloudRendererX = function(canvas) {
 	}
 	
 	
+	var config = {
+		DEPTH_CAM: {
+			FOV_X: 58.5,
+			FOV_Y: 45.6,
+			ASPECT_RATIO: 1.28, // ????
+			WIDTH: 160,
+			HEIGHT: 120,
+			NEAR: 500,
+			FAR: 2000,
+		},
+		RGB_CAM: {
+			FOV_X: 62.0,
+			FOV_Y: 48.6,
+			WIDTH: 160,
+			HEIGHT:120,
+			ASPECT_RATIO: 1.3333,
+			NEAR: 500,
+			FAR: 2000,
+		},
+		CAMERA_SEPARATION: 25,
+	};
+	
 	// ***************
-	// Inverse projection matrix for Kinect.
-	var mProjKinect = mat4.create();
-	mat4.perspective(45.6, 1.28, 500, 2000, mProjKinect);
-	mat4.inverse(mProjKinect);
+	// Inverse projection matrix for Kinect depth cam
+	var mUnprojectDepth = mat4.create();
+	mat4.perspective(config.DEPTH_CAM.FOV_Y,
+					 config.DEPTH_CAM.ASPECT_RATIO,
+					 config.DEPTH_CAM.NEAR,
+					 config.DEPTH_CAM.FAR,
+					 mUnprojectDepth);
+	mat4.inverse(mUnprojectDepth);
 	
 	var mCenterBox = mat4.create();
-	mat4.identity(mCenterBox);mat4.scale(mCenterBox, [1, -1, 1]);
+	mat4.identity(mCenterBox);
+	mat4.scale(mCenterBox, [1, -1, 1]);
 	mat4.translate(mCenterBox, [-1, -1, -1]);
-	mat4.scale(mCenterBox, [2 / 160, 2 / 120, 2 / 1500]); mat4.translate(mCenterBox, [0, 0, -500]);
+	mat4.scale(mCenterBox, [2 / 160, 2 / 120, 2 / 1500]);
+	mat4.translate(mCenterBox, [0, 0, -500]);
+	
+	// OBS! Istället:
+	mat4.ortho(0, config.DEPTH_CAM.WIDTH,
+			   config.DEPTH_CAM.HEIGHT, 0,
+			   config.DEPTH_CAM.NEAR,
+			   config.DEPTH_CAM.FAR,
+			   mCenterBox);
 	// ***************
 	
 	
@@ -300,10 +335,17 @@ PointCloudRendererX = function(canvas) {
 	// coordinates in the RGB camera image (test)
 	
 	var mRGBCamProj = mat4.create();
-	mat4.perspective(48.6, 4 / 3, 500, 2000, mRGBCamProj);
+	mat4.perspective(config.RGB_CAM.FOV_Y,
+					 config.RGB_CAM.ASPECT_RATIO,
+					 config.RGB_CAM.NEAR,
+					 config.RGB_CAM.FAR,
+					 mRGBCamProj);
 	
 	var mDepthToRGBCam = mat4.create();
-	mat4.lookAt([-25, 0, 0], [-25, 0, -1], [0, 1, 0], mDepthToRGBCam);
+	mat4.lookAt([-config.CAMERA_SEPARATION, 0, 0],
+				[-config.CAMERA_SEPARATION, 0, -1],
+				[0, 1, 0],
+				mDepthToRGBCam);
 
 	var mCubeToTex = mat4.create();
 	mat4.identity(mCubeToTex);
@@ -315,7 +357,7 @@ PointCloudRendererX = function(canvas) {
 	mat4.multiply(mDepthToTex, mCubeToTex, mDepthToTex);
 	mat4.multiply(mDepthToTex, mRGBCamProj, mDepthToTex);
 	mat4.multiply(mDepthToTex, mDepthToRGBCam, mDepthToTex);
-	mat4.multiply(mDepthToTex, mProjKinect, mDepthToTex);
+	mat4.multiply(mDepthToTex, mUnprojectDepth, mDepthToTex);
 	mat4.multiply(mDepthToTex, mCenterBox, mDepthToTex);
 	// ***************
 	
@@ -338,33 +380,30 @@ PointCloudRendererX = function(canvas) {
 		
 		// ***************
 		mat4.multiply(pMatrix, mvMatrix, boxMat);
-		mat4.multiply(boxMat, mProjKinect, boxMat);
+		mat4.multiply(boxMat, mUnprojectDepth, boxMat);
 		// ***************
 		
-		
-		mat4.multiply(mProjKinect, mCenterBox, testGrej);
+		mat4.multiply(mUnprojectDepth, mCenterBox, testGrej);
 		mat4.multiply(mvMatrix, testGrej, mvMatrix);
+		
 		
 		gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
 		gl.vertexAttribPointer(prog.attrPosition, vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
 		
-		gl.uniformMatrix4fv(prog.unifMatrixP, false, pMatrix);
-		gl.uniformMatrix4fv(prog.unifMatrixMV, false, mvMatrix);
+		gl.uniformMatrix4fv(prog.uMatrixP, false, pMatrix);
+		gl.uniformMatrix4fv(prog.uMatrixMV, false, mvMatrix);
+		gl.uniformMatrix4fv(prog.uMatrixTC, false, mDepthToTex);
 		
-		// *************
-		gl.uniformMatrix4fv(prog.unifMatrixTC, false, mDepthToTex);
-		// *************
-		
-		gl.uniform1f(prog.unifBrightness, brightness);
+		gl.uniform1f(prog.uBrightness, brightness);
 
 		gl.activeTexture(gl.TEXTURE0);
 		gl.bindTexture(gl.TEXTURE_2D, texture);
-		gl.uniform1i(prog.unifTex, 0);
-		gl.uniform1i(prog.unifHSVTex, 1);
-		gl.uniform1i(prog.unifUseVideo, useVideo);
+		gl.uniform1i(prog.uVideoTex, 0);
+		gl.uniform1i(prog.uHSVTex, 1);
+		gl.uniform1i(prog.uUseVideo, useVideo);
 		
-		gl.uniform2fv(prog.unifUVScale, uvScale);
-		gl.uniform2fv(prog.unifUVOffset, uvOffset);
+		gl.uniform2fv(prog.uUVScale, uvScale);
+		gl.uniform2fv(prog.uUVOffset, uvOffset);
 		
 		gl.drawArrays(gl.POINTS, 0, vertexBuffer.numItems);
 		
