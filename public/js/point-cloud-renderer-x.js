@@ -285,7 +285,7 @@ PointCloudRendererX = function(canvas) {
 		DEPTH_CAM: {
 			FOV_X: 58.5,
 			FOV_Y: 45.6,
-			ASPECT_RATIO: 1.28, // ????
+			ASPECT_RATIO: 1.3333, // ????
 			WIDTH: 160,
 			HEIGHT: 120,
 			NEAR: 500,
@@ -323,8 +323,8 @@ PointCloudRendererX = function(canvas) {
 	// OBS! Istället:
 	mat4.ortho(0, config.DEPTH_CAM.WIDTH,
 			   config.DEPTH_CAM.HEIGHT, 0,
-			   config.DEPTH_CAM.NEAR,
-			   config.DEPTH_CAM.FAR,
+			   -config.DEPTH_CAM.NEAR,
+			   -config.DEPTH_CAM.FAR,
 			   mCenterBox);
 	// ***************
 	
@@ -372,7 +372,7 @@ PointCloudRendererX = function(canvas) {
 		
 		gl.useProgram(prog);
 		
-		mat4.perspective(45, canvas.width / canvas.height, 50.0, 1000.0, pMatrix);
+		mat4.perspective(45, canvas.width / canvas.height, 20.0, 1000.0, pMatrix);
 		
 		mat4.identity(cameraMatrix);
 		mat4.lookAt(eye, lookAt, [0, 1, 0], cameraMatrix);
