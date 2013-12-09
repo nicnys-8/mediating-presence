@@ -3,6 +3,28 @@
  */
 PointCloudRendererX = function(canvas) {
 	
+	var config = {
+		DEPTH_CAM: {
+			FOV_X: 58.5,
+			FOV_Y: 45.6,
+			ASPECT_RATIO: 58.5 / 45.6, // ????
+			WIDTH: 160,
+			HEIGHT: 120,
+			NEAR: 285.63,
+			FAR: 4000,
+		},
+		RGB_CAM: {
+			FOV_X: 62.0,
+			FOV_Y: 48.6,
+			WIDTH: 160,
+			HEIGHT:120,
+			ASPECT_RATIO: 62.0 / 48.6, // 1.3333,
+			NEAR: 531.15,
+			FAR: 4000,
+		},
+		CAMERA_SEPARATION:[25, 0, 0],
+	};
+	
 	// Vertex shader
 	var vsStr = [
 				 "attribute vec3 aVertexPosition;",
@@ -24,16 +46,42 @@ PointCloudRendererX = function(canvas) {
 				 
 				 "void main(void) {",
 				 
-					"float x = aVertexPosition.x;",
-					"float y = aVertexPosition.y;",
-					"float z = aVertexPosition.z;",
+				 "const float degToRad = 3.141592653 / 180.0;",
+				 "const float fovdx = 58.5 * degToRad;",
+				 "const float fovdy = 45.6 * degToRad;",
+				 "const float fd = 285.63;",
+				 "const float fovcx = 62.0 * degToRad;",
+				 "const float fovcy = 48.6 * degToRad;",
+				 "const float fc = 531.15;",
 				 
-					"vec4 pos = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);",
+				 "float ddx = fd * tan(fovdx / 2.0);",
+				 "float ddy = fd * tan(fovdy / 2.0);",
+				 "float dcx = fc * tan(fovcx / 2.0);",
+				 "float dcy = fc * tan(fovcy / 2.0);",
 				 
-					// "uv = vec2((x + uvOffset.x) * uvScale.x / 160.0, (y + uvOffset.y) * uvScale.y / 120.0);",
+				 "float x = aVertexPosition.x;",
+				 "float y = aVertexPosition.y;",
+				 "float z = aVertexPosition.z;",
 				 
-					"vec4 texCoords = uTexCoordMatrix * vec4(aVertexPosition, 1.0);",
-					"uv = texCoords.xy / texCoords.w;",
+				 "vec2 p2x = vec2((x - 80.0) / 80.0 * ddx, fd);",
+				 "float vx = atan(p2x.x, p2x.y);",
+				 "vec2 p3x = vec2(z * sin(vx), z * cos(vx));",
+				 "float uvx = (p3x.x + 25.0) * fc / p3x.y;",
+				 "uvx = ((uvx / dcx) + 1.0) * 0.5;",
+				 
+				 "vec2 p2y = vec2((y - 60.0) / 60.0 * ddy, fd);",
+				 "float vy = atan(p2y.x, p2y.y);",
+				 "vec2 p3y = vec2(z * sin(vy), z * cos(vy));",
+				 "float uvy = (p3y.x + 25.0) * fc / p3y.y;",
+				 "uvy = ((uvy / dcy) + 1.0) * 0.5;",
+					
+				 "vec4 pos = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);",
+				 "uv = vec2(uvx, uvy);",
+				 
+				 // "uv = vec2((x + uvOffset.x) * uvScale.x / 160.0, (y + uvOffset.y) * uvScale.y / 120.0);",
+				 
+				 "vec4 texCoords = uTexCoordMatrix * vec4(aVertexPosition, 1.0);",
+				 "uv = texCoords.xy / texCoords.w;",
 				 
 					"if (z < 1000.0) {",
 						"uv2 = vec2((z - 500.0) / 500.0, 0.0);",
@@ -43,7 +91,7 @@ PointCloudRendererX = function(canvas) {
 					
 					// "uv2 = vec2((z - 500.0) / 2000.0, 0.0);",
 				 
-					"gl_PointSize = -(pos.z / pos.w - 1.0) * 8.0;", // * pointSize
+					"gl_PointSize = (pos.z / pos.w + 1.0) * 3.0;", // * pointSize
 				 
 					"if (z == 0.0) {",
 						"gl_Position = vec4(0, 0, 10000, 1);", // this will be clipped(?)
@@ -274,21 +322,36 @@ PointCloudRendererX = function(canvas) {
 	this.setUVScale = function(vec) {
 		uvScale[0] = vec[0];
 		uvScale[1] = vec[1];
-	}
+		
+		config.DEPTH_CAM.FOV_X = Number(vec[0]);
+		config.DEPTH_CAM.FOV_Y = Number(vec[1]);
+		config.DEPTH_CAM.ASPECT_RATIO = config.DEPTH_CAM.FOV_X / config.DEPTH_CAM.FOV_Y;
+		recalculateProjection();
+		
+	};
 	this.setUVOffset = function(vec) {
+		config.RGB_CAM.FOV_X = Number(vec[0]);
+		config.RGB_CAM.FOV_Y = Number(vec[1]);
+		config.RGB_CAM.ASPECT_RATIO = config.RGB_CAM.FOV_X / config.RGB_CAM.FOV_Y;
+		recalculateProjection();
+		
 		uvOffset[0] = vec[0];
 		uvOffset[1] = vec[1];
-	}
+	};
 	
-	
+	this.setCameraSeparation = function(vec) {
+		vec3.set(vec, config.CAMERA_SEPARATION);
+		recalculateProjection();
+	};
+
 	var config = {
 		DEPTH_CAM: {
 			FOV_X: 58.5,
 			FOV_Y: 45.6,
-			ASPECT_RATIO: 1.3333, // ????
+			ASPECT_RATIO: 58.5 / 45.6, // ????
 			WIDTH: 160,
 			HEIGHT: 120,
-			NEAR: 500,
+			NEAR: 800, // 285.63
 			FAR: 2000,
 		},
 		RGB_CAM: {
@@ -296,71 +359,73 @@ PointCloudRendererX = function(canvas) {
 			FOV_Y: 48.6,
 			WIDTH: 160,
 			HEIGHT:120,
-			ASPECT_RATIO: 1.3333,
-			NEAR: 500,
+			ASPECT_RATIO: 62.0 / 48.6, // 1.3333,
+			NEAR: 800, // 531.15
 			FAR: 2000,
 		},
-		CAMERA_SEPARATION: 25,
+		CAMERA_SEPARATION:[-25, 0, 0],
 	};
 	
-	// ***************
-	// Inverse projection matrix for Kinect depth cam
-	var mUnprojectDepth = mat4.create();
-	mat4.perspective(config.DEPTH_CAM.FOV_Y,
-					 config.DEPTH_CAM.ASPECT_RATIO,
-					 config.DEPTH_CAM.NEAR,
-					 config.DEPTH_CAM.FAR,
-					 mUnprojectDepth);
-	mat4.inverse(mUnprojectDepth);
+	var mUnprojectDepth,
+		mCenterBox,
+		mRGBCamProj,
+		mDepthToRGBCam,
+		mCubeToTex,
+		mDepthToTex;
 	
-	var mCenterBox = mat4.create();
-	mat4.identity(mCenterBox);
-	mat4.scale(mCenterBox, [1, -1, 1]);
-	mat4.translate(mCenterBox, [-1, -1, -1]);
-	mat4.scale(mCenterBox, [2 / 160, 2 / 120, 2 / 1500]);
-	mat4.translate(mCenterBox, [0, 0, -500]);
-	
-	// OBS! Istället:
-	mat4.ortho(0, config.DEPTH_CAM.WIDTH,
-			   config.DEPTH_CAM.HEIGHT, 0,
-			   -config.DEPTH_CAM.NEAR,
-			   -config.DEPTH_CAM.FAR,
-			   mCenterBox);
-	// ***************
-	
-	
-	
-	// ***************
-	// Matrix for converting depth pixels to texture
-	// coordinates in the RGB camera image (test)
-	
-	var mRGBCamProj = mat4.create();
-	mat4.perspective(config.RGB_CAM.FOV_Y,
-					 config.RGB_CAM.ASPECT_RATIO,
-					 config.RGB_CAM.NEAR,
-					 config.RGB_CAM.FAR,
-					 mRGBCamProj);
-	
-	var mDepthToRGBCam = mat4.create();
-	mat4.lookAt([-config.CAMERA_SEPARATION, 0, 0],
-				[-config.CAMERA_SEPARATION, 0, -1],
-				[0, 1, 0],
-				mDepthToRGBCam);
+	function recalculateProjection() {
+		// ***************
+		// Inverse projection matrix for Kinect depth cam
+		mUnprojectDepth = mat4.create();
+		mat4.perspective(config.DEPTH_CAM.FOV_Y,
+						 config.DEPTH_CAM.ASPECT_RATIO,
+						 config.DEPTH_CAM.NEAR,
+						 config.DEPTH_CAM.FAR,
+						 mUnprojectDepth);
+		mat4.inverse(mUnprojectDepth);
+		
+		mCenterBox = mat4.create();
+		mat4.ortho(0, config.DEPTH_CAM.WIDTH,
+				   config.DEPTH_CAM.HEIGHT, 0,
+				   -config.DEPTH_CAM.NEAR,
+				   -config.DEPTH_CAM.FAR,
+				   mCenterBox);
+		// ***************
+		
+		
+		
+		// ***************
+		// Matrix for converting depth pixels to texture
+		// coordinates in the RGB camera image (test)
+		
+		mRGBCamProj = mat4.create();
+		mat4.perspective(config.RGB_CAM.FOV_Y,
+						 config.RGB_CAM.ASPECT_RATIO,
+						 config.RGB_CAM.NEAR,
+						 config.RGB_CAM.FAR,
+						 mRGBCamProj);
+		
+		mDepthToRGBCam = mat4.create();
+		mat4.lookAt([config.CAMERA_SEPARATION[0], config.CAMERA_SEPARATION[1], config.CAMERA_SEPARATION[2]],
+					[config.CAMERA_SEPARATION[0], config.CAMERA_SEPARATION[1], config.CAMERA_SEPARATION[2] - 1],
+					[0, 1, 0],
+					mDepthToRGBCam);
 
-	var mCubeToTex = mat4.create();
-	mat4.identity(mCubeToTex);
-	mat4.translate(mCubeToTex, [0.5, 0.5, 0.5]);
-	mat4.scale(mCubeToTex, [0.5, -0.5, 0.5]);
-	
-	var mDepthToTex = mat4.create();
-	mat4.identity(mDepthToTex);
-	mat4.multiply(mDepthToTex, mCubeToTex, mDepthToTex);
-	mat4.multiply(mDepthToTex, mRGBCamProj, mDepthToTex);
-	mat4.multiply(mDepthToTex, mDepthToRGBCam, mDepthToTex);
-	mat4.multiply(mDepthToTex, mUnprojectDepth, mDepthToTex);
-	mat4.multiply(mDepthToTex, mCenterBox, mDepthToTex);
-	// ***************
-	
+		mCubeToTex = mat4.create();
+		mat4.identity(mCubeToTex);
+		mat4.translate(mCubeToTex, [0.5, 0.5, 0.5]);
+		mat4.scale(mCubeToTex, [0.5, -0.5, 0.5]);
+		
+		mDepthToTex = mat4.create();
+		mat4.identity(mDepthToTex);
+		mat4.multiply(mDepthToTex, mCubeToTex, mDepthToTex);
+		mat4.multiply(mDepthToTex, mRGBCamProj, mDepthToTex);
+		mat4.multiply(mDepthToTex, mDepthToRGBCam, mDepthToTex);
+		mat4.multiply(mDepthToTex, mUnprojectDepth, mDepthToTex);
+		mat4.multiply(mDepthToTex, mCenterBox, mDepthToTex);
+		// ***************
+	}
+	recalculateProjection();
 	
 	var testGrej = mat4.create();
 	
@@ -417,9 +482,13 @@ PointCloudRendererX = function(canvas) {
 		gl.drawArrays(gl.LINES, 0, boxBuffer.numItems);
 	}
 	
-	var parallax = 0.33;
+	var parallax = 800;
 	this.setParallax = function(value) {
 		parallax = Number(value);
+		
+		config.DEPTH_CAM.FAR = parallax;
+		config.RGB_CAM.FAR = parallax;
+		recalculateProjection();
 	}
 	
 	var prevHeadPos = null;
@@ -432,6 +501,8 @@ PointCloudRendererX = function(canvas) {
 			delta[2] = 0; // *= 0.1;
 			vec3.add(eye, delta);
 			vec3.set(headPos, prevHeadPos);
+			
+			vec3.set(vec3.scale(headPos, 0.5*0.125), eye);
 		} else {
 			prevHeadPos = vec3.create(headPos);
 		}

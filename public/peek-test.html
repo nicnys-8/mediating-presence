@@ -1,0 +1,614 @@
+
+<html>
+    <head>
+        
+        <title>Peek!</title>
+        
+		<script type="text/javascript" src="js/geometry.js"></script>
+		<script type="text/javascript" src="js/kinect-touch-controller.js"></script>
+		
+		<script type="text/javascript" src="js/tab-control.js"></script>
+        <script type="text/javascript" src="js/mediaext.js"></script>
+        <script type="text/javascript" src="js/lib/webgl-utils.js"></script>
+        <script type="text/javascript" src="js/lib/glMatrix-0.9.5.min.js"></script>
+		<script type="text/javascript" src="js/model-controller.js"></script>
+        <script type="text/javascript" src="js/image-handling.js"></script>
+		<script type="text/javascript" src="js/kinect-proxy-zigfu.js"></script>
+		<script type="text/javascript" src="js/point-cloud-renderer-x.js"></script>
+		
+        <link rel="stylesheet" type="text/css" href="css/pb.css"/>
+        <link rel="stylesheet" type="text/css" href="css/pointcloud.css"/>
+        
+        <script type="text/javascript">
+            
+            const VIDEO_DISPLAY_WIDTH = 640, VIDEO_DISPLAY_HEIGHT = 480;
+			
+			var isActive = false,
+				streamIDs = [],
+				displayedStreams = {},
+				frameCount = 0,
+			
+				// Control panel inputs
+				glContainer,
+				uvScaleSliders,
+				uvOffsetSliders,
+				zScaleSlider,
+				brightnessSlider,
+				lerpCheckbox,
+				useVideoCheckbox,
+				sendDataCheckbox,
+				sendRateSlider,
+                animFrameId;
+			
+			/**
+			 Provides function for encoding/decoding Kinect data when streaming.
+			 
+			 Uses webp compression for video data and png for depth data.
+			 It should use webp for both, but it seems the lossless version
+			 is not available at the moment...
+			 */
+			var StreamCodec = function() {
+				
+				var API = {},
+					videoCanvas = MediaExt.createCanvas(160, 120),
+					videoContext = videoCanvas.getContext("2d"),
+					videoImage = new Image(),
+					imageData = videoContext.createImageData(160, 120),
+					depthCanvas = MediaExt.createCanvas(160, 120),
+					depthContext = depthCanvas.getContext("2d"),
+					depthImage = new Image(),
+					// Determine whether Uint32 is little- or big-endian.
+					// TODO: Use this for faster encoding using Uint16Array or Uint32Array
+					isLittleEndian = function() {
+						var buf = new ArrayBuffer(4),
+							buf8 = new Uint8Array(buf),
+							buf32 = new Uint32Array(buf);
+						buf32[0] = 0x0a0b0c0d;
+						return (buf8[0] === 0x0d);
+					}();
+				
+				depthImage.onload = null;
+				videoImage.onload = null;
+				
+				// Initialize the image data
+				for (var i = 0; i < imageData.data.length; i += 4) {
+					imageData.data[i + 2] = 255;
+					imageData.data[i + 3] = 255;
+				}
+				
+				API.encodeVideo = function(videoData) {
+					videoContext.putImageData(videoData, 0, 0);
+					return videoCanvas.toDataURL("image/webp", 0.5);
+				};
+				
+				API.decodeVideo = function(dataURL, dstCanvas, callback) {
+					if (!dataURL) {
+						return null;
+					}
+					if (!dstCanvas) {
+						dstCanvas = videoCanvas;
+					}
+                    videoImage.src = "";
+                    videoImage.onload = function() {
+						// TODO: just callback with videoImage instead?
+                        dstCanvas.getContext("2d").drawImage(videoImage, 0, 0, 160, 120);
+                        callback(dstCanvas);
+                    }
+					videoImage.src = dataURL;
+
+					return dstCanvas;
+				};
+				
+				API.encodeDepth = function(depthData) {
+					
+					var i = 0, j = 0,
+						len = depthData.length,
+						data = imageData.data,
+						z;
+					
+					while (i < len) {
+						z = depthData[i];
+						data[j + 0] = z >> 8; // (z & 0xff00) >> 8;
+						data[j + 1] = z & 0x00ff;
+						i += 1;
+						j += 4;
+					}
+					depthContext.putImageData(imageData, 0, 0);
+					return depthCanvas.toDataURL("image/png"); // webp appears to be lossy, trying png
+				};
+				
+				API.decodeDepth = function(dataURL, dst, callback) {
+					
+					if (!dataURL) {
+						return;
+					}
+					
+                    depthImage.src = "";
+                    
+                    depthImage.onload = function() {
+                        
+                        depthContext.drawImage(depthImage, 0, 0, 160, 120);
+                    
+						var data = depthContext.getImageData(0, 0, 160, 120).data,
+							i = 0, j = 0, len = data.length, x = 0;
+					
+                        while (j < len) {
+                            dst[i] = (data[j] << 8) | data[j + 1];
+                            // x += data[j + 2];
+                            i += 1;
+                            j += 4;
+                        }
+					
+                        // Make sure the data is valid
+						// if (x === dst.length * 255) {
+                            callback(dst);
+                        /*} else {
+                            console.log("Invalid depth data...? " + x / dst.length);
+                            callback(null);
+                        }*/
+                    }
+                        
+                    depthImage.src = dataURL;
+				};
+				
+				return API;
+			}();
+			
+			/**
+			 One of these is created for each data stream.
+			 Holds a WebGL canvas, renderer, data buffers and a mouse controller
+			 */
+			var PeekDisplay = function() {
+				
+				var zWidth = KinectProxy.DEPTH_DATA_WIDTH,
+					zHeight = KinectProxy.DEPTH_DATA_HEIGHT,
+					vertices, vertices2x, index;
+				
+				this.canvas = MediaExt.createCanvas(VIDEO_DISPLAY_WIDTH, VIDEO_DISPLAY_HEIGHT);
+				this.canvas.className = "gl-canvas";
+				this.renderer = new PointCloudRendererX(this.canvas);
+				this.depthBuffer = new Float32Array(zWidth * zHeight);
+				this.bufferCanvas = MediaExt.createCanvas(KinectProxy.RGB_DATA_WIDTH,
+														  KinectProxy.RGB_DATA_HEIGHT);
+				this.controller = new ModelController(this.canvas);
+				
+				// Initialize the vertex buffer
+				vertices = new Float32Array(zWidth * zHeight * 3);
+				index = 0;
+				for (var y = 0; y < zHeight; y++) {
+					for (var x = 0; x < zWidth; x++) {
+						vertices[index++] = x;
+						vertices[index++] = y;
+						vertices[index++] = 0;
+					}
+				}
+				
+				// Initialize the vertex buffer for interpolated data
+				vertices2x = new Float32Array(zWidth * zHeight * 3 * 4);
+				index = 0;
+				for (var y = 0; y < zHeight; y += 0.5) {
+					for (var x = 0; x < zWidth; x += 0.5) {
+						vertices2x[index++] = x;
+						vertices2x[index++] = y;
+						vertices2x[index++] = 0;
+					}
+				}
+				
+				this.vertices = vertices;
+				this.vertices2x = vertices2x;
+				
+				this.updateCanvasSize = function() {
+					if (this.canvas.width !== this.canvas.offsetWidth) {
+						this.canvas.width = this.canvas.offsetWidth;
+					}
+					if (this.canvas.height !== this.canvas.offsetHeight) {
+						this.canvas.height = this.canvas.offsetHeight;
+					}
+				}
+			};
+			
+			TabControl.onLoad = function() {
+				
+				var onResize = function() {
+					var pd, i;
+					for (i = 0; i < streamIDs.length; i++) {
+						pd = displayedStreams[streamIDs[i]];
+						pd.updateCanvasSize();
+					}
+				};
+				window.addEventListener("resize", onResize, false);
+				
+				glContainer = document.getElementById("container");
+				uvScaleSliders = [document.getElementById("uvScaleX"),
+								  document.getElementById("uvScaleY")];
+				uvOffsetSliders = [document.getElementById("uvOffsetX"),
+								   document.getElementById("uvOffsetY")];
+				zScaleSlider = document.getElementById("zScale");
+				brightnessSlider = document.getElementById("brightness");
+				lerpCheckbox = document.getElementById("lerp");
+				useVideoCheckbox = document.getElementById("useVideo");
+				sendDataCheckbox = document.getElementById("streamData");
+				sendRateSlider = document.getElementById("frameSkip");
+				
+				var pd = new PeekDisplay();
+				streamIDs.push("me");
+				displayedStreams["me"] = pd;
+				glContainer.appendChild(pd.canvas);
+				pd.updateCanvasSize();
+            };
+			
+			TabControl.onActivate = function() {
+				isActive = true;
+				animFrameId = requestAnimFrame(drawScene);
+			};
+			
+			TabControl.onDeactivate = function() {
+				isActive = false;
+				cancelAnimFrame(animFrameId);
+			};
+			
+			TabControl.onLocalStreamInit = function(stream) {
+			};
+			
+			TabControl.onStreamAdded = function(stream) {
+				
+				// Create a PeekDisplay to render the Kinect data
+				var streamId = stream.getID();
+				var pd = new PeekDisplay();
+				displayedStreams[streamId] = pd;
+				streamIDs.push(streamId);
+				
+				// Add its canvas element
+				glContainer.appendChild(pd.canvas);
+				pd.updateCanvasSize();
+				
+				var myPD = displayedStreams["me"];
+				if (myPD.canvas.parentNode) {
+					myPD.canvas.parentNode.removeChild(myPD.canvas);
+				}
+			};
+			
+			TabControl.onStreamRemoved = function(stream) {
+				
+				var streamId = stream.getID();
+				pd = displayedStreams[streamId];
+				
+				if (pd) {
+					
+					// Remove the canvas element from DOM
+					if (pd.canvas.parentNode) {
+						pd.canvas.parentNode.removeChild(pd.canvas);
+					}
+					
+					// Cleanup
+					pd.renderer.destroy();
+					pd.renderer = null;
+					pd.controller.destroy();
+					pd.controller = null;
+					pd.canvas = null;
+					
+					// Remove the stream and PeekDisplay from lists
+					delete displayedStreams[streamId];
+					var index = streamIDs.indexOf(streamId);
+					if (index != -1) {
+						streamIDs.splice(index, 1);
+					}
+				}
+				
+				// Add the local stream again, if it's the only one left
+				if (streamIDs.length == 1) {
+					var myPD = displayedStreams["me"];
+					if (!myPD.parentNode) {
+						glContainer.appendChild(myPD.canvas);
+						myPD.updateCanvasSize();
+					}
+				}
+			};
+			
+			TabControl.onMessageReceived = function(senderId, type, data) {
+				
+				if (type == "kinect") {
+					
+					if (isActive) {
+						
+						var pd = displayedStreams[senderId], texture, depth;
+						
+						if (pd) {
+							StreamCodec.decodeVideo(data.video, pd.bufferCanvas,
+													function(result) { updateScene(senderId, result, null); }),
+							StreamCodec.decodeDepth(data.depth, pd.depthBuffer,
+													function(result) { updateScene(senderId, null, result); });
+							// updateScene(senderId, texture, depth);
+						}
+					}
+				}
+			};
+			
+			TabControl.onKinectInit = function(proxy) {
+				proxy.addHeadPositionListener(function(headPos) {
+											  for (var i = 0; i < streamIDs.length; i++) {
+												var pd = displayedStreams[streamIDs[i]];
+												// console.log(headPos);
+												pd.renderer.headMoved(headPos);
+											  }});
+			};
+			
+			
+			var previousVideoData = function() {
+				var canvas = document.createElement("canvas");
+				var ctx = canvas.getContext("2d");
+				return ctx.createImageData(160, 120);
+			}();
+			
+			TabControl.onNewKinectData = function(videoData, depthData, rawVideo, rawDepth) {
+				
+				// TODO: Send data even when tab is inactive?
+				if (!isActive) {
+					return;
+				}
+				
+				var sendData = sendDataCheckbox.checked,
+					sendVideo = useVideoCheckbox.checked,
+					sendRate = parseInt(sendRateSlider.value);
+				
+				// DEBUG: show the video in a separate canvas
+				// canvas.getContext("2d").putImageData(videoData, 0, 0);
+				
+				// Update local Kinect stream, if no other streams are available
+				if (streamIDs.length == 1) {
+					updateScene("me", videoData, depthData);
+					/*updateScene("me", previousVideoData, depthData);
+					for (var i = 0; i < videoData.data.length; i++) {
+						previousVideoData.data[i] = videoData.data[i];
+					}*/
+				} else if (sendData && frameCount % sendRate == 0) {
+					
+					var data = {
+						depth:StreamCodec.encodeDepth(depthData), // rawDepth,
+						video:StreamCodec.encodeVideo(videoData), // rawVideo,
+					};
+					
+					/*
+					if (sendVideo) {
+						data.video = StreamCodec.encodeVideo(videoData); // rawVideo;
+					}
+					console.log((data.video.length + data.depth.length));
+					console.log((data.video.length + data.depth.length) / (rawVideo.length + rawDepth.length));
+					*/
+					
+					// Send the Kinect data
+					TabControl.sendMessage("peek", "kinect", data);
+				}
+				
+				frameCount++;
+            };
+			
+			function updateScene(senderId, video, depth) {
+				
+				var pd = displayedStreams[senderId];
+				
+				if (!pd) {
+					return;
+				}
+				
+				var renderer = pd.renderer,
+					controller = pd.controller,
+					maxDepth = 5000,
+					zScale = 1.0 / parseFloat(zScaleSlider.value),
+					brightness = parseFloat(brightnessSlider.value),
+					lerp = lerpCheckbox.checked,
+					useVideo = useVideoCheckbox.checked,
+					pos = lerp ? pd.vertices2x : pd.vertices,
+					width = KinectProxy.DEPTH_DATA_WIDTH,
+					height = KinectProxy.DEPTH_DATA_HEIGHT,
+					x, y, z,
+					zE, zS, zSE,
+					zLerp,
+					index, index2x = 2, width2x = width * 6;
+				
+				if (video && useVideo) {
+					renderer.setTexture(video);
+				}
+				
+				if (!depth) {
+					return;
+				}
+				
+				if (lerp) {
+					
+					for (y = 0, index = 0; y < height; y++) {
+						for (x = 0; x < width; x++, index++, index2x += 6) {
+							
+							z = depth[index] || pos[index2x];
+							zE = depth[index + 1] || pos[index2x + 3];
+							zS = depth[index + width] || pos[index2x + width2x];
+							zSE = depth[index + width + 1] || pos[index2x + width2x + 3];
+							
+							pos[index2x] = z;
+							
+							// Interpolate right
+							zLerp = (zE && x < width - 1 && Math.abs(zE - z) < 30)
+								? (z + zE) * 0.5 : 0;
+							pos[index2x + 3] = zLerp;
+							
+							// Interpolate bottom
+							zLerp = (zS && y < height - 1 && Math.abs(zS - z) < 30)
+								? (z + zS) * 0.5 : 0;
+							pos[index2x + width2x] = zLerp;
+							
+							// Interpolate bottom-right
+							zLerp = (zSE && x < width - 1 && y < height - 1 && Math.abs(zSE - z) < 30)
+								? (z + zSE) * 0.5 : 0;
+							pos[index2x + width2x + 3] = zLerp;
+						}
+						index2x += width2x;
+					}
+					
+				} else {
+					for (y = 0, index = 0; y < height; y++) {
+						for (x = 0; x < width; x++, index++) {
+							//if (depth[index] > 0)
+								pos[index * 3 + 2] = depth[index];
+						}
+					}
+					/*
+					 Maybe just:
+					for (var i = 0, len = depth.length; i < len; ++i) {
+						pos[i * 3 + 2] = depth[i];
+					}
+					 */
+				}
+				
+				// controller.setScaleVec([1.0, -1.0, zScale]);
+                controller.setScale(0.125);
+				controller.setCenterOfRotation([0, 0, 800]); // 500]);
+				controller.setPosition([0, 0, -100]);
+				
+				renderer.setUseVideo(useVideo);
+				renderer.setLookAtPoint([0, 0, -200]);
+				renderer.setBrightness(brightness);
+				renderer.bufferData(pos);
+			}
+			
+			function drawScene() {
+				
+				animFrameId = requestAnimFrame(drawScene);
+				
+				var uvScale = [parseFloat(uvScaleSliders[0].value),
+							   parseFloat(uvScaleSliders[1].value)],
+					uvOffset = [parseFloat(uvOffsetSliders[0].value),
+								parseFloat(uvOffsetSliders[1].value)],
+					i, pd;
+					
+				var sepx = Number(document.getElementById("sepx").value),
+					sepy = Number(document.getElementById("sepy").value),
+					sepz = Number(document.getElementById("sepz").value),
+					sep = [sepx, sepy, sepz];
+					
+				
+				for (i = 0; i < streamIDs.length; i++) {
+					pd = displayedStreams[streamIDs[i]];
+					if (pd.canvas.parentNode) {
+						mvMatrix = pd.controller.getModelViewMatrix();
+						pd.renderer.setModelViewMatrix(mvMatrix);
+						pd.renderer.setUVOffset(uvOffset);
+						pd.renderer.setUVScale(uvScale);
+						pd.renderer.setCameraSeparation(sep);
+						pd.renderer.render();
+					}
+				}
+			}
+			
+			function resetCameras() {
+				for (var i = 0; i < streamIDs.length; i++) {
+					var pd = displayedStreams[streamIDs[i]];
+					pd.renderer.resetCamera();
+					pd.controller.resetRotation();
+				}
+			}
+			
+			function updateParallax(value) {
+				for (var i = 0; i < streamIDs.length; i++) {
+					var pd = displayedStreams[streamIDs[i]];
+					pd.renderer.setParallax(value);
+				}
+			}
+
+			
+            </script>
+        
+    </head>
+	
+	<body>
+		
+		<div id="sidebar-left">
+			<div class="control-panel" id="controls-left">
+				
+				<h2>Stream</h2>
+				<table style="margin:0px auto;">
+					<tr>
+						<td style="text-align:right;">Stream:</td>
+						<td><input id="streamData" type="checkbox" checked="true"></td>
+					</tr><tr>
+						<td style="text-align:right;">Skip frames:</td>
+						<td><input id="frameSkip" type="range" min="1" max="30" step="1" value="3"></td>
+					</tr>
+				</table>
+				
+				<h2>Texture</h2>
+				<table style="margin:0px auto;">
+					<tr>
+						<td style="text-align:right;">Video texture:</td>
+						<td><input id="useVideo" type="checkbox" checked="true"></td>
+					</tr><tr>
+						<td style="text-align:right;">UV scale x:</td>
+						<td><input id="uvScaleX" type="range" min="0" max="180" step="0.1" value="58.5"></td>
+					</tr><tr>
+						<td style="text-align:right;">UV scale y:</td>
+						<td><input id="uvScaleY" type="range" min="0" max="180" step="0.1" value="45.6"></td>
+					</tr><tr>
+						<td style="text-align:right;">UV offset x:</td>
+						<td><input id="uvOffsetX" type="range" min="0" max="180" step="0.1" value="62.0"></td>
+					</tr><tr>
+						<td style="text-align:right;">UV offset y:</td>
+						<td><input id="uvOffsetY" type="range" min="0" max="180" step="0.1" value="48.6"></td>
+					</tr>
+				</table>
+				
+			</div>
+		</div>
+		
+		<div id="content">
+			
+			<h1>Peek!</h1>
+			
+			<div id="container">
+			</div>
+		</div>
+		
+		<div id="sidebar-right">
+			<div class="control-panel" id="controls-right">
+				
+				<h2>View</h2>
+				<table style="margin:0px auto;">
+					<tr>
+						<td style="text-align:right;">Z-Scale:</td>
+						<td><input id="zScale" type="range" min="0" max="180" value="58" step="0.1"></td>
+					</tr><tr>
+						<td style="text-align:right;">Brightness:</td>
+						<td><input id="brightness" type="range" min="0" max="5" step="0.01" value="1"></td>
+					</tr><tr>
+						<td style="text-align:right;">Interpolate:</td>
+						<td><input id="lerp" type="checkbox"></td>
+					</tr>
+				</table>
+				
+				<h2>Camera</h2>
+				<table style="margin:0px auto;">
+					<tr>
+						<td style="text-align:right;">Parallax:</td>
+						<td><input id="parallax" type="range"
+							min="0" max="4000" value="2000" step="1"
+							onchange="updateParallax(this.value);"></td>
+					</tr>
+				</table>
+				<button onclick="resetCameras();">Reset camera</button>
+				
+				<h2>Camera separation</h2>
+				<table style="margin:0px auto;">
+					<tr>
+						<td style="text-align:right;">x:</td>
+						<td><input id="sepx" type="range" min="-200" max="200" step="0.1" value="-25"></td>
+					</tr><tr>
+						<td style="text-align:right;">y:</td>
+						<td><input id="sepy" type="range" min="-200" max="200" step="0.1" value="0"></td>
+					</tr><tr>
+						<td style="text-align:right;">z:</td>
+						<td><input id="sepz" type="range" min="-200" max="200" step="0.1" value="0"></td>
+					</tr>
+				</table>
+				
+			</div>
+		</div>
+</html>
+

@@ -246,15 +246,15 @@ ModelController = function(canvas) {
 	};
 	
 	canvas.addEventListener("mousedown", handleMouseDown, false);
-	document.addEventListener("mouseup", handleMouseUp, false);
+	canvas.addEventListener("mouseup", handleMouseUp, false);
 	// document.addEventListener("mouseout", function(e){handleMouseUp(e); console.log("out");}, false);
-	document.addEventListener("mousemove", handleMouseMove, false);
+	canvas.addEventListener("mousemove", handleMouseMove, false);
 	
 	this.destroy = function() {
 		canvas.removeEventListener("mousedown", handleMouseDown);
-		document.removeEventListener("mouseup", handleMouseUp);
+		canvas.removeEventListener("mouseup", handleMouseUp);
 		// document.removeEventListener("mouseout", handleMouseUp);
-		document.removeEventListener("mousemove", handleMouseMove);
+		canvas.removeEventListener("mousemove", handleMouseMove);
 		canvas = null;
 	};
 };
