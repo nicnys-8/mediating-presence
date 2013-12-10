@@ -107,7 +107,8 @@ var LynckiaClient = LynckiaClient || function() {
 		
 		// Set up the local stream
 		localStream = Erizo.Stream(options);
-		createToken(username, "role", roomId, onTokenCreated);
+        var role = "presenter";
+		createToken(username, role, roomId, onTokenCreated);
 	};
 
 	/** ROOM ACCESS: STEP 2
@@ -133,6 +134,7 @@ var LynckiaClient = LynckiaClient || function() {
 		localStream.addEventListener("access-accepted", onMediaAccessGranted);
 		localStream.addEventListener("access-denied", onMediaAccessDenied);
 		// Ask for access to local media
+        localStream.videoSize = [320, 240, 320, 240];
 		localStream.init();
 	};
 
