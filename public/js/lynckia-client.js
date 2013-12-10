@@ -120,7 +120,7 @@ var LynckiaClient = LynckiaClient || function() {
 	 to the request, in string form, as input
 	 */
 	function createToken(username, role, roomId, callback) {
-		httpPost("/createToken/", {username: username, role: role, roomId: roomId}, onTokenCreated);
+		httpPost("/createToken/", {username: username, role: role, roomId: roomId}, callback);
 	};
 	
 	/** ROOM ACCESS: STEP 3
