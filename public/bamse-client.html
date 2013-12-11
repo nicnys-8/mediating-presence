@@ -1,0 +1,261 @@
+
+<!-- :hover doesn't work with the doctype tag..?
+ <!DOCTYPE html>
+ -->
+
+<html>
+    <head>
+        
+        <title>Bamse</title>
+		
+        <style type="text/css">
+			
+			* {
+				padding:0;
+				margin:0;
+				position:absolute;
+			}
+			
+			html, body {
+				height:100%;
+				width:100%;
+			}
+			
+			#wrap {
+				width:100%;
+				height:100%;
+			}
+			
+			#sidebar-left {
+				left:0px;
+				top:0px;
+				width:200px;
+				height:100%;
+				/*background-color:lightblue;*/
+			}
+			
+			#sidebar-right {
+				right:0px;
+				top:0px;
+				width:200px;
+				height:100%;
+				/*background-color:lightblue;*/
+			}
+			
+			#content {
+				position:absolute;
+				left:200px;
+				right:200px;
+				top:0;
+				bottom:0;
+				/*background-color:lightgreen;*/
+			}
+			
+			#video-container {
+				position:absolute;
+				width:100%;
+				top:1em;
+				bottom:12em;
+				/*background-color:pink;*/
+			}
+			canvas {
+				width:100%;
+				height:100%;
+			}
+			
+			#text-chat {
+				position:absolute;
+				margin:0 10% 0 10%;
+				width:80%;
+				bottom:0;
+				height:12em;
+				/*background-color:red;*/
+			}
+			
+			#chat-area {
+				position:absolute;
+				bottom:3.5em;
+				height:12.5em;
+				width:100%;
+			}
+			
+			#chat-input {
+				position:absolute;
+				bottom:0.5em;
+				width:80%;
+				height:2.5em;
+			}
+			
+			#send-button {
+				position:absolute;
+				bottom:0.5em;
+				right:0;
+				width:18%;
+				height:2.5em;
+			}
+			</style>
+		
+		<script type="text/javascript" src="js/c-slave.js"></script>
+		<script type="text/javascript" src="js/param.js"></script>
+		<script type="text/javascript" src="js/bamse.js"></script>
+		<script type="text/javascript" src="js/lib/webgl-utils.js"></script>
+		
+		<script>
+			
+			function Character(name, imageURL, x, y) {
+				this.image = new Image();
+				this.image.src = imageURL;
+				this.x = x;
+				this.y = y;
+				this.visible = false;
+			}
+		
+			var canvas;
+			var characters;
+			var background = new Image();
+			var file;
+			
+            window.onload = function() {
+				
+				canvas = document.getElementById("scene");
+				
+				var onWidowResize = function() {
+					canvas.width = canvas.offsetWidth;
+					canvas.height = canvas.offsetHeight;
+				}
+				onWidowResize();
+				window.addEventListener("resize", onWidowResize, false);
+				
+				var textArea = document.getElementById("chat-input");
+				textArea.onkeypress = function(evt) {
+					if (evt.keyCode === 13) {
+						sendChatMessage();
+						return false;
+					}
+					return true;
+				};
+				
+				
+				var roomId = parseParam("room");
+				if (roomId) {
+					Slave.on("connected", function() {
+							 console.log("COOOOOONNEEEEEECTED");
+							 render();
+							 });
+					Slave.on("message", messageHandler);
+					Slave.connect(roomId);
+				} else {
+					alert("No room!");
+				}
+			}
+			
+			function messageHandler(message) {
+				try {
+					switch (message.type) {
+						case "file":
+							loadFile(message.file);
+							break;
+						case "add-character":
+							var char = characters[message.data.name];
+							char.visible = true;
+							char.x = Math.random() * canvas.width;
+							char.y = Math.random() * canvas.height;
+							characters[message.data.name].visible = true;
+							break;
+						case "remove-character":
+							characters[message.data.name].visible = false;
+							break;
+						case "set-background":
+							background.src = file.backgroundBaseURL + file.backgrounds[message.data.name];
+							break;
+						case "msg":
+							showChatMessage(senderId, message);
+							break;
+					}
+				} catch (e) {
+					console.error("Received strange message?");
+					console.error(e);
+				}
+			}
+		
+			function loadFile(obj) {
+			
+				for (var name in obj.characters) {
+					var desc = obj.characters[name],
+						x = canvas.width / 2,
+						y = canvas.height / 2,
+						imageURL = desc.spritesBaseURL + desc.sprites["_default"];
+					characters[name] = new Character(name, imageURL, x, y);
+				}
+				file = obj;
+			}
+		
+			function render() {
+				animFrameId = requestAnimFrame(drawThumbs);
+				var ctx = canvas.getContext("2d");
+				ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
+				for (var i in characters) {
+					var char = characters[i];
+					if (char.visible) {
+						ctx.drawImage(char.image, char.x, char.y, char.image.width, char.image.height);
+					}
+				}
+			}
+			
+			
+			
+			
+			
+			function showChatMessage(senderId, message) {
+				
+				if (!message) {
+					return;
+				}
+				
+				var textOut = document.getElementById("chat-area"),
+					sender = (senderId === "You") ? "You" : streams[senderId].username;
+				textOut.value = textOut.value + "\n" + sender + " said: " + message;
+				textOut.scrollTop = textOut.scrollHeight;
+			}
+			
+			function sendChatMessage() {
+				
+				var textIn = document.getElementById("chat-input"),
+					message = textIn.value.trim();
+				
+				if (message) {
+					showChatMessage("You", message);
+					TabControl.sendMessage("chat", "msg", message);
+				}
+				
+				textIn.value = "";
+			}
+			
+		</script>
+        
+    </head>
+	
+	<body>
+		
+		<div id="wrap">
+			
+			<div id="sidebar-left"></div>
+			
+			<div id="content">
+				<div id="video-container">
+					<canvas id="scene"></canvas>
+				</div>
+				<div id="text-chat">
+					<textarea id="chat-area" disabled=true>Text chat!</textarea>
+					<textarea id="chat-input"></textarea>
+					<button id="send-button" onclick="sendChatMessage();">Send</button>
+				</div>
+			</div>
+			
+			<div id="sidebar-right"></div>
+			
+		</div>
+    </body>
+	
+</html>
+
