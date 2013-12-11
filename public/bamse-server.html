@@ -97,6 +97,7 @@
 		
 		
 		<script type="text/javascript" src="/js/lib/jquery.min.js"></script>
+		<script type="text/javascript" src="js/lib/erizo.js"></script>
 		
 		<script type="text/javascript" src="/js/c-master.js"></script>
 		<script type="text/javascript" src="/js/bamse.js"></script>
@@ -109,7 +110,7 @@
 		<script>
 			
 			var file;
-			var previousEvent;
+			var nextEvent, previousEvent, eventIndex = 0;
 			var animFrameId;
 			
 			window.onload = function() {
@@ -190,12 +191,18 @@
 			function onTimeUpdate() {
 				
 				// Round time to one decimal
-				var currentTime = videoPlayer.currentTime().toFixed(1);
-				var event = file.events[currentTime];
+				var currentTime = videoPlayer.currentTime();
 				
-				if (event && event !== previousEvent) {
+				// TODO: Find the correct event index if the time skip is large
+				if (currentTime == 0) {
+					eventIndex = 0;
+					nextEvent = file.events[0];
+				}
+				
+				if (nextEvent && currentTime >= nextEvent.time) {
 					Master.sendMessage("all", event);
-					previousEvent = event;
+					eventIndex++;
+					nextEvent = file.events[eventIndex];
 				}
 			}
 			
@@ -213,11 +220,11 @@
 				}
 				
 				var container = $("#video-container");
-					width = ,
-					height = ;
+					width = container.innerWidth(),
+					height = container.innerHeight();
 				$("#the-video").css({
-									marginTop: -container.innerHeight() * 0.5,
-									marginLeft: -container.innerWidth() * 0.5,
+									marginTop: -height * 0.5,
+									marginLeft: -width * 0.5,
 									});
 									
 				videoPlayer.dimensions(width, height);

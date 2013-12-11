@@ -1,10 +1,10 @@
 
 var bamse = {
 	
-	src : {src:"http://www.youtube.com/watch?v=DHdGjldEukQ", type:"video/youtube"},
+	src : { src:"http://www.youtube.com/watch?v=DHdGjldEukQ", type:"video/youtube" },
 		  /*[{src : "/videos/bamse.ogg", type : "video/ogg"},
 		   {src : "/videos/bamse.mp4", type : "video/mp4"}],*/
-	
+	/*
 	events : {
 		"0.0" : {
 			type : "set-background",
@@ -23,15 +23,6 @@ var bamse = {
 				}
 			},
 		},
-		/*
-		"7.5" : {
-			type : "set-sprite",
-			data : {
-				target : "skalman",
-				name : "walk",
-			}
-		},
-		 */
 		"10.0" : {
 			type : "remove-character",
 			data : {
@@ -39,6 +30,25 @@ var bamse = {
 			},
 		},
 	},
+	*/
+	
+	events : [
+			  {
+			  time : "0.0",
+			  type : "set-background",
+			  data : { name : "trollskogen", },
+			  },
+			  {
+			  time : "10.0",
+			  type : "add-character",
+			  data : { name : "skalman", },
+			  },
+			  {
+			  time : "20.0",
+			  type : "remove-character",
+			  data : { name : "skalman", },
+			  },
+			  ],
 	
 	/*
 	events : [{

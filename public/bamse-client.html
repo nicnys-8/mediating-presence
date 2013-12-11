@@ -95,6 +95,7 @@
 			}
 			</style>
 		
+		<script type="text/javascript" src="js/lib/erizo.js"></script>
 		<script type="text/javascript" src="js/c-slave.js"></script>
 		<script type="text/javascript" src="js/param.js"></script>
 		<script type="text/javascript" src="js/bamse.js"></script>
@@ -111,7 +112,7 @@
 			}
 		
 			var canvas;
-			var characters;
+			var characters = {};
 			var background = new Image();
 			var file;
 			
@@ -166,7 +167,7 @@
 							characters[message.data.name].visible = false;
 							break;
 						case "set-background":
-							background.src = file.backgroundBaseURL + file.backgrounds[message.data.name];
+							background.src = file.backgroundsBaseURL + file.backgrounds[message.data.name];
 							break;
 						case "msg":
 							showChatMessage(senderId, message);
@@ -191,7 +192,7 @@
 			}
 		
 			function render() {
-				animFrameId = requestAnimFrame(drawThumbs);
+				animFrameId = requestAnimFrame(render);
 				var ctx = canvas.getContext("2d");
 				ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
 				for (var i in characters) {
