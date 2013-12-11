@@ -200,7 +200,7 @@
 				}
 				
 				if (nextEvent && currentTime >= nextEvent.time) {
-					Master.sendMessage("all", event);
+					Master.sendMessage("all", nextEvent);
 					eventIndex++;
 					nextEvent = file.events[eventIndex];
 				}
@@ -210,6 +210,8 @@
 				// Embed with VideoJS
 				videoPlayer.src(obj.src);
 				Master.sendMessage("all", { type:"file", file:file });
+				eventIndex = 0;
+				nextEvent = obj.events[0];
 				file = obj;
 			}
 		
