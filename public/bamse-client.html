@@ -201,7 +201,9 @@
 				for (var i in characters) {
 					var char = characters[i];
 					if (char.visible) {
-						ctx.drawImage(char.image, char.x, char.y, char.image.width, char.image.height);
+						var w = char.image.width,
+							h = char.image.height;
+						ctx.drawImage(char.image, char.x - w * 0.5, char.y - h * 0.5, w, h);
 					}
 				}
 			}
