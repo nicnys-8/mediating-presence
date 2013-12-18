@@ -1,7 +1,5 @@
 
-<!-- :hover doesn't work with the doctype tag..?
- <!DOCTYPE html>
- -->
+<!DOCTYPE html>
 
 <html>
     <head>
@@ -9,12 +7,6 @@
         <title>Bamse</title>
 		
         <style type="text/css">
-			
-			* {
-				padding:0;
-				margin:0;
-				position:absolute;
-			}
 			
 			html, body {
 				height:100%;
@@ -70,7 +62,7 @@
 				bottom:11.5em;
 				width:80%;
 			}
-		
+			
 			#text-chat {
 				position:absolute;
 				margin:0 10% 0 10%;
@@ -101,7 +93,7 @@
 				width:18%;
 				height:2.5em;
 			}
-			</style>
+		</style>
 		
 		
 		<script type="text/javascript" src="/js/lib/jquery.min.js"></script>
@@ -121,6 +113,51 @@
 			var nextEvent, lastTimeUpdate = 0, eventIndex = 0;
 			var animFrameId;
 			
+			var users = {};
+			var activeEvents = {};
+			
+			function User(id) {
+				
+				var row = document.createElement("tr"),
+					nameCell = document.createElement("td"),
+					scoreCell = document.createElement("td");
+
+				nameCell.innerHTML = id;
+				scoreCell.innerHTML = 0;
+				
+				row.appendChild(nameCell);
+				row.appendChild(scoreCell);
+				
+				this.id = id;
+				this.score = 0;
+				this.tableRow = row;
+				this.nameCell = nameCell;
+				this.scoreCell = scoreCell;
+				
+				this.addPoints = function(points) {
+					this.score += points;
+					this.scoreCell.innerHTML = this.score;
+				};
+			}
+		
+			function ActiveEvent(startTime, TTL) {
+				
+				var points = Master.getUserIds().length,
+					responses = {};
+				
+				this.id = (Math.random() * 10e16).toFixed(0).toString();
+				this.startTime = startTime;
+				this.endTime = startTime + TTL;
+				
+				this.onResponse = function(userId) {
+					if (!responses.hasOwnProperty(userId)) {
+						responses[userId] = points;
+						users[userId].addPoints(points);
+						points--;
+					}
+				}
+			}
+		
 			window.onload = function() {
 				
 				var options = {
@@ -141,36 +178,63 @@
 				};
 				
 				Master.on("init", function() {
-							loadVideo(bamse);
-						
+						  loadVideo(bamse);
+						  
 						  var link = document.getElementById("room-link");
-						  link.innerHTML = "Link"; // VAd ska det STÅÅåå
-						  link.href = "/bamse-client.html?room=" + Master.getRoomId();
+						  var href = "/bamse-client.html?room=" + Master.getRoomId();
+						  link.innerHTML = "http://" + location.host + href;
+						  link.href = href;
 						  });
 				Master.on("user-added", function(e) {
-							if (file) {
-								Master.sendMessage(e.userId, { type:"file", file:file });
-							}
-						  });
+						  
+						  var userId = e.userId;
+						  var user = new User(userId);
+						  $("#score-table").append(user.tableRow);
+						  users[userId] = user;
+						  
+						  if (file) {
+							Master.sendMessage(userId, { type:"file", file:file });
+						  }});
 				Master.on("user-left", function(e) {
+						  var user = users[e.userId];
+						  if (user) {
+							$(user.tableRow).remove();
+						  }
+						  delete users[e.userId];
 						  });
 				Master.on("message", messageHandler);
 				Master.init();
-			}
+			};
 		
-			function messageHandler(senderId, message) {
-				if (message.type === "msg") {
-					showChatMessage(senderId, message);
+			function messageHandler(evt) {
+				var message = evt.message;
+				
+				console.log(message);
+				
+				switch (message.type) {
+					case "msg":
+						showChatMessage(evt.userId, message.data);
+						break;
+					case "click":
+						handleClickResponse(evt.userId, message.data.id);
+						break;
 				}
 			}
 			
+			function handleClickResponse(userId, eventId) {
+				var event = activeEvents[eventId];
+				if (event) {
+					event.onResponse(userId);
+				}
+			}
+		
 			// ********************************
 			// VideoJS event handlers
 			// ********************************
 			
 			function onPlay() {
 			}
-		
+			
 			function onPause() {
 			}
 			
@@ -179,14 +243,32 @@
 				// Round time to one decimal
 				var currentTime = videoPlayer.currentTime();
 				
+				// Remove ActiveEvents (that are no longer active:)
+				for (var id in activeEvents) {
+					var e = activeEvents[id];
+					if (currentTime < e.startTime || currentTime > e.endTime) {
+						delete activeEvents[id];
+					}
+				}
+				
 				// Find the correct event index if the time skip is large
-				if (Math.abs(currentTime - lastTimeUpdate) > 1) {
+				if (Math.abs(currentTime - lastTimeUpdate) > 2) {
 					nextEvent = findNextEvent(file.events, currentTime);
 				}
 				
+				// Dispatch an event if it's time to do so!
 				if (nextEvent && currentTime >= nextEvent.time) {
+					
+					// Create an ActiveEvent if the event is "respondable"
+					if (nextEvent.data && nextEvent.data.responseTime) {
+						var ae = new ActiveEvent(nextEvent.time, nextEvent.data.responseTime);
+						activeEvents[ae.id] = ae;
+						nextEvent.data.responseId = ae.id;
+					}
+					
 					Master.sendMessage("all", nextEvent);
 					eventIndex++;
+					
 					nextEvent = file.events[eventIndex];
 				}
 				
@@ -202,16 +284,17 @@
 				nextEvent = obj.events[0];
 				file = obj;
 			}
-		
+			
 			function resizeVideoPlayer() {
 				
 				if (!videoPlayer) {
 					return;
 				}
 				
-				var container = $("#video-container"),
-					width = container.innerWidth(),
-					height = container.innerHeight();
+				var ASPECT = 4 / 3,
+					container = $("#video-container"),
+					width = Math.min(container.innerWidth(), container.innerHeight() * ASPECT),
+					height = width / ASPECT;
 				$("#the-video").css({
 									marginTop: -height * 0.5,
 									marginLeft: -width * 0.5,
@@ -219,7 +302,7 @@
 									
 				videoPlayer.dimensions(width, height);
 			}
-		
+			
 			function initializeVideoPlayer() {
 				
 				videoPlayer = this;
@@ -229,7 +312,7 @@
 									top:"50%",
 									left:"50%"
 									});
-
+									
 				$(window).resize(resizeVideoPlayer);
 				resizeVideoPlayer();
 									
@@ -237,22 +320,22 @@
 				videoPlayer.on("play", onPlay);
 				videoPlayer.on("pause", onPause);
 				videoPlayer.on("timeupdate", onTimeUpdate);
-			};
-		
+			}
+			
 			
 			function findNextEvent(eventList, timestamp) {
 				// Linear search (change to binary or something)
 				for (var i = 0; i < eventList.length; i++) {
 					var event = eventList[i];
-					if (timestamp < event.time) {
+					if (timestamp <= event.time) {
 						eventIndex = i;
 						return event;
 					}
 				}
 				return null;
 			}
-		
-		
+			
+			
 			// ********************************
 			// Text chat stuff (shouldn't be here)
 			// ********************************
@@ -263,26 +346,25 @@
 					return;
 				}
 				
-				var textOut = document.getElementById("chat-area"),
-					sender = (senderId === "You") ? "You" : streams[senderId].username;
-				textOut.value = textOut.value + "\n" + sender + " said: " + message;
+				var textOut = document.getElementById("chat-area");
+				textOut.value = textOut.value + "\n" + senderId + " said: " + message;
 				textOut.scrollTop = textOut.scrollHeight;
 			}
 			
 			function sendChatMessage() {
 				
 				var textIn = document.getElementById("chat-input"),
-					message = textIn.value.trim();
+				message = textIn.value.trim();
 				
 				if (message) {
-					showChatMessage("You", message);
+					showChatMessage("Master", message);
 					Master.sendMessage("all", { type:"msg", data:message });
 				}
 				
 				textIn.value = "";
 			}
-			
-			</script>
+		
+		</script>
         
     </head>
 	
@@ -290,7 +372,14 @@
 		
 		<div id="wrap">
 			
-			<div id="sidebar-left"></div>
+			<div id="sidebar-left">
+				<table id="score-table" border="1">
+					<tr>
+						<th>User</th>
+						<th>Score</th>
+					</tr>
+				</table>
+			</div>
 			
 			<div id="content">
 				<div id="video-container">

@@ -15,85 +15,86 @@
 				margin:0;
 				position:absolute;
 			}
-			
-			html, body {
-				height:100%;
-				width:100%;
-			}
-			
-			#wrap {
-				width:100%;
-				height:100%;
-			}
-			
-			#sidebar-left {
-				left:0px;
-				top:0px;
-				width:200px;
-				height:100%;
-				/*background-color:lightblue;*/
-			}
-			
-			#sidebar-right {
-				right:0px;
-				top:0px;
-				width:200px;
-				height:100%;
-				/*background-color:lightblue;*/
-			}
-			
-			#content {
-				position:absolute;
-				left:200px;
-				right:200px;
-				top:0;
-				bottom:0;
-				/*background-color:lightgreen;*/
-			}
-			
-			#video-container {
-				position:absolute;
-				width:100%;
-				top:1em;
-				bottom:12em;
-				/*background-color:pink;*/
-			}
-			canvas {
-				width:100%;
-				height:100%;
-			}
-			
-			#text-chat {
-				position:absolute;
-				margin:0 10% 0 10%;
-				width:80%;
-				bottom:0;
-				height:12em;
-				/*background-color:red;*/
-			}
-			
-			#chat-area {
-				position:absolute;
-				bottom:3.5em;
-				height:12.5em;
-				width:100%;
-			}
-			
-			#chat-input {
-				position:absolute;
-				bottom:0.5em;
-				width:80%;
-				height:2.5em;
-			}
-			
-			#send-button {
-				position:absolute;
-				bottom:0.5em;
-				right:0;
-				width:18%;
-				height:2.5em;
-			}
-			</style>
+		
+		html, body {
+			height:100%;
+			width:100%;
+		}
+		
+		#wrap {
+			width:100%;
+			height:100%;
+		}
+		
+		#sidebar-left {
+			left:0px;
+			top:0px;
+			width:200px;
+			height:100%;
+			/*background-color:lightblue;*/
+		}
+		
+		#sidebar-right {
+			right:0px;
+			top:0px;
+			width:200px;
+			height:100%;
+			/*background-color:lightblue;*/
+		}
+		
+		#content {
+			position:absolute;
+			left:200px;
+			right:200px;
+			top:0;
+			bottom:0;
+			/*background-color:lightgreen;*/
+		}
+		
+		#scene-container {
+			position:absolute;
+			width:100%;
+			top:1em;
+			bottom:12em;
+			/*background-color:pink;*/
+		}
+		/*
+		 canvas {
+		 width:100%;
+		 height:100%;
+		 }
+		 */
+		#text-chat {
+			position:absolute;
+			margin:0 10% 0 10%;
+			width:80%;
+			bottom:0;
+			height:12em;
+			/*background-color:red;*/
+		}
+		
+		#chat-area {
+			position:absolute;
+			bottom:3.5em;
+			height:12.5em;
+			width:100%;
+		}
+		
+		#chat-input {
+			position:absolute;
+			bottom:0.5em;
+			width:80%;
+			height:2.5em;
+		}
+		
+		#send-button {
+			position:absolute;
+			bottom:0.5em;
+			right:0;
+			width:18%;
+			height:2.5em;
+		}
+		</style>
 		
 		<script type="text/javascript" src="js/lib/erizo.js"></script>
 		<script type="text/javascript" src="js/c-slave.js"></script>
@@ -103,29 +104,138 @@
 		
 		<script>
 			
+			var DEFAULT_WIDTH = 800,
+				DEFAULT_HEIGHT = 600,
+				ASPECT = DEFAULT_WIDTH / DEFAULT_HEIGHT;
+				
+			var canvas;
+			var container;
+			var canvasScale = 1;
+			
+			var characters = {};
+			var background = new Image();
+			var file;
+			
 			function Character(name, imageURL, x, y) {
 				this.image = new Image();
 				this.image.src = imageURL;
 				this.x = x;
 				this.y = y;
+				this.dx = 0;
+				this.dy = 0;
+				this.scale = 1;
 				this.visible = false;
+				
+				this.responseId = null;
+				this.responseType = null;
+				
+				var actions = [];
+				
+				this.addAction = function(action) {
+					actions.push(action);
+				};
+				
+				this.removeAction = function(action) {
+					var index = actions.indexOf(action);
+					if (index >= 0) {
+						actions.splice(index, 1);
+					}
+				};
+				
+				this.clearActions = function() {
+					actions = [];
+				};
+				
+				this.actions = actions;
 			}
 		
-			var canvas;
-			var characters = {};
-			var background = new Image();
-			var file;
-			
-            window.onload = function() {
+			function pod(obj, prop, def) {
+				return obj.hasOwnProperty(prop) ? obj[prop] : def;
+			}
+		
+			function Action(character, time, stepFunc, data, completion) {
 				
-				canvas = document.getElementById("scene");
+				var forever = time < 0;
+				var totalFrames = frames = (time > 0) ? (time / 60) | 0;
 				
-				var onWidowResize = function() {
-					canvas.width = canvas.offsetWidth;
-					canvas.height = canvas.offsetHeight;
+				if (typeof completion !== "function") {
+					completion = function() {};
 				}
-				onWidowResize();
-				window.addEventListener("resize", onWidowResize, false);
+				
+				this.reset = function() {
+					frames = totalFrames;
+				};
+				
+				this.run = function() {
+					if (forever) {
+						stepFunc(character, data);
+					} else {
+						if (frames > 0) {
+							stepFunc(character, data);
+							frames--;
+						} else {
+							completion();
+						}
+					}
+				};
+			}
+		
+			function BounceAction(character, data) {
+				
+				var c = character,
+					minX = 0, // From data.bounds instead?
+					minY = 0,
+					maxX = DEFAULT_WIDTH,
+					maxY = DEFAULT_HEIGHT;
+					
+				c.x += c.dx;
+				c.y += c.dy;
+				
+				if (c.x < 0) {
+					c.x = 0;
+					c.dx = -c.dx;
+				} else if (c.x > maxX) {
+					c.x = maxX;
+					c.dx = -c.dx;
+				}
+				
+				if (c.y < 0) {
+					c.y = 0;
+					c.dy = -c.dy;
+				} else if (c.y > maxY) {
+					c.y = maxY;
+					c.dy = -char.dy;
+				}
+			}
+		
+			function initCanvas() {
+				
+				var ASPECT = DEFAULT_WIDTH / DEFAULT_HEIGHT;
+				
+				container = document.getElementById("scene-container");
+				canvas = document.getElementById("scene");
+				canvas.onclick = handleClick;
+				
+				function resizeCanvas() {
+					var w = Math.min(container.offsetWidth, container.offsetHeight * ASPECT),
+						h = w / ASPECT;
+					canvas.width = w;
+					canvas.height = h;
+					canvasScale = w / DEFAULT_WIDTH;
+					
+					canvas.style.left = "50%";
+					canvas.style.top = "50%";
+					canvas.style.marginLeft = -w * 0.5;
+					canvas.style.marginTop = -h * 0.5;
+				}
+				
+				resizeCanvas();
+				window.addEventListener("resize", resizeCanvas, false);
+			}
+			
+			window.onload = function() {
+				
+				initCanvas();
 				
 				var textArea = document.getElementById("chat-input");
 				textArea.onkeypress = function(evt) {
@@ -143,8 +253,8 @@
 							 console.log("COOOOOONNEEEEEECTED");
 							 render();
 							 });
-					Slave.on("message", messageHandler);
-					Slave.connect(roomId);
+							 Slave.on("message", messageHandler);
+							 Slave.connect(roomId);
 				} else {
 					alert("No room!");
 				}
@@ -154,56 +264,127 @@
 				
 				console.log(message);
 				
-				try {
-					switch (message.type) {
-						case "file":
-							loadFile(message.file);
-							break;
-						case "add-character":
-							var char = characters[message.data.name];
-							char.visible = true;
-							char.x = Math.random() * canvas.width;
-							char.y = Math.random() * canvas.height;
-							characters[message.data.name].visible = true;
-							break;
-						case "remove-character":
-							characters[message.data.name].visible = false;
-							break;
-						case "set-background":
-							background.src = file.backgroundsBaseURL + file.backgrounds[message.data.name];
-							break;
-						case "msg":
-							showChatMessage(senderId, message);
-							break;
-					}
-				} catch (e) {
-					console.error("Received strange message?");
-					console.error(e);
+				var data = message.data;
+				
+				// try {
+				switch (message.type) {
+					case "file":
+						loadFile(message.file);
+						break;
+					case "add-character":
+						var char = characters[data.name];
+						char.visible = true;
+						char.x = Math.random() * canvas.width;
+						char.y = Math.random() * canvas.height;
+					
+						var dir = Math.random() * Math.PI * 2;
+						char.dx = Math.cos(dir) * 5;
+						char.dy = Math.sin(dir) * 5;
+					
+						char.visible = true;
+						
+						char.responseId = data.responseId;
+						char.responseType = data.responseType;
+						
+						break;
+					case "remove-character":
+						characters[data.name].visible = false;
+						break;
+					case "set-background":
+						background.src = file.backgroundsBaseURL + file.backgrounds[data.name];
+						break;
+					case "msg":
+						showChatMessage("Master", data);
+						break;
 				}
+				/*} catch (e) {
+				 console.error("Received strange message?");
+				 console.error(e);
+				 }*/
 			}
-		
-			function loadFile(obj) {
 			
+			function loadFile(obj) {
+				
 				for (var name in obj.characters) {
 					var desc = obj.characters[name],
-						x = canvas.width / 2,
-						y = canvas.height / 2,
-						imageURL = desc.spritesBaseURL + desc.sprites["_default"];
+					x = canvas.width / 2,
+					y = canvas.height / 2,
+					imageURL = desc.spritesBaseURL + desc.sprites["_default"];
 					characters[name] = new Character(name, imageURL, x, y);
 				}
 				file = obj;
 			}
-		
-			function render() {
-				animFrameId = requestAnimFrame(render);
-				var ctx = canvas.getContext("2d");
-				ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
+			
+			
+			function handleClick(e) {
+				var mx = e.offsetX,
+					my = e.offsetY;
+				console.log(mx,my);
+				
 				for (var i in characters) {
 					var char = characters[i];
 					if (char.visible) {
-						var w = char.image.width,
-							h = char.image.height;
-						ctx.drawImage(char.image, char.x - w * 0.5, char.y - h * 0.5, w, h);
+						var w = char.image.width * char.scale * canvasScale * 0.5,
+							h = char.image.height * char.scale * canvasScale * 0.5,
+							left = char.x - w,
+							right = char.x + w,
+							top = char.y - h,
+							bottom = char.y + h;
+						
+						if (mx >= left &&
+							mx <= right &&
+							my >= top &&
+							my <= bottom) {
+							console.log("click" + i);
+							
+							if (char.responseType == "click") {
+								Slave.sendMessage({type:"click", data:{id:char.responseId}});
+							}
+						}
+					}
+				}
+			}
+			
+			function render() {
+				
+				var ctx, maxX, maxY, char, x, y, w, h;
+				
+				animFrameId = requestAnimFrame(render);
+				
+				ctx = canvas.getContext("2d");
+				ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
+				
+				maxX = DEFAULT_WIDTH; // canvas.width;
+				maxY = DEFAULT_HEIGHT; // canvas.height;
+				
+				for (var i in characters) {
+					char = characters[i];
+					if (char.visible) {
+						
+						char.x += char.dx;
+						char.y += char.dy;
+						
+						if (char.x < 0) {
+							char.x = 0;
+							char.dx = -char.dx;
+						} else if (char.x > maxX) {
+							char.x = maxX;
+							char.dx = -char.dx;
+						}
+						
+						if (char.y < 0) {
+							char.y = 0;
+							char.dy = -char.dy;
+						} else if (char.y > maxY) {
+							char.y = maxY;
+							char.dy = -char.dy;
+						}
+						
+						x = char.x * canvasScale;
+						y = char.y * canvasScale;
+						w = char.image.width * char.scale * canvasScale;
+						h = char.image.height * char.scale * canvasScale;
+						ctx.drawImage(char.image, x - w * 0.5, y - h * 0.5, w, h);
 					}
 				}
 			}
@@ -218,25 +399,24 @@
 					return;
 				}
 				
-				var textOut = document.getElementById("chat-area"),
-					sender = (senderId === "You") ? "You" : streams[senderId].username;
-				textOut.value = textOut.value + "\n" + sender + " said: " + message;
+				var textOut = document.getElementById("chat-area");
+				textOut.value = textOut.value + "\n" + senderId + " said: " + message;
 				textOut.scrollTop = textOut.scrollHeight;
 			}
 			
 			function sendChatMessage() {
 				
 				var textIn = document.getElementById("chat-input"),
-					message = textIn.value.trim();
+				message = textIn.value.trim();
 				
 				if (message) {
 					showChatMessage("You", message);
-					TabControl.sendMessage("chat", "msg", message);
+					Slave.sendMessage({type:"msg", data:message});
 				}
 				
 				textIn.value = "";
 			}
-			
+		
 		</script>
         
     </head>
@@ -248,7 +428,7 @@
 			<div id="sidebar-left"></div>
 			
 			<div id="content">
-				<div id="video-container">
+				<div id="scene-container">
 					<canvas id="scene"></canvas>
 				</div>
 				<div id="text-chat">

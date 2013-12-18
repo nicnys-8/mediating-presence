@@ -34,17 +34,22 @@ var bamse = {
 	
 	events : [
 			  {
-			  time : "0.0",
+			  time : 0.0,
 			  type : "set-background",
 			  data : { name : "trollskogen", },
 			  },
 			  {
-			  time : "10.0",
+			  time : 10.0,
 			  type : "add-character",
-			  data : { name : "skalman", },
+			  data : {
+				name : "skalman",
+				responseTime:10,
+				responseType:"click",
+				responseId:"123", // this will be set by the dispatcher
+			  },
 			  },
 			  {
-			  time : "20.0",
+			  time : 20.0,
 			  type : "remove-character",
 			  data : { name : "skalman", },
 			  },
@@ -71,7 +76,7 @@ var bamse = {
 		"skalman" : {
 			spritesBaseURL : "/images/bamse/",
 			sprites : {
-				"_default" : "skalman.jpg",
+				"_default" : "skalman.png",
 				"walk" : [ "skalmanWalk1.png", "skalmanWalk2.png", "skalmanWalk3.png" ],
 				"stand" : "skalman.png",
 			},
