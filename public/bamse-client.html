@@ -16,84 +16,84 @@
 				position:absolute;
 			}
 		
-		html, body {
-			height:100%;
-			width:100%;
-		}
-		
-		#wrap {
-			width:100%;
-			height:100%;
-		}
-		
-		#sidebar-left {
-			left:0px;
-			top:0px;
-			width:200px;
-			height:100%;
-			/*background-color:lightblue;*/
-		}
-		
-		#sidebar-right {
-			right:0px;
-			top:0px;
-			width:200px;
-			height:100%;
-			/*background-color:lightblue;*/
-		}
-		
-		#content {
-			position:absolute;
-			left:200px;
-			right:200px;
-			top:0;
-			bottom:0;
-			/*background-color:lightgreen;*/
-		}
-		
-		#scene-container {
-			position:absolute;
-			width:100%;
-			top:1em;
-			bottom:12em;
-			/*background-color:pink;*/
-		}
-		/*
-		 canvas {
-		 width:100%;
-		 height:100%;
-		 }
-		 */
-		#text-chat {
-			position:absolute;
-			margin:0 10% 0 10%;
-			width:80%;
-			bottom:0;
-			height:12em;
-			/*background-color:red;*/
-		}
-		
-		#chat-area {
-			position:absolute;
-			bottom:3.5em;
-			height:12.5em;
-			width:100%;
-		}
-		
-		#chat-input {
-			position:absolute;
-			bottom:0.5em;
-			width:80%;
-			height:2.5em;
-		}
-		
-		#send-button {
-			position:absolute;
-			bottom:0.5em;
-			right:0;
-			width:18%;
-			height:2.5em;
-		}
+			html, body {
+				height:100%;
+				width:100%;
+			}
+			
+			#wrap {
+				width:100%;
+				height:100%;
+			}
+			
+			#sidebar-left {
+				left:0px;
+				top:0px;
+				width:200px;
+				height:100%;
+				/*background-color:lightblue;*/
+			}
+			
+			#sidebar-right {
+				right:0px;
+				top:0px;
+				width:200px;
+				height:100%;
+				/*background-color:lightblue;*/
+			}
+			
+			#content {
+				position:absolute;
+				left:200px;
+				right:200px;
+				top:0;
+				bottom:0;
+				/*background-color:lightgreen;*/
+			}
+			
+			#scene-container {
+				position:absolute;
+				width:100%;
+				top:1em;
+				bottom:12em;
+				/*background-color:pink;*/
+			}
+			/*
+			 canvas {
+			 width:100%;
+			 height:100%;
+			 }
+			 */
+			#text-chat {
+				position:absolute;
+				margin:0 10% 0 10%;
+				width:80%;
+				bottom:0;
+				height:12em;
+				/*background-color:red;*/
+			}
+			
+			#chat-area {
+				position:absolute;
+				bottom:3.5em;
+				height:12.5em;
+				width:100%;
+			}
+			
+			#chat-input {
+				position:absolute;
+				bottom:0.5em;
+				width:80%;
+				height:2.5em;
+			}
+			
+			#send-button {
+				position:absolute;
+				bottom:0.5em;
+				right:0;
+				width:18%;
+				height:2.5em;
+			}
 		</style>
 		
 		<script type="text/javascript" src="js/lib/erizo.js"></script>
@@ -108,15 +108,28 @@
 				DEFAULT_HEIGHT = 600,
 				ASPECT = DEFAULT_WIDTH / DEFAULT_HEIGHT;
 				
-			var canvas;
-			var container;
-			var canvasScale = 1;
+			var canvas, container, canvasScale = 1, characters = {}, background = new Image(), file;
 			
-			var characters = {};
-			var background = new Image();
-			var file;
+			
+			// ********************
+			// Helper functions
+			// ********************
+			
+			function pod(obj, prop, def) {
+				return obj.hasOwnProperty(prop) ? obj[prop] : def;
+			}
+		
+			function sign(x) {
+				return (x && Number(x)) ? x < 0 ? -1 : 1 : 0;
+			}
+		
+		
+			// ********************
+			// Character constructor
+			// ********************
 			
 			function Character(name, imageURL, x, y) {
+				
 				this.image = new Image();
 				this.image.src = imageURL;
 				this.x = x;
@@ -124,39 +137,56 @@
 				this.dx = 0;
 				this.dy = 0;
 				this.scale = 1;
+				this.rotation = 0; // not currently in use
 				this.visible = false;
 				
 				this.responseId = null;
 				this.responseType = null;
 				
 				var actions = [];
+				var removedActions = [];
 				
 				this.addAction = function(action) {
 					actions.push(action);
 				};
 				
 				this.removeAction = function(action) {
-					var index = actions.indexOf(action);
-					if (index >= 0) {
-						actions.splice(index, 1);
-					}
+					removedActions.push(action);
 				};
 				
 				this.clearActions = function() {
 					actions = [];
 				};
 				
-				this.actions = actions;
+				this.runActions = function() {
+					
+					var i, index, action;
+					
+					for (i in removedActions) {
+						action = removedActions[i];
+						index = actions.indexOf(action);
+						if (index >= 0) {
+							actions.splice(index, 1);
+						}
+					}
+					removedActions.length = 0;
+					
+					for (i in actions) {
+						action = actions[i];
+						action.run(this);
+					}
+				};
 			}
 		
-			function pod(obj, prop, def) {
-				return obj.hasOwnProperty(prop) ? obj[prop] : def;
-			}
 		
-			function Action(character, time, stepFunc, data, completion) {
+			// ********************
+			// Character actions
+			// ********************
+			
+			function Action(stepFunc, time, completion) {
 				
-				var forever = time < 0;
-				var totalFrames = frames = (time > 0) ? (time / 60) | 0;
+				var forever = time < 0,
+					totalFrames = frames = (time / 60) | 0; // assume 60 fps?
 				
 				if (typeof completion !== "function") {
 					completion = function() {};
@@ -166,12 +196,12 @@
 					frames = totalFrames;
 				};
 				
-				this.run = function() {
+				this.run = function(character) {
 					if (forever) {
-						stepFunc(character, data);
+						stepFunc(character);
 					} else {
 						if (frames > 0) {
-							stepFunc(character, data);
+							stepFunc(character);
 							frames--;
 						} else {
 							completion();
@@ -180,33 +210,92 @@
 				};
 			}
 		
-			function BounceAction(character, data) {
-				
-				var c = character,
-					minX = 0, // From data.bounds instead?
-					minY = 0,
-					maxX = DEFAULT_WIDTH,
-					maxY = DEFAULT_HEIGHT;
+			Action.Move = function() {
+				return function(c) {
+					c.x += c.dx;
+					c.y += c.dy;
+				};
+			};
+		
+			Action.Accelerate = function(data) {
+			
+				var ddx = Number(data.x) || 0,
+					ddy = Number(data.y) || 0,
+					maxDx = Math.abs(Number(data.maxDx)) || 0,
+					maxDy = Math.abs(Number(data.maxDy)) || 0;
 					
-				c.x += c.dx;
-				c.y += c.dy;
+				return function(c) {
+					
+					c.dx += ddx;
+					c.dy += ddy;
+					
+					if (Math.abs(c.dx) > maxDx) {
+						c.dx = maxDx * sign(c.dx);
+					}
+					if (Math.abs(c.dy) > maxDy) {
+						c.dy = maxDy * sign(c.dy);
+					}
+				};
+			};
+		
+			Action.Bounce = function(data) {
 				
-				if (c.x < 0) {
-					c.x = 0;
-					c.dx = -c.dx;
-				} else if (c.x > maxX) {
-					c.x = maxX;
-					c.dx = -c.dx;
-				}
+				var minX = Number(data.minX) || 0,
+					minY = Number(data.minY) || 0,
+					maxX = Number(data.maxX) || DEFAULT_WIDTH,
+					maxY = Number(data.maxY) || DEFAULT_HEIGHT;
+					
+				return function(c) {
+					
+					if (c.x < 0) {
+						c.x = 0;
+						c.dx = -c.dx;
+					} else if (c.x > maxX) {
+						c.x = maxX;
+						c.dx = -c.dx;
+					}
+					
+					if (c.y < 0) {
+						c.y = 0;
+						c.dy = -c.dy;
+					} else if (c.y > maxY) {
+						c.y = maxY;
+						c.dy = -char.dy;
+					}
+				};
+			};
+		
+			
+			
+			Action.Break = function(data) {
+	
+				var frictionX = Math.abs(Number(data.x)) || 0,
+					frictionY = Math.abs(Number(data.y)) || 0;
 				
-				if (c.y < 0) {
-					c.y = 0;
-					c.dy = -c.dy;
-				} else if (c.y > maxY) {
-					c.y = maxY;
-					c.dy = -char.dy;
-				}
-			}
+				return function(c) {
+					
+					if (Math.abs(c.dx) < frictionX) {
+						c.dx = 0;
+					} else {
+						c.dx = (c.dx < 0) ? c.dx + frictionX : c.dx - frictionX;
+					}
+					
+					if (Math.abs(c.dy) < frictionY) {
+						c.dy = 0;
+					} else {
+						c.dy = (c.dy < 0) ? c.dy + frictionY : c.dy - frictionY;
+					}
+				};
+			};
+		
+		
+			Action.Rotate = function(data) {
+				return function(c) {
+					// ...
+				};
+			};
+		
+		
 		
 			function initCanvas() {
 				
@@ -360,6 +449,11 @@
 				for (var i in characters) {
 					char = characters[i];
 					if (char.visible) {
+						
+						for (var j in char.actions) {
+							var action = char.actions[j];
+							action.run(char);
+						}
 						
 						char.x += char.dx;
 						char.y += char.dy;
