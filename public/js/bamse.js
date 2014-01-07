@@ -73,7 +73,12 @@ var bamse = {
 		/*"_all" : {
 			behavior : [ "gravity", "draggable", ],
 		},*/
+		"bamse" : {
+			image : "/images/bamse/bamse.png",
+		},
 		"skalman" : {
+			image : "/images/bamse/skalman.png",
+			/*
 			spritesBaseURL : "/images/bamse/",
 			sprites : {
 				"_default" : "skalman.png",
@@ -86,6 +91,10 @@ var bamse = {
 					sprite : "walk"
 				},
 			},
+			 */
+		},
+		"lilleskutt" : {
+			image : "/images/bamse/lilleskutt.png",
 		},
 	},
 };
