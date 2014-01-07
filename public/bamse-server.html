@@ -97,7 +97,8 @@
 		
 		
 		<script type="text/javascript" src="/js/lib/jquery.min.js"></script>
-		<script type="text/javascript" src="js/lib/erizo.js"></script>
+		<script type="text/javascript" src="/js/lib/jquery.qrcode.min.js"></script>
+		<script type="text/javascript" src="/js/lib/erizo.js"></script>
 		
 		<script type="text/javascript" src="/js/c-master.js"></script>
 		<script type="text/javascript" src="/js/bamse.js"></script>
@@ -160,6 +161,7 @@
 		
 			window.onload = function() {
 				
+				// VideoJS initialization
 				var options = {
 					techOrder : ["html5", "flash", "youtube" ],
 					flash : {
@@ -168,6 +170,7 @@
 				};
 				videojs("the-video", options, initializeVideoPlayer);
 				
+				// Text chat (remove?)
 				var textArea = document.getElementById("chat-input");
 				textArea.onkeypress = function(evt) {
 					if (evt.keyCode === 13) {
@@ -177,13 +180,19 @@
 					return true;
 				};
 				
+				// WebRTC communication
 				Master.on("init", function() {
 						  loadVideo(bamse);
 						  
 						  var link = document.getElementById("room-link");
 						  var href = "/bamse-client.html?room=" + Master.getRoomId();
-						  link.innerHTML = "http://" + location.host + href;
+						  var fullURL = "http://" + location.host + href;
+						  
+						  link.innerHTML = fullURL;
 						  link.href = href;
+						  
+						  // Generate a QR code for the URL
+						  $("#qrcode").qrcode({text:fullURL});
 						  });
 				Master.on("user-added", function(e) {
 						  
@@ -206,6 +215,9 @@
 				Master.init();
 			};
 		
+			/*
+			 Handler function for client messages
+			 */
 			function messageHandler(evt) {
 				var message = evt.message;
 				
@@ -379,6 +391,7 @@
 						<th>Score</th>
 					</tr>
 				</table>
+				<div id="qrcode"></div>
 			</div>
 			
 			<div id="content">
