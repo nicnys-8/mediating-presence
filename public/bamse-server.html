@@ -13,17 +13,20 @@
 				height:100%;
 				font-family:Helvetica Neue;
 				font-weight:200;
+                font-size:14px;
 			}
 			
 			#sidebar-left {
+                position:absolute;
 				left:0px;
 				top:0px;
 				width:200px;
 				height:100%;
-				/*background-color:lightblue;*/
+				/*background-color:lightgreen;*/
 			}
 			
 			#sidebar-right {
+                position:absolute;
 				right:0px;
 				top:0px;
 				width:200px;
@@ -44,7 +47,7 @@
 				position:absolute;
 				width:100%;
 				top:1em;
-				bottom:13em;
+				bottom:125px;
 				/*background-color:pink;*/
 			}
 			#large-video {
@@ -53,26 +56,34 @@
 			}
 			
 			#room-link {
-				text-align:center;
-				position:absolute;
-				margin:0 10% 0 10%;
-				bottom:11.5em;
-				width:80%;
+				font-size:12px;
 			}
-			
+        
+            #qrcode {
+                /*position:relative;
+                left:50%;
+                margin-left:-64px;*/
+                padding:10px;
+            }
+        
+            #score-table {
+                padding:10px;
+                text-align:left;
+            }
+        
 			#text-chat {
 				position:absolute;
 				margin:0 10% 0 10%;
 				width:80%;
 				bottom:0;
-				height:12em;
+				height:120px;
 				/*background-color:red;*/
 			}
 			
 			#chat-area {
 				position:absolute;
 				bottom:40px;
-				height:125px;
+				height:70px;
 				width:100%;
 				resize:none;
 			}
@@ -93,6 +104,7 @@
 				width:20%;
 				height:30px;
 			}
+        
 		</style>
 		
 		
@@ -188,11 +200,15 @@
 						  var href = "/bamse-client.html?room=" + Master.getRoomId();
 						  var fullURL = "http://" + location.host + href;
 						  
-						  link.innerHTML = fullURL;
+						  link.innerHTML = "http://" + location.host + "\n" + "/bamse-client.html?room=" + "\n" + Master.getRoomId();
 						  link.href = href;
 						  
 						  // Generate a QR code for the URL
-						  $("#qrcode").qrcode({text:fullURL});
+						  $("#qrcode").qrcode({
+                                              width:128,
+                                              height:128,
+                                              text:fullURL
+                                              });
 						  });
 				Master.on("user-added", function(e) {
 						  
@@ -201,8 +217,13 @@
 						  $("#score-table").append(user.tableRow);
 						  users[userId] = user;
 						  
+                          console.log("Hej");
+                          console.log(file);
 						  if (file) {
-							Master.sendMessage(userId, { type:"file", file:file });
+                            console.log("sending file");
+                          setTimeout(function() {
+                                        Master.sendMessage(userId, { type:"file", file:file });
+                                     }, 100);
 						  }});
 				Master.on("user-left", function(e) {
 						  var user = users[e.userId];
@@ -290,7 +311,7 @@
 			function loadVideo(obj) {
 				// Embed with VideoJS
 				videoPlayer.src(obj.src);
-				Master.sendMessage("all", { type:"file", file:file });
+				// Master.sendMessage("all", { type:"file", file:file });
 				eventIndex = 0;
 				lastTimeUpdate = 0;
 				nextEvent = obj.events[0];
@@ -385,20 +406,18 @@
 		<div id="wrap">
 			
 			<div id="sidebar-left">
-				<table id="score-table" border="1">
+				<table id="score-table">
 					<tr>
 						<th>User</th>
 						<th>Score</th>
 					</tr>
 				</table>
-				<div id="qrcode"></div>
 			</div>
 			
 			<div id="content">
 				<div id="video-container">
 					<video id="the-video" controls class='video-js vjs-default-skin'></video>
 				</div>
-				<a href="#" id="room-link"></a>
 				<div id="text-chat">
 					<textarea id="chat-area" disabled=true>Text chat!</textarea>
 					<textarea id="chat-input"></textarea>
@@ -406,7 +425,10 @@
 				</div>
 			</div>
 			
-			<div id="sidebar-right"></div>
+			<div id="sidebar-right">
+                <div id="qrcode"></div>
+                <a href="#" id="room-link"></a>
+            </div>
 			
 		</div>
     </body>

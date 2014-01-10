@@ -1,8 +1,6 @@
 
-<!-- :hover doesn't work with the doctype tag..?
- <!DOCTYPE html>
- -->
-
+<!DOCTYPE html>
+ 
 <html>
     <head>
         
@@ -19,6 +17,7 @@
 			html, body {
 				height:100%;
 				width:100%;
+                font-family:Helvetica Neue;
 			}
 			
 			#wrap {
@@ -26,6 +25,9 @@
 				height:100%;
 			}
 			
+            /********
+             Main columns
+             ********/
 			#sidebar-left {
 				left:0px;
 				top:0px;
@@ -46,54 +48,148 @@
 				position:absolute;
 				left:200px;
 				right:200px;
-				top:0;
+				top:0px;
 				bottom:0;
 				/*background-color:lightgreen;*/
 			}
 			
+            /********
+             Title
+             ********/
+            #title {
+                position:absolute;
+				width:100%;
+				top:10px;
+				height:40px;
+            }
+        
+            #title * {
+                position:relative;
+                text-align:center;
+            }
+        
+            /********
+             Scene
+             ********/
 			#scene-container {
 				position:absolute;
 				width:100%;
-				top:1em;
-				bottom:12em;
+				top:50px;
+				bottom:45px;
 				/*background-color:pink;*/
 			}
-			/*
-			 canvas {
-			 width:100%;
-			 height:100%;
-			 }
-			 */
+
+            #scene {
+                position:absolute;
+                border: 2px solid black;
+            }
+        
+            /********
+             Text chat
+             ********/
 			#text-chat {
 				position:absolute;
 				margin:0 10% 0 10%;
 				width:80%;
 				bottom:0;
-				height:12em;
+				height:45px;
 				/*background-color:red;*/
 			}
 			
 			#chat-area {
 				position:absolute;
-				bottom:3.5em;
-				height:12.5em;
+				bottom:35px;
+				height:80px;
 				width:100%;
+                resize:none;
 			}
 			
 			#chat-input {
 				position:absolute;
-				bottom:0.5em;
+				bottom:10px;
 				width:80%;
-				height:2.5em;
+				height:24px;
+                resize:none;
 			}
 			
 			#send-button {
 				position:absolute;
-				bottom:0.5em;
-				right:0;
-				width:18%;
-				height:2.5em;
+				bottom:10px;
+				right:0px;
+				width:20%;
+				height:26px;
 			}
+        
+            /*******
+             Bubbles (edited from http://blogs.sitepointstatic.com/examples/tech/css3-speech-bubbles/index.html)
+             *******/
+            p.bubble {
+                display:inline-block;
+                position:relative;
+                left:10px;
+                top:100px;
+                width:auto;
+                max-width:300px;
+                text-align: center;
+                padding:30px;
+                background-color: #fff;
+                border: 2px solid #666;
+                -webkit-border-radius: 30px;
+                -moz-border-radius: 30px;
+                border-radius: 30px;
+            }
+            
+            p.thought {
+                width:auto;
+                max-width:300px;
+                -webkit-border-radius: 108px;
+                -moz-border-radius: 108px;
+                border-radius: 108px;
+            }
+            
+            p.bubble:before, p.bubble:after {
+                content:' ';
+                position: absolute;
+                width: 0;
+                height: 0;
+            }
+            
+            p.speech:before {
+                left: 30px;
+                top: 100%;
+                border: 17px solid;
+                border-color: #666 transparent transparent #666;
+            }
+            
+            p.speech:after {
+                left: 32px;
+                top: 100%;
+                border: 15px solid;
+                border-color: #fff transparent transparent #fff;
+            }
+            
+            p.thought:before, p.thought:after {
+                left: 25px;
+                bottom:-15px;
+                width: 30px;
+                height: 30px;
+                background-color: #fff;
+                border: 2px solid #666;
+                -webkit-border-radius: 28px;
+                -moz-border-radius: 28px;
+                border-radius: 28px;
+            }
+            
+            p.thought:after {
+                width: 15px;
+                height: 15px;
+                left: 20px;
+                bottom:-20px;
+                -webkit-border-radius: 18px;
+                -moz-border-radius: 18px;
+                border-radius: 18px;
+            }
+        
 		</style>
 		
 		<script type="text/javascript" src="js/lib/erizo.js"></script>
@@ -108,9 +204,11 @@
 				DEFAULT_HEIGHT = 600,
 				ASPECT = DEFAULT_WIDTH / DEFAULT_HEIGHT;
 				
-			var canvas, container, canvasScale = 1, characters = {}, background = new Image(), file;
+			var canvas, context, container, canvasScale = 1,
+                characters = {}, objects = [], background = new Image(), file, animFrameId;
 			
-			
+			var Sprites = {};
+            
 			// ********************
 			// Helper functions
 			// ********************
@@ -122,18 +220,29 @@
 			function sign(x) {
 				return (x && Number(x)) ? x < 0 ? -1 : 1 : 0;
 			}
+        
+            function degToRad(x) {
+                return x * Math.PI / 180;
+            }
 		
-		
+            function isString(x) {
+                return (x + "" === x);
+            }
+        
+            function uniqueName() {
+                return (Math.random() * 10e16).toFixed(0).toString();
+            }
+        
 			// ********************
 			// Character constructor
 			// ********************
 			
-			function Character(name, imageURL, x, y) {
+			function Character() {
 				
-				this.image = new Image();
-				this.image.src = imageURL;
-				this.x = x;
-				this.y = y;
+				this.image = null;
+                this.alpha = 1;
+				this.x = 0;
+				this.y = 0;
 				this.dx = 0;
 				this.dy = 0;
 				this.scale = 1;
@@ -143,19 +252,50 @@
 				this.responseId = null;
 				this.responseType = null;
 				
-				var actions = [];
-				var removedActions = [];
+				var actions = [],
+                    actionsByName = {},
+                    newActions = [],
+                    removedActions = [];
 				
-				this.addAction = function(action) {
-					actions.push(action);
+				this.addAction = function(action, name) {
+					
+                    // Check if action with the same name already exists
+                    if (name) {
+                        var oldAction = actionsByName[name];
+                        
+                        // Replace it if it exists
+                        if (oldAction) {
+                            this.removeAction(oldAction);
+                        }
+                        
+                        actionsByName[name] = action;
+                    }
+                    
+                    newActions.push(action);
 				};
 				
+                /**
+                 @param a running Action or its name string
+                 */
 				this.removeAction = function(action) {
-					removedActions.push(action);
+                    
+                    if (isString(action)) {
+                        var namedAction = actionsByName[action];
+                        if (namedAction) {
+                            removedActions.push(namedAction);
+                            delete actionsByName[action];
+                        }
+                    } else {
+                        // Assume action is instance of Action
+                        removedActions.push(action);
+                    }
 				};
 				
 				this.clearActions = function() {
-					actions = [];
+                    removedActions.length = 0;
+                    newActions.length = 0;
+					actions.length = 0;
+                    actionsByName = {};
 				};
 				
 				this.runActions = function() {
@@ -171,11 +311,24 @@
 					}
 					removedActions.length = 0;
 					
+                    for (i in newActions) {
+                        action = newActions[i];
+                        actions.push(action);
+                    }
+                    newActions.length = 0;
+                    
 					for (i in actions) {
 						action = actions[i];
 						action.run(this);
 					}
 				};
+                
+                this.resetTransform = function() {
+                    this.rotation = 0;
+                    this.scale = 1;
+                    this.x = 0;
+                    this.y = 0;
+                };
 			}
 		
 		
@@ -186,12 +339,17 @@
 			function Action(stepFunc, time, completion) {
 				
 				var forever = time < 0,
-					totalFrames = frames = (time / 60) | 0; // assume 60 fps?
+					totalFrames = Action.toFrames(time),
+                    frames = totalFrames;
 				
 				if (typeof completion !== "function") {
 					completion = function() {};
 				}
 				
+                if (typeof stepFunc !== "function") {
+                    stepFunc = function() {};
+                }
+                
 				this.reset = function() {
 					frames = totalFrames;
 				};
@@ -204,98 +362,298 @@
 							stepFunc(character);
 							frames--;
 						} else {
-							completion();
+							completion(character);
+                            character.removeAction(this);
 						}
 					}
 				};
 			}
-		
+        
+            Action.FPS = 60;
+            Action.toFrames = function(time) {
+                return Math.max(1, time * Action.FPS) | 0;
+            };
+        
+            /**
+             @param name - name of the action
+             @param args - list of arguments to the constructor/factory method
+             */
+            Action.createFromDescription = function(desc) {
+                var name = desc.name,
+                    args = desc.args,
+                    constr = Action[name];
+                if (constr) {
+                    return constr.apply(this, args);
+                }
+            };
+        
+        
+            /**
+             */
 			Action.Move = function() {
-				return function(c) {
+				var step = function(c) {
 					c.x += c.dx;
 					c.y += c.dy;
 				};
+                return new Action(step, -1);
 			};
 		
-			Action.Accelerate = function(data) {
+        
+            /**
+             data = {
+                ddx: horizontal acceleration,
+                ddy: vertical acceleration,
+                maxDx: maximum horizontal speed,
+                maxDy: maximum vertical speed
+             }
+             actions:{
+             Accelerate:[{ddx:4, ddy:5}, 5],
+             
+             }
+             */
+			Action.Accelerate = function(data, time, completion) {
 			
+                data = data || {};
+            
 				var ddx = Number(data.x) || 0,
+                    ddxDir = sign(ddx),
 					ddy = Number(data.y) || 0,
-					maxDx = Math.abs(Number(data.maxDx)) || 0,
-					maxDy = Math.abs(Number(data.maxDy)) || 0;
+                    ddyDir = sign(ddy),
+					maxDx = Math.abs(Number(data.maxDx)) || Infinity,
+					maxDy = Math.abs(Number(data.maxDy)) || Infinity,
+                    step;
 					
-				return function(c) {
-					
-					c.dx += ddx;
-					c.dy += ddy;
-					
-					if (Math.abs(c.dx) > maxDx) {
-						c.dx = maxDx * sign(c.dx);
-					}
-					if (Math.abs(c.dy) > maxDy) {
-						c.dy = maxDy * sign(c.dy);
-					}
-				};
+                if (ddx == 0 && ddy == 0) {
+                    step = function() {};
+                } else {
+                    step = function(c) {
+                        
+                        var dx = c.dx + ddx,
+                            dy = c.dy + ddy,
+                            dxDir = sign(dx),
+                            dyDir = sign(dy);
+                        
+                        if (dxDir === ddxDir && dx * dxDir > maxDx) {
+                            dx = maxDx * dxDir;
+                        }
+                        if (dyDir == ddyDir && dy * dyDir > maxDy) {
+                            dy = maxDy * dyDir;
+                        }
+                        
+                        c.dx = dx;
+                        c.dy = dy;
+                    };
+                }
+                return new Action(step, time, completion);
 			};
 		
+        
+            /**
+             data = {
+                minX OR left: left bound,
+                minY OR top: top bound,
+                maxX OR right: right bound,
+                maxY OR bottom: bottom bound,
+             }
+             */
 			Action.Bounce = function(data) {
 				
-				var minX = Number(data.minX) || 0,
-					minY = Number(data.minY) || 0,
-					maxX = Number(data.maxX) || DEFAULT_WIDTH,
-					maxY = Number(data.maxY) || DEFAULT_HEIGHT;
+                data = data || {};
+                
+				var minX = Number(data.minX || data.left) || 0,
+					minY = Number(data.minY || data.top) || 0,
+					maxX = Number(data.maxX || data.right) || DEFAULT_WIDTH,
+					maxY = Number(data.maxY || data.bottom) || DEFAULT_HEIGHT;
 					
-				return function(c) {
+				function step(c) {
 					
-					if (c.x < 0) {
-						c.x = 0;
+                    // Bounce horizontally
+					if (c.x < minX) {
+						c.x = minX;
 						c.dx = -c.dx;
 					} else if (c.x > maxX) {
 						c.x = maxX;
 						c.dx = -c.dx;
 					}
 					
-					if (c.y < 0) {
-						c.y = 0;
+                    // Bounce vertically
+					if (c.y < minY) {
+						c.y = minY;
 						c.dy = -c.dy;
 					} else if (c.y > maxY) {
 						c.y = maxY;
-						c.dy = -char.dy;
+						c.dy = -c.dy;
 					}
 				};
+                
+                return new Action(step, -1);
 			};
-		
 			
 			
-			Action.Break = function(data) {
+            /**
+             data = {
+                x: horizontal friction,
+                y: vertical friction
+             }
+             */
+			Action.Friction = function(data, time, completion) {
 	
-				var frictionX = Math.abs(Number(data.x)) || 0,
-					frictionY = Math.abs(Number(data.y)) || 0;
+                var frictionX = Math.abs(Number(data && data.x)) || 0,
+					frictionY = Math.abs(Number(data && data.y)) || 0,
+                    step;
 				
-				return function(c) {
-					
-					if (Math.abs(c.dx) < frictionX) {
-						c.dx = 0;
-					} else {
-						c.dx = (c.dx < 0) ? c.dx + frictionX : c.dx - frictionX;
-					}
-					
-					if (Math.abs(c.dy) < frictionY) {
-						c.dy = 0;
-					} else {
-						c.dy = (c.dy < 0) ? c.dy + frictionY : c.dy - frictionY;
-					}
-				};
+                if (frictionX == 0 && frictionY == 0) {
+                    step = function() {};
+                } else {
+                    step = function(c) {
+                        
+                        if (Math.abs(c.dx) < frictionX) {
+                            c.dx = 0;
+                        } else {
+                            c.dx = (c.dx < 0) ? c.dx + frictionX : c.dx - frictionX;
+                        }
+                        
+                        if (Math.abs(c.dy) < frictionY) {
+                            c.dy = 0;
+                        } else {
+                            c.dy = (c.dy < 0) ? c.dy + frictionY : c.dy - frictionY;
+                        }
+                    };
+                }
+                return new Action(step, time, completion);
 			};
 		
 		
-			Action.Rotate = function(data) {
-				return function(c) {
-					// ...
-				};
+            /**
+             data = {
+                speed: rotation speed  (degrees or radians per second)
+                    OR 
+                rotation: total rotation
+             
+                radians: true => rotation is in radians, false => rotation is in degrees
+             }
+             OR
+             data = total rotation (in degrees)
+             */
+			Action.Rotate = function(data, time, completion) {
+                
+                var totalRotation, rotationSpeed,
+                    frames = (time > 0) ? Action.toFrames(time) : Action.FPS;
+                
+                if (Number(data)) {
+                    totalRotation = Number(data);
+                } else if (data.speed) {
+                    totalRotation = Number(data.speed) * ((time > 0) ? time : 1);
+                }
+                
+                if (!data.radians) {
+                    totalRotation = degToRad(totalRotation);
+                }
+                
+                rotationSpeed = totalRotation / frames;
+                
+				function step(c) {
+					c.rotation += rotationSpeed;
+				}
+                
+                return new Action(step, time, completion);
 			};
+        
+            /**
+             TODO: Should be goal scale instead
+             data = {
+                speed: scaling speed
+                rel:?
+                dst:?
+             }
+             OR
+             data = relative scale
+             */
+            Action.Scale = function(data, time, completion) {
+                
+                var dstScale = Number((data && data.speed) || data) || 0, // TODO: don't use data.speed like this!
+                    scalingSpeed,
+                    firstAction;
+                
+                function first(c) {
+                    scalingSpeed = (dstScale - c.scale) / Action.toFrames(time);
+                    // console.log("first", scalingSpeed);
+                }
+                
+                function next(c) {
+                    c.addAction(new Action(step, time, completion));
+                    // console.log("next");
+                }
+                
+                function step(c) {
+                    c.scale += scalingSpeed;
+                    // console.log("step");
+                }
+                
+                firstAction = new Action(first, 0, next);
+                
+                return firstAction;
+            };
 		
-		
+            Action.Animate = function(data, time, completion) {
+                
+                var sprite,
+                    imageIndex = Number(data.first) || 0,
+                    imageSpeed;
+                
+                if (isString(data)) {
+                    sprite = Sprites[data];
+                } else if (Array.isArray(data)) {
+                    sprite = data;
+                } else {
+                    // What else can it be?? :)
+                }
+                
+                if (!sprite) {
+                    return new Action(null, 0);
+                }
+                
+                imageSpeed = sprite.length / Action.toFrames(time);
+                
+                function step(c) {
+                    imageIndex += imageSpeed;
+                    c.image = sprite[imageIndex % sprite.length];
+                }
+            };
+        
+            Action.FadeToAlpha = function(data, time, completion) {
+                
+                var dstAlpha = Number(data) || 0,
+                    fadeSpeed,
+                    firstAction;
+                
+                function first(c) {
+                    fadeSpeed = (dstAlpha - c.alpha) / Action.toFrames(time);
+                }
+                
+                function next(c) {
+                    c.addAction(new Action(step, time, completion));
+                }
+                
+                function step(c) {
+                    c.alpha += fadeSpeed;
+                }
+                
+                firstAction = new Action(first, 0, next);
+                
+                return firstAction;
+            };
+        
+            Action.FadeIn = function(time, completion) {
+                return Action.FadeToAlpha(1, time, completion);
+            };
+            Action.FadeOut = function(time, completion) {
+                return Action.FadeToAlpha(0, time, completion);
+            };
+        
+            function hideCharacter(c) {
+                c.visible = false;
+            }
 		
 			function initCanvas() {
 				
@@ -303,8 +661,11 @@
 				
 				container = document.getElementById("scene-container");
 				canvas = document.getElementById("scene");
+                context = canvas.getContext("2d");
 				canvas.onclick = handleClick;
-				
+				canvas.style.left = "50%";
+                canvas.style.top = "50%";
+                    
 				function resizeCanvas() {
 					var w = Math.min(container.offsetWidth, container.offsetHeight * ASPECT),
 						h = w / ASPECT;
@@ -312,10 +673,8 @@
 					canvas.height = h;
 					canvasScale = w / DEFAULT_WIDTH;
 					
-					canvas.style.left = "50%";
-					canvas.style.top = "50%";
-					canvas.style.marginLeft = -w * 0.5;
-					canvas.style.marginTop = -h * 0.5;
+                    canvas.style.marginLeft = -w * 0.5 + "px";
+					canvas.style.marginTop = -h * 0.5 + "px";
 				}
 				
 				resizeCanvas();
@@ -339,17 +698,18 @@
 				var roomId = parseParam("room");
 				if (roomId) {
 					Slave.on("connected", function() {
-							 console.log("COOOOOONNEEEEEECTED");
+							 console.log("Connected to room.");
+                             cancelAnimFrame(animFrameId);
 							 render();
 							 });
-							 Slave.on("message", messageHandler);
-							 Slave.connect(roomId);
+                    Slave.on("message", handleMessage);
+                    Slave.connect(roomId);
 				} else {
 					alert("No room!");
 				}
-			}
+			};
 			
-			function messageHandler(message) {
+			function handleMessage(message) {
 				
 				console.log(message);
 				
@@ -361,26 +721,18 @@
 						loadFile(message.file);
 						break;
 					case "add-character":
-						var char = characters[data.name];
-						char.visible = true;
-						char.x = Math.random() * canvas.width;
-						char.y = Math.random() * canvas.height;
-					
-						var dir = Math.random() * Math.PI * 2;
-						char.dx = Math.cos(dir) * 5;
-						char.dy = Math.sin(dir) * 5;
-					
-						char.visible = true;
-						
-						char.responseId = data.responseId;
-						char.responseType = data.responseType;
-						
+                        characters[data.name] = createObject(file.characters[data.name], data);
 						break;
 					case "remove-character":
 						characters[data.name].visible = false;
 						break;
-					case "set-background":
-						background.src = file.backgroundsBaseURL + file.backgrounds[data.name];
+                    case "add-object":
+                        objects.push(createObject(data));
+                        break;
+					case "remove-object":
+                        break;
+                    case "set-background":
+						background.src = file.backgrounds[data.name];
 						break;
 					case "msg":
 						showChatMessage("Master", data);
@@ -392,29 +744,98 @@
 				 }*/
 			}
 			
+            function createObject(data, resp) {
+                
+                var obj = new Character();
+                
+                if (data.sprite && Sprites[data.sprite]) {
+                    obj.image = Sprites[data.sprite][0];
+                }
+                
+                obj.x = pod(data, "x", Math.random() * DEFAULT_WIDTH);
+                obj.y = pod(data, "y", Math.random() * DEFAULT_HEIGHT);
+                
+                var dir = Math.random() * Math.PI * 2;
+                obj.dx = pod(data, "dx", Math.cos(dir) * pod(data, "speed", 5));
+                obj.dy = pod(data, "dy", Math.sin(dir) * pod(data, "speed", 5));
+                
+                obj.scale = pod(data, "scale", obj.scale);
+                obj.rotation = pod(data, "rotation", obj.rotation);
+                obj.alpha = pod(data, "alpha", obj.alpha);
+                
+                if (resp) {
+                    obj.responseId = resp.responseId;
+                    obj.responseType = resp.responseType;
+                }
+                
+                obj.visible = true;
+                
+                for (var i in data.actions) {
+                    var action = Action.createFromDescription(data.actions[i]);
+                    if (action) {
+                        obj.addAction(action);
+                    }
+                }
+                
+                return obj;
+            }
+        
 			function loadFile(obj) {
 				
-				for (var name in obj.characters) {
-					var desc = obj.characters[name],
-					x = canvas.width / 2,
-					y = canvas.height / 2,
-					imageURL = desc.spritesBaseURL + desc.sprites["_default"];
-					characters[name] = new Character(name, imageURL, x, y);
-				}
+                function imageWithSrc(src) {
+                    var img = new Image();
+                    img.src = src;
+                    return img;
+                }
+                
+                objects = [];
+                
+                // Load the sprites
+                Sprites = {};
+                var name, desc, sprite, i;
+                for (name in obj.sprites) {
+                    
+                    desc = obj.sprites[name];
+                    sprite = [];
+                    
+                    if (isString(desc)) {
+                        sprite.push(imageWithSrc(desc));
+                    } else if (Array.isArray(desc)) {
+                        for (i in desc) {
+                            sprite.push(imageWithSrc(desc[i]));
+                        }
+                    } else if (desc.rows && desc.cols && desc.frames) {
+                        // extract subimages
+                    }
+                    
+                    if (sprite) {
+                        Sprites[name] = sprite;
+                    }
+                }
+                
+                // Set the title
+                if (obj.title) {
+                    var header = document.createElement("h1"),
+                        text = document.createTextNode(obj.title);
+                    header.appendChild(text);
+                    document.getElementById("title").appendChild(header);
+                }
+                
 				file = obj;
 			}
 			
 			
 			function handleClick(e) {
-				var mx = e.offsetX,
-					my = e.offsetY;
+				var mx = e.offsetX / canvasScale,
+					my = e.offsetY / canvasScale;
 				console.log(mx,my);
 				
 				for (var i in characters) {
 					var char = characters[i];
 					if (char.visible) {
-						var w = char.image.width * char.scale * canvasScale * 0.5,
-							h = char.image.height * char.scale * canvasScale * 0.5,
+                        
+						var w = char.image.width * char.scale * 0.5,
+							h = char.image.height * char.scale * 0.5,
 							left = char.x - w,
 							right = char.x + w,
 							top = char.y - h,
@@ -428,58 +849,68 @@
 							
 							if (char.responseType == "click") {
 								Slave.sendMessage({type:"click", data:{id:char.responseId}});
+
+                                char.clearActions();
+                                char.addAction(Action.Rotate(720, 1));
+                                char.addAction(Action.Scale(0, 1, hideCharacter));
+                                char.addAction(Action.Move());
+                                
+                                var dir = Math.random() * Math.PI * 2;
+                                char.dx = Math.cos(dir) * 5;
+                                char.dy = Math.sin(dir) * 5;
 							}
 						}
 					}
 				}
 			}
 			
+            /*
+            var hej = 0;
+            var hoj = 0;
+            setInterval(function() {
+                        console.log(hej);
+                        hej = 0;
+                        }, 1000);
+             */
 			function render() {
-				
-				var ctx, maxX, maxY, char, x, y, w, h;
+				// hej++;
+				var x, y, w, h, i;
 				
 				animFrameId = requestAnimFrame(render);
 				
-				ctx = canvas.getContext("2d");
-				ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
-				
-				maxX = DEFAULT_WIDTH; // canvas.width;
-				maxY = DEFAULT_HEIGHT; // canvas.height;
-				
-				for (var i in characters) {
-					char = characters[i];
-					if (char.visible) {
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                
+                if (background && background.src) {
+                    context.drawImage(background, 0, 0, canvas.width, canvas.height);
+				}
+                
+                function update(obj) {
+                    
+                    if (obj.visible) {
 						
-						for (var j in char.actions) {
-							var action = char.actions[j];
-							action.run(char);
-						}
+						obj.runActions();
 						
-						char.x += char.dx;
-						char.y += char.dy;
-						
-						if (char.x < 0) {
-							char.x = 0;
-							char.dx = -char.dx;
-						} else if (char.x > maxX) {
-							char.x = maxX;
-							char.dx = -char.dx;
-						}
-						
-						if (char.y < 0) {
-							char.y = 0;
-							char.dy = -char.dy;
-						} else if (char.y > maxY) {
-							char.y = maxY;
-							char.dy = -char.dy;
-						}
-						
-						x = char.x * canvasScale;
-						y = char.y * canvasScale;
-						w = char.image.width * char.scale * canvasScale;
-						h = char.image.height * char.scale * canvasScale;
-						ctx.drawImage(char.image, x - w * 0.5, y - h * 0.5, w, h);
+                        if (obj.image) {
+                            x = obj.x * canvasScale;
+                            y = obj.y * canvasScale;
+                            w = obj.image.width * obj.scale * canvasScale;
+                            h = obj.image.height * obj.scale * canvasScale;
+                            
+                            context.save();
+                            context.translate(x, y);
+                            context.rotate(obj.rotation);
+                            context.globalAlpha = obj.alpha;
+                            context.drawImage(obj.image, -w * 0.5, -h * 0.5, w, h);
+                            context.restore();
+                        }
 					}
+                }
+                
+                for (i in objects) {
+                    update(objects[i]);
+                }
+				for (i in characters) {
+					update(characters[i]);
 				}
 			}
 			
@@ -488,14 +919,14 @@
 			
 			
 			function showChatMessage(senderId, message) {
-				
+				/*
 				if (!message) {
 					return;
 				}
 				
 				var textOut = document.getElementById("chat-area");
 				textOut.value = textOut.value + "\n" + senderId + " said: " + message;
-				textOut.scrollTop = textOut.scrollHeight;
+				textOut.scrollTop = textOut.scrollHeight;*/
 			}
 			
 			function sendChatMessage() {
@@ -522,20 +953,22 @@
 			<div id="sidebar-left"></div>
 			
 			<div id="content">
-				<div id="scene-container">
+                
+                <div id="title"></div>
+				
+                <div id="scene-container">
 					<canvas id="scene"></canvas>
+                    <p class="speech bubble">
+                        Vilken fin pratbubbla!
+                    </p>
 				</div>
+                
 				<div id="text-chat">
-					<textarea id="chat-area" disabled=true>Text chat!</textarea>
+					<!--textarea id="chat-area" disabled=true>Text chat!</textarea-->
 					<textarea id="chat-input"></textarea>
 					<button id="send-button" onclick="sendChatMessage();">Send</button>
 				</div>
+                
 			</div>
 			
-			<div id="sidebar-right"></div>
-			
-		</div>
-    </body>
-	
-</html>
-
+			<div i
