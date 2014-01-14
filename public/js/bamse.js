@@ -18,22 +18,23 @@ var bamse = {
 			  time : 1.0,
 			  type : "add-object",
 			  data : {
-                sprite:"title",
+                sprite : "title",
                 x : 400,
                 y : 300,
                 scale : 0,
                 actions : [
-                           {name : "Scale", args:[1, 2]},
-                           {name : "Rotate", args:[720, 2]},
-                           ]
+                           {name : "Scale", args : [1, 2]},
+                           {name : "Rotate", args : [720, 2]},
+                           ],
                 },
 			  },
               
 			  {
 			  time : 5.0,
-			  type : "add-character",
+			  type : "add-object",
 			  data : {
-				name : "skalman",
+				id : "skalman",
+                template : "skalman",
 				responseTime:5,
 				responseType:"click",
 				responseId:"123", // this will be set by the dispatcher
@@ -42,15 +43,16 @@ var bamse = {
 			  
               {
 			  time : 10.0,
-			  type : "remove-character",
-			  data : { name : "skalman", },
+			  type : "remove-object",
+			  data : { id : "skalman", },
 			  },
               
               {
 			  time : 15.0,
-			  type : "add-character",
+			  type : "add-object",
 			  data : {
-                name : "lilleskutt",
+                id : "lilleskutt",
+                template : "lilleskutt",
                 responseTime:15,
                 responseType:"click",
                 },
@@ -58,9 +60,10 @@ var bamse = {
              
               {
 			  time : 20.0,
-			  type : "add-character",
+			  type : "add-object",
 			  data : {
-                name : "bamse",
+                id : "bamse",
+                template : "bamse",
                 responseTime:10,
                 responseType:"click",
                 },
@@ -68,14 +71,14 @@ var bamse = {
 			  
               {
 			  time : 30.0,
-			  type : "remove-character",
-			  data : { name : "bamse", },
+			  type : "remove-object",
+			  data : { id : "bamse", },
 			  },
 			  
               {
 			  time : 30.0,
-			  type : "remove-character",
-			  data : { name : "lilleskutt", },
+			  type : "remove-object",
+			  data : { id : "lilleskutt", },
 			  },
 			  ],
 	
@@ -92,24 +95,34 @@ var bamse = {
         "title" : "/images/bamse/bamse-title.gif",
     },
 	
-    characters : {
+    templates : {
 		"bamse" : {
 			sprite : "bamse",
             speed : 5,
             actions : [
                        {name : "Bounce"},
                        {name : "Move"},
-                       {name : "Rotate", args:[{speed:180}, -1]},
+                       {name : "Rotate", args : [{speed:180}, -1]},
                        ],
             // x:y:dx:dy:rotation:scale:alpha:
 		},
 		"skalman" : {
             alpha : 0,
 			sprite : "skalman",
-            actions : [ {name : "FadeIn", args:[1]} ],
+            actions : [ {name : "FadeIn", args : [1]} ],
 		},
 		"lilleskutt" : {
 			sprite : "lilleskutt",
-            x : -100,
-            y : -100,
-            dx : 4,
+            x : 400,
+            y : 300,
+            dx : 10,
+            dy : -30,
+            actions : [
+                       {name : "Move"},
+                       {name : "Bounce", args : [{restitution : 0.8}]},
+                       {name : "Accelerate", args : [{y : 1, maxDy : 30}, -1]},
+                       {name : "Friction", args : [{x : 0.05}, -1]},
+                       ],
+        },
+    },
+};
