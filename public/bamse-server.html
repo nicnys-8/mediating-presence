@@ -66,9 +66,24 @@
                 padding:10px;
             }
         
-            #score-table {
+            table {
+                width:180px;
                 padding:10px;
+                margin:10px;
                 text-align:left;
+                border-collapse:collapse;
+                background-color:#efefff;
+            }
+        
+            td, th {
+                padding:5px;
+            }
+        
+            thead th {
+                border-bottom:1px solid #00001f;
+            }
+            tbody td {
+                border-bottom:1px dashed black;
             }
         
 			#text-chat {
@@ -113,7 +128,6 @@
 		<script type="text/javascript" src="/js/lib/erizo.js"></script>
 		
 		<script type="text/javascript" src="/js/c-master.js"></script>
-		<script type="text/javascript" src="/js/bamse.js"></script>
 		<script type="text/javascript" src="/js/lib/webgl-utils.js"></script>
 		
 		<!-- VideoJS -->
@@ -153,11 +167,13 @@
 				};
 			}
 		
-			function ActiveEvent(startTime, TTL) {
+			function ActiveEvent(startTime, TTL, events) {
 				
 				var points = Master.getUserIds().length,
 					responses = {};
 				
+                TTL = Number(TTL) || Infinity;
+                
 				this.id = (Math.random() * 10e16).toFixed(0).toString();
 				this.startTime = startTime;
 				this.endTime = startTime + TTL;
@@ -167,6 +183,12 @@
 						responses[userId] = points;
 						users[userId].addPoints(points);
 						points--;
+                        
+                        if (events) {
+                            for (var i in events) {
+                                Master.sendMessage(userId, events[i]);
+                            }
+                        }
 					}
 				}
 			}
@@ -194,7 +216,8 @@
 				
 				// WebRTC communication
 				Master.on("init", function() {
-						  loadVideo(bamse);
+						  
+                          // loadVideo(bamse);
 						  
 						  var link = document.getElementById("room-link");
 						  var href = "/bamse-client.html?room=" + Master.getRoomId();
@@ -293,10 +316,11 @@
 				if (nextEvent && currentTime >= nextEvent.time) {
 					
 					// Create an ActiveEvent if the event is "respondable"
-					if (nextEvent.data && nextEvent.data.responseTime) {
-						var ae = new ActiveEvent(nextEvent.time, nextEvent.data.responseTime);
+					if (nextEvent.data && nextEvent.data.response) {
+						var resp = nextEvent.data.response,
+                            ae = new ActiveEvent(nextEvent.time, resp.time, resp.events);
 						activeEvents[ae.id] = ae;
-						nextEvent.data.responseId = ae.id;
+						resp.id = ae.id;
 					}
 					
 					Master.sendMessage("all", nextEvent);
@@ -311,7 +335,7 @@
 			function loadVideo(obj) {
 				// Embed with VideoJS
 				videoPlayer.src(obj.src);
-				// Master.sendMessage("all", { type:"file", file:file });
+                Master.sendMessage("all", { type:"file", file:file });
 				eventIndex = 0;
 				lastTimeUpdate = 0;
 				nextEvent = obj.events[0];
@@ -368,6 +392,25 @@
 				return null;
 			}
 			
+            function fetch(url) {
+                var req = new XMLHttpRequest(), result;
+                req.onreadystatechange = function() {
+                    if (req.readyState == 4) {
+                       // try {
+                            result = JSON.parse(req.responseText);
+                        /*} catch (e) {
+                            console.error("Failed request for file " + url);
+                            console.error(e);
+                        }*/
+                        if (result) {
+                            console.log("Loading " + url);
+                            loadVideo(result);
+                        }
+                    }
+                }
+                req.open("GET", url, true);
+                req.send();
+            }
 			
 			// ********************************
 			// Text chat stuff (shouldn't be here)
@@ -406,12 +449,32 @@
 		<div id="wrap">
 			
 			<div id="sidebar-left">
-				<table id="score-table">
-					<tr>
-						<th>User</th>
-						<th>Score</th>
-					</tr>
+				
+                <table id="score-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Score</th>
+                        </tr>
+                    </thead>
 				</table>
+                
+                <table id="video-table">
+                    <thead>
+                        <tr>
+                            <th>Select video clip</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><a href="javascript:fetch('data/bamse.json');">Bamse</a></td>
+                        </tr>
+                        <tr>
+                            <td><a href="javascript:fetch('data/pokemon.json');">Pokemon</a></td>
+                        </tr>
+                    </tbody>
+				</table>
+                
 			</div>
 			
 			<div id="content">
