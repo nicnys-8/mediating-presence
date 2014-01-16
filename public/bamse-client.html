@@ -235,7 +235,7 @@
             
             console.log(message);
             
-            var data = message.data;
+            var data = message.data, obj, action, a, i;
             
             // try {
             switch (message.type) {
@@ -247,6 +247,22 @@
                     break;
                 case "remove-object":
                     scene.removeObject(data.id);
+                    break;
+                case "run-action":
+                    obj = scene.getObjectById(data.id);
+                    a = data.actions;
+                    if (obj) {
+                        if (Array.isArray(a)) {
+                            for (i in a) {
+                                action = Bamse.Action.createFromDescription(a[i]);
+                                if (action) {
+                                    obj.addAction(action);
+                                }
+                            }
+                        } else {
+                            action = Bamse.Action.createFromDescription(a);
+                        }
+                    }
                     break;
                 case "msg":
                     showChatMessage("Master", data);
@@ -263,7 +279,7 @@
         function onObjectClicked(obj) {
             if (obj.responseType == "click") {
                 Slave.sendMessage({type:"click", data:{id:obj.responseId}});
-                
+                /*
                 obj.clearActions();
                 obj.addAction(Bamse.Action.Rotate(720, 1));
                 obj.addAction(Bamse.Action.Scale(0, 1, function(o) { scene.removeObject(o) }));
@@ -272,6 +288,7 @@
                 var dir = Math.random() * Math.PI * 2;
                 obj.dx = Math.cos(dir) * 5;
                 obj.dy = Math.sin(dir) * 5;
+                 */
             }
         }
         
