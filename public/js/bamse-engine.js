@@ -1,5 +1,73 @@
 
+/**
+ Bamse Engine API:
 
+ Bamse = {
+ 
+    function Scene(containerId) = {
+        this.addEventListener = this.on
+        this.removeEventListener = this.off
+        
+        this.load = function(data)
+        this.addObject = function(newObj)
+        this.removeObject = function(obj)
+        this.update = function()
+        this.render = function()
+        this.getTemplates = function()
+        this.canvas = canvas;
+        this.context = context;
+        this.container = container;
+    }
+    Scene.createFromDescription = function(desc) {};
+    
+    function Character(id) = {
+        this.id = uniqueName;
+        this.spriteName = null;
+        this.spriteIndex = 0;
+        this.alpha = 1;
+        this.visible = true;
+        this.image = null; // Last rendered image
+        this.x = 0;
+        this.y = 0;
+        this.dx = 0;
+        this.dy = 0;
+        this.scale = 1;
+        this.rotation = 0; // not currently in use
+        this.responseId = null;
+        this.responseType = null;
+        
+        this.addAction = function(action, name)
+        this.removeAction = function(action/name)
+        this.clearActions = function()
+        this.runActions = function()
+        this.resetTransform = function()
+    }
+    Character.createFromDescription = function({id:,template:,x:,y:,...}, templates)
+    
+    function Action(stepFunc, time, completion) = {
+        this.reset = function()
+        this.run = function(character)
+    }
+    Action.FPS = 60;
+    Action.toFrames = function(time)
+    Action.createFromDescription = function({name:args:})
+ 
+    Action.Sequence = function({time:actions:} OR actions, completion)
+    Action.Group = function({time:actions:} OR actions, completion)
+    Action.Wait = function(time OR {time:1}, completion)
+    Action.Move = function()
+    Action.Accelerate = function({x:0,y:0,maxDx:Inf,maxDy:Inf}, time, completion)
+    Action.Bounce = function({minX/left:0,minY/top:0,maxX/right:DEFAULT_WIDTH,maxY/bottom:DEFAULT_HEIGHT, restitution:1/{x:1,y:1}}, completion)
+    Action.Friction = function(friction || {x:0,y:0}, time, completion)
+    Action.Rotate = function(rot || {speed:0radians:false}, time, completion)
+    Action.Scale = function(speed || {speed:0}, time, completion)
+    Action.Animate = function({name:,speed:1,first:0}, time, completion)
+    Action.FadeToAlpha = function(dstAlpha, time, completion)
+    Action.FadeIn = function(time, completion)
+    Action.FadeOut = function(time, completion)
+ 
+ }
+*/
 
 var Bamse = Bamse || function() {
     "use strict";
@@ -12,6 +80,9 @@ var Bamse = Bamse || function() {
     // ********************
     // Helper functions
     // ********************
+    
+    function noop() {
+    }
     
     function pod(obj, prop, def) {
         return obj.hasOwnProperty(prop) ? obj[prop] : def;
@@ -104,7 +175,8 @@ var Bamse = Bamse || function() {
         function handleClick(e) {
             var mx = e.offsetX / canvasScale,
                 my = e.offsetY / canvasScale;
-                console.log(mx,my);
+            
+            // console.log(mx,my);
             
             for (var i in objects) {
                 var obj = objects[i];
@@ -163,9 +235,17 @@ var Bamse = Bamse || function() {
         this.load = function(data) {
             
             function imageWithSrc(src) {
-                var img = new Image();
+                var img = new Image(),
+                    canvas = document.createElement("canvas"),
+                    ctx = canvas.getContext("2d");
+                img.onload = function() {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0, img.width, img.height);
+                };
                 img.src = src;
-                return img;
+                
+                return canvas;
             }
             
             // Clear old objects and sprites
@@ -205,9 +285,16 @@ var Bamse = Bamse || function() {
             if (data.title) {
                 // TODO: Create the title element instead?
                 var header = document.createElement("h1"),
-                    text = document.createTextNode(data.title);
-                header.appendChild(text);
-                document.getElementById("title").appendChild(header);
+                    text = document.createTextNode(data.title),
+                    titleContainer = document.getElementById("title");
+                
+                if (titleContainer) {
+                    while (titleContainer.hasChildNodes()) {
+                        titleContainer.removeChild(titleContainer.lastChild);
+                    }
+                    header.appendChild(text);
+                    titleContainer.appendChild(header);
+                }
             }
             // file = obj;
         };
@@ -291,6 +378,9 @@ var Bamse = Bamse || function() {
         
         this.getTemplates = function() {
             return templates;
+        };
+        this.getObjectById = function(id) {
+            return objectsById[id];
         };
         
         this.canvas = canvas;
@@ -427,9 +517,10 @@ var Bamse = Bamse || function() {
         obj.rotation = poda(inputs, "rotation", obj.rotation);
         obj.alpha = poda(inputs, "alpha", obj.alpha);
         
-        obj.responseId = data.responseId;
-        obj.responseType = data.responseType;
-        
+        if (data.response) {
+            obj.responseId = data.response.id;
+            obj.responseType = data.response.type;
+        }
         obj.visible = true;
         
         function addActions(a) {
@@ -458,40 +549,58 @@ var Bamse = Bamse || function() {
 
     function Action(stepFunc, time, completion) {
         
-        var forever = time < 0,
+        var completions = [],
+            forever = time < 0,
             totalFrames = Action.toFrames(time),
             frames = totalFrames;
         
-        if (typeof completion !== "function") {
-            completion = function() {};
+        if (typeof stepFunc !== "function") {
+            stepFunc = noop;
         }
         
-        if (typeof stepFunc !== "function") {
-            stepFunc = function() {};
+        function runCompletions(obj) {
+            for (var i in completions) {
+                // try/catch?
+                completions[i](obj);
+            }
         }
         
         this.reset = function() {
             frames = totalFrames;
         };
         
-        this.run = function(character) {
-            if (forever) {
-                stepFunc(character);
-            } else {
-                if (frames > 0) {
-                    stepFunc(character);
-                    frames--;
-                } else {
-                    completion(character);
-                    character.removeAction(this);
-                }
+        this.addCompletion = function(callback) {
+            if (typeof callback === "function") {
+                completions.push(callback);
             }
         };
+        
+        this.run = function(obj) {
+            var done = false;
+            if (forever) {
+                done = stepFunc(obj);
+            } else {
+                if (frames > 0) {
+                    frames--;
+                    done = stepFunc(obj);
+                } else {
+                    done = true;
+                }
+            }
+            
+            if (done) {
+                obj.removeAction(this);
+                runCompletions(obj);
+            }
+        };
+        
+        this.addCompletion(completion);
     }
 
     Action.FPS = 60;
     Action.toFrames = function(time) {
-        return isNaN(time) ? Infinity : Math.max(1, time * Action.FPS) | 0;
+        var frameCount = isNaN(time) ? Infinity : Math.max(1, time * Action.FPS);
+        return isFinite(frameCount) ? (frameCount | 0) : frameCount;
     };
 
     /**
@@ -507,15 +616,116 @@ var Bamse = Bamse || function() {
         }
     };
 
+    Action.Sequence = function(data, completion) {
+        var actions = [],
+            action, index = 0, i,
+            time = Number(data.time) || Infinity,
+            list = data.actions || data;
+        
+        for (i = 0; i < list.length; i++) {
+            action = list[i];
+            if (typeof action.run !== "function") {
+                action = Action.createFromDescription(action);
+            }
+            if (action) {
+                action.addCompletion(swap);
+                actions.push(action);
+            }
+        }
+        
+        function swap(c) {
+            index++;
+        }
+        
+        function step(c) {
+            if (index >= actions.length) {
+                return true;
+            }
+            actions[index].run(c);
+        }
+        
+        return new Action(step, time, completion);
+    };
+    
+    Action.Group = function(data, completion) {
+        
+        var actions = [], // All actions in the group
+            run = [], // true/false = run/don't run for each action
+            doneCount = 0,
+            action, i,
+            time = Number(data.time) || Infinity,
+            list = data.actions || data;
+        
+        for (i = 0; i < list.length; i++) {
+            action = list[i];
+            if (typeof action.run !== "function") {
+                action = Action.createFromDescription(action);
+            }
+            if (action) {
+                // Add completion that disables the action in question
+                action.addCompletion(doneFunc(run.length));
+                run.push(true);
+                actions.push(action);
+            }
+        }
+        
+        function doneFunc(index) {
+            return function() {
+                run[index] = false;
+                doneCount++;
+            }
+        }
+        
+        function step(c) {
+            if (doneCount >= actions.length) {
+                return true;
+            }
+            for (i in actions) {
+                if (run[i]) {
+                    actions[i].run(c);
+                }
+            }
+        }
+        
+        return new Action(step, time, completion);
+    };
 
+    Action.Wait = function(data, completion) {
+        var time = Number(data) || Number(data.time) || 1;
+        return new Action(null, time, completion);
+    }
+    
     /**
      */
-    Action.Move = function() {
-        function step(c) {
+    Action.Move = function(data, completion) {
+        var step, dx, dy, time, frames, calcAction, moveAction;
+        
+        function first(c) {
+            dx = (data.to.x - c.x) / frames;
+            dy = (data.to.y - c.y) / frames;
+        }
+        
+        if (data && data.to) {
+            time = isNaN(data.time) ? 1 : Number(data.time);
+            frames = Action.toFrames(time);
+            
+            step = function(c) {
+                c.x += dx;
+                c.y += dy;
+            }
+            
+            calcAction = new Action(first, 0);
+            moveAction = new Action(step, time);
+            
+            return Action.Sequence([calcAction, moveAction], completion);
+        }
+        
+        step = function(c) {
             c.x += c.dx;
             c.y += c.dy;
         };
-        return new Action(step);
+        
+        return new Action(step, (data && data.time), completion);
     };
 
 
@@ -531,7 +741,7 @@ var Bamse = Bamse || function() {
      
      }
      */
-    Action.Accelerate = function(data, time, completion) {
+    Action.Accelerate = function(data, completion) {
         
         data = data || {};
         
@@ -544,7 +754,7 @@ var Bamse = Bamse || function() {
             step;
         
         if (ddx == 0 && ddy == 0) {
-            step = function() {};
+            step = noop;
         } else {
             step = function(c) {
                 
@@ -558,14 +768,14 @@ var Bamse = Bamse || function() {
                 }
                 if (dyDir == ddyDir && dy * dyDir > maxDy) {
                     dy = maxDy * dyDir;
-                    console.log("maxy");
+                    // console.log("maxy");
                 }
                 
                 c.dx = dx;
                 c.dy = dy;
             };
         }
-        return new Action(step, time, completion);
+        return new Action(step, data.time, completion);
     };
 
 
@@ -578,7 +788,7 @@ var Bamse = Bamse || function() {
      restitution: ratio of preserved velocity after bounce, Number or {x:y:}, defaults to 1
      }
      */
-    Action.Bounce = function(data) {
+    Action.Bounce = function(data, completion) {
         
         data = data || {};
         
@@ -618,7 +828,7 @@ var Bamse = Bamse || function() {
             }
         };
         
-        return new Action(step, -1);
+        return new Action(step, data.time, completion);
     };
 
 
@@ -628,14 +838,14 @@ var Bamse = Bamse || function() {
      y: vertical friction
      }
      */
-    Action.Friction = function(data, time, completion) {
+    Action.Friction = function(data, completion) {
         
         var frictionX = Math.abs(Number(data && data.x)) || 0,
             frictionY = Math.abs(Number(data && data.y)) || 0,
             step;
         
         if (frictionX == 0 && frictionY == 0) {
-            step = function() {};
+            step = noop;
         } else {
             step = function(c) {
                 
@@ -652,7 +862,7 @@ var Bamse = Bamse || function() {
                 }
             };
         }
-        return new Action(step, time, completion);
+        return new Action(step, data.time, completion);
     };
 
 
@@ -667,13 +877,16 @@ var Bamse = Bamse || function() {
      OR
      data = total rotation (in degrees)
      */
-    Action.Rotate = function(data, time, completion) {
+    Action.Rotate = function(data, completion) {
         
         var totalRotation, rotationSpeed,
+            time = data.time, // isNaN(data.time) ? 1 : Number(data.time),
             frames = (time > 0) ? Action.toFrames(time) : Action.FPS;
         
         if (Number(data)) {
             totalRotation = Number(data);
+        } else if (data.rotation) {
+            totalRotation = Number(data.rotation);
         } else if (data.speed) {
             totalRotation = Number(data.speed) * ((time > 0) ? time : 1);
         }
@@ -701,33 +914,29 @@ var Bamse = Bamse || function() {
      OR
      data = relative scale
      */
-    Action.Scale = function(data, time, completion) {
+    Action.Scale = function(data, completion) {
         
         var dstScale = Number((data && data.speed) || data) || 0, // TODO: don't use data.speed like this!
+            time = isNaN(data.time) ? 1 : Number(data.time),
             scalingSpeed,
-            firstAction;
+            calcAction, scaleAction;
         
         function first(c) {
             scalingSpeed = (dstScale - c.scale) / Action.toFrames(time);
             // console.log("first", scalingSpeed);
         }
-        
-        function next(c) {
-            c.addAction(new Action(step, time, completion));
-            // console.log("next");
-        }
-        
         function step(c) {
             c.scale += scalingSpeed;
             // console.log("step");
         }
         
-        firstAction = new Action(first, 0, next);
+        calcAction = new Action(first, 0);
+        scaleAction = new Action(step, time);
         
-        return firstAction;
+        return Action.Sequence([calcAction, scaleAction], completion);
     };
 
-    Action.Animate = function(data, time, completion) {
+    Action.Animate = function(data, completion) {
         /*
          var sprite,
          imageIndex = Number(data.first) || 0,
@@ -767,37 +976,34 @@ var Bamse = Bamse || function() {
             c.spriteIndex = imageIndex | 0;
         }
         
-        return new Action(step, time, completion);
+        return new Action(step, data.time, completion);
     };
 
-    Action.FadeToAlpha = function(data, time, completion) {
+    Action.FadeToAlpha = function(data, completion) {
         
-        var dstAlpha = Number(data) || 0,
+        var dstAlpha = Number(data.alpha || data) || 0,
+            time = isNaN(data.time) ? 1 : Number(data.time),
             fadeSpeed,
-            firstAction;
+            calcAction, fadeAction;
         
         function first(c) {
             fadeSpeed = (dstAlpha - c.alpha) / Action.toFrames(time);
         }
-        
-        function next(c) {
-            c.addAction(new Action(step, time, completion));
-        }
-        
         function step(c) {
             c.alpha += fadeSpeed;
         }
         
-        firstAction = new Action(first, 0, next);
+        calcAction = new Action(first, 0);
+        fadeAction = new Action(step, time);
         
-        return firstAction;
+        return Action.Sequence([calcAction, fadeAction], completion);
     };
 
     Action.FadeIn = function(time, completion) {
-        return Action.FadeToAlpha(1, time, completion);
+        return Action.FadeToAlpha({alpha:1, time:time}, completion);
     };
     Action.FadeOut = function(time, completion) {
-        return Action.FadeToAlpha(0, time, completion);
+        return Action.FadeToAlpha({alpha:0, time:time}, completion);
     };
     
     return {
