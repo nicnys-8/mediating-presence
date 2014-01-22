@@ -55,7 +55,8 @@
     Action.Sequence = function({time:actions:} OR actions, completion)
     Action.Group = function({time:actions:} OR actions, completion)
     Action.Wait = function(time OR {time:1}, completion)
-    Action.Move = function()
+    Action.SetProperty = function({key:value, ...}, completion)
+    Action.Move = function({to:{x:y:},time:} OR nothing)
     Action.Accelerate = function({x:0,y:0,maxDx:Inf,maxDy:Inf}, time, completion)
     Action.Bounce = function({minX/left:0,minY/top:0,maxX/right:DEFAULT_WIDTH,maxY/bottom:DEFAULT_HEIGHT, restitution:1/{x:1,y:1}}, completion)
     Action.Friction = function(friction || {x:0,y:0}, time, completion)
@@ -66,6 +67,11 @@
     Action.FadeIn = function(time, completion)
     Action.FadeOut = function(time, completion)
  
+    Action.CreateObject = function({obj:{description}, parent:"root/parent/node"}, completion)
+    Action.RemoveAction = function({actions:[]}, completion)
+    Action.ClearActions = function(data, completion)
+    Action.ChildAction = function({child:action:}, completion)
+    Action.Repeat = function({times:action:}, completion)
  }
 */
 
@@ -123,6 +129,399 @@ var Bamse = Bamse || function() {
         return array;
     }
     
+    function capitalise(string) {
+        return string.charAt(0).toUpperCase() + string.slice(1);
+    }
+    
+    function Proxy(target, handler) {
+        var prop, i, caps, parent, func;
+        
+        handler = handler || {};
+        parent = handler.parent || {};
+        parent.parent = target.parent || null;
+        
+        for (i in target) {
+            
+            if (i === "parent") {
+                continue;
+            }
+            
+            prop = target[i];
+            if (typeof prop === "function") {
+                func = wrapFunction(prop);
+            } else {
+                /*caps = capitalise(i);
+                handler["get" + caps] = getter(i);
+                handler["set" + caps] = setter(i);*/
+                func = wrapProperty(i);
+            }
+            
+            if (parent[i]) {
+                console.warn("Namespace collision, skipping property " + i + "...");
+            } else {
+                parent[i] = (typeof prop === "function") ? prop : func;
+            }
+            if (!handler[i]) {
+                handler[i] = func;
+            }
+        }
+        
+        function wrapFunction(func) {
+            return function() {
+                return func.apply(/*handler, arguments); /*/ target, arguments);
+            };
+        }
+        function wrapProperty(name) {
+            return function(val) {
+                if (arguments.length > 0) {
+                    target[name] = val;
+                }
+                return target[name];
+            };
+        }
+        /*
+        function getter(name) {
+            return function() {
+                return target[name];
+            };
+        }
+        function setter(name) {
+            return function(val) {
+                target[name] = val;
+            };
+        }
+         */
+        handler.parent = parent;
+        return handler;
+    }
+    
+    function SafeList() {
+        
+        var objects = [],
+            objectsById = {},
+            removedObjects = [],
+            newObjects = [];
+        
+        this.add = function(newObj) {
+            if (newObj) {
+                
+                newObjects.push(newObj);
+                
+                // Replace old object if one with the same id exists
+                var oldObj = objectsById[newObj.id];
+                if (oldObj) {
+                    removedObjects.push(oldObj);
+                    // arrayRemove(objects, oldObj);
+                }
+                if (newObj.id) {
+                    objectsById[newObj.id] = newObj;
+                }
+            }
+        };
+        
+        this.remove = function(obj) {
+            
+            if (isString(obj)) {
+                obj = objectsById[obj];
+            }
+            
+            if (obj) {
+                removedObjects.push(obj);
+                // delete objectsById[obj.id];
+                return true;
+            }
+            return false;
+        };
+        
+        this.empty = function() {
+            for (var i in objects) {
+                removedObjects.push(objects[i]);
+            }
+            objectsById = {};
+        };
+        
+        this.count = function() {
+            return objects.length; // + newObjects.length - removedObjects.length; // eller?
+        };
+        
+        this.flush = function() {
+            
+            var i, obj;
+            
+            for (i in removedObjects) {
+                obj = removedObjects[i];
+                arrayRemove(objects, obj);
+                
+                if (objectsById[obj.id] === obj) {
+                    delete objectsById[obj.id];
+                }
+            }
+            removedObjects.length = 0;
+            
+            for (i in newObjects) {
+                obj = newObjects[i];
+                objects.push(obj);
+                
+                if (obj.id) {
+                    objectsById[obj.id] = obj;
+                }
+            }
+            newObjects.length = 0;
+        };
+        
+        this.forEach = function(func) {
+            for (var i = 0; i < objects.length; i++) {
+                func(objects[i], i);
+            }
+        };
+        
+        this.objectWithId = function(name) {
+            return objectsById[name];
+        };
+        this.objectAtIndex = function(index) {
+            return objects[index];
+        };
+    }
+    
+    
+    function Node(id) {
+        
+        var children = new SafeList(),
+            actions = new SafeList(),
+            me = this;
+        
+        this.scene = null;
+        this.parent = null;
+        this.children = children;
+        this.actions = actions;
+        
+        this.id = id || uniqueName();
+        
+        this.spriteName = null;
+        this.spriteIndex = 0;
+        this.alpha = 1;
+        this.visible = true;
+        this.image = null; // Last rendered image
+        
+        this.x = 0;
+        this.y = 0;
+        this.dx = 0;
+        this.dy = 0;
+        this.scale = 1;
+        this.rotation = 0; // not currently in use
+        
+        this.responseId = null;
+        this.responseType = null;
+        this.responseUrl = null;
+        
+        // TODO: Change to Controller objects or onEvent functions instead
+        this.control = {
+            clickable : false,
+            draggable : false,
+            isDragged : false,
+            dragOffset : {x:0, y:0}
+        };
+        
+        this.addObject = function(obj, name) {
+            if (obj) {
+                obj.id = name || obj.id;
+                children.add(obj);
+                obj.parent = this;
+                obj.scene = this.scene;
+            }
+        };
+        
+        this.removeObject = function(obj) {
+            if (children.remove(obj)) {
+                obj.parent = null;
+                obj.scene = null;
+            }
+        };
+        
+        this.addAction = function(action, name) {
+            if (action) {
+                action.id = name || action.id;
+                actions.add(action);
+            }
+        };
+        
+        this.removeAction = function(action) {
+            actions.remove(action);
+        };
+        
+        this.update = function() {
+            
+            actions.flush();
+            children.flush();
+            
+            actions.forEach(runAction);
+            children.forEach(updateChild);
+        };
+        
+        function runAction(action) {
+            action.run(me);
+        }
+        function updateChild(child) {
+            child.update();
+        }
+        
+        this.render = function(context, sprites) {
+            
+            var sprite, w, h, img;
+
+            function renderChild(child) {
+                child.render(context, sprites);
+            }
+            
+            sprite = sprites[this.spriteName];
+            
+            if (sprite) {
+                this.spriteIndex = this.spriteIndex % sprite.length;
+                img = sprite[this.spriteIndex];
+            } else {
+                img = null;
+            }
+                
+            context.save();
+            context.translate(this.x, this.y);
+            context.rotate(this.rotation);
+            context.scale(this.scale, this.scale);
+            context.globalAlpha *= this.alpha;
+            
+            if (img) {
+                w = isNaN(this.width) ? img.width : this.width; // * this.scale;
+                h = isNaN(this.height) ? img.height: this.height; // * this.scale;
+                context.drawImage(img, -w * 0.5, -h * 0.5, w, h);
+                this.image = img;
+            }
+            if (children.count()) {
+                children.forEach(renderChild);
+            }
+            context.restore();
+        };
+        
+        this.resetTransform = function() {
+            this.rotation = 0;
+            this.scale = 1;
+            this.x = 0;
+            this.y = 0;
+            this.alpha = 1;
+        };
+    }
+    
+    Node.prototype.find = function(name) {
+        
+        var scene = this.scene,
+            child,
+            root;
+        
+        if (scene) {
+            root = scene.getRootNode();
+        } else {
+            root = this;
+            while (root.parent) {
+                root = root.parent;
+            }
+        }
+        
+        if (Array.isArray(name)) {
+            child = this;
+            for (i = 0; i < name.length; i++) {
+                switch (parent[i]) {
+                    case "/":
+                        child = root;
+                        break;
+                    case "..":
+                        child = child.parent;
+                        break;
+                    default:
+                        child = child.children.getObjectById(name);
+                        break;
+                }
+                if (!child) {
+                    break;
+                }
+            }
+        } else if (isString(name)) {
+            child = this.children.getObjectById(name);
+        }
+        
+        return child || this;
+    };
+    
+    /**
+     */
+    Node.prototype.containsPoint = function(px, py) {
+        
+        // TODO: Transform point to root node coordinates!?
+        var w = (isNaN(this.width) ? this.image.width : this.width) * this.scale * 0.5,
+            h = (isNaN(this.height) ? this.image.height : this.height) * this.scale * 0.5,
+            left = this.x - w,
+            right = this.x + w,
+            top = this.y - h,
+            bottom = this.y + h;
+        
+        return (px >= left && px <= right && py >= top && py <= bottom);
+    };
+    
+    Node.createFromDescription = function(data, templates) {
+        
+        var obj = new Node(data.id),
+            template = (templates && templates[data.template]) || {},
+            sprite = data.sprite || template.sprite,
+            inputs = [data, template];
+        
+        if (sprite) {
+            // data.sprite can be either just the name OR {name:index:}
+            obj.spriteName = sprite.name || sprite;
+            obj.spriteIndex = sprite.index || obj.spriteIndex;
+        }
+        
+        obj.x = poda(inputs, "x", Math.random() * DEFAULT_WIDTH);
+        obj.y = poda(inputs, "y", Math.random() * DEFAULT_HEIGHT);
+        
+        var dir = poda(inputs, "dir", Math.random() * Math.PI * 2);
+        obj.dx = poda(inputs, "dx", Math.cos(dir) * poda(inputs, "speed", 5));
+        obj.dy = poda(inputs, "dy", Math.sin(dir) * poda(inputs, "speed", 5));
+        
+        obj.scale = poda(inputs, "scale", obj.scale);
+        obj.rotation = poda(inputs, "rotation", obj.rotation);
+        obj.alpha = poda(inputs, "alpha", obj.alpha);
+        
+        obj.width = poda(inputs, "width");
+        obj.height = poda(inputs, "height");
+        
+        obj.control.clickable = poda(inputs, "clickable");
+        obj.control.draggable = poda(inputs, "draggable");
+        
+        if (data.response) {
+            obj.responseId = data.response.id;
+            obj.responseType = data.response.type;
+            obj.responseUrl = data.response.url;
+            
+            obj.control.clickable = obj.responseType === "click";
+        }
+        
+        obj.visible = true;
+        
+        function addActions(a) {
+            for (var i in a) {
+                var action = Action.createFromDescription(a[i], templates);
+                if (action) {
+                    obj.addAction(action);
+                }
+            }
+        }
+        
+        if (template.actions) {
+            addActions(template.actions);
+        }
+        if (data.actions) {
+            addActions(data.actions);
+        }
+        
+        return obj;
+    };
     
     // ********************
     // Scene constructor
@@ -130,20 +529,22 @@ var Bamse = Bamse || function() {
     
     function Scene(containerId) {
         
-        var ASPECT = DEFAULT_WIDTH / DEFAULT_HEIGHT,
+        var width = DEFAULT_WIDTH,
+            height = DEFAULT_HEIGHT,
+            aspect = width / height,
             container = document.getElementById(containerId),
-            children, canvas, context,
+            domChildren, canvas, context,
             canvasScale = 1,
             sprites = {},
-            objects = [],
-            objectsById = {},
             templates = {},
-            eventListeners = {};
+            eventListeners = {},
+            rootNode = new Node("root");
         
-        children = container.getElementsByTagName("canvas");
+        rootNode.scene = this;
+        domChildren = container.getElementsByTagName("canvas");
         
-        if (children && children.length > 0) {
-            canvas = children[0];
+        if (domChildren && domChildren.length > 0) {
+            canvas = domChildren[0];
         } else {
             canvas = document.createElement("canvas");
             container.appendChild(canvas);
@@ -159,11 +560,11 @@ var Bamse = Bamse || function() {
                 h = w / ASPECT;
              */
             var h = container.offsetHeight,
-                w = h * ASPECT;
+                w = h * aspect;
             
             canvas.width = w;
             canvas.height = h;
-            canvasScale = w / DEFAULT_WIDTH;
+            canvasScale = w / width;
             
             canvas.style.marginLeft = -w * 0.5 + "px";
             canvas.style.marginTop = -h * 0.5 + "px";
@@ -172,36 +573,65 @@ var Bamse = Bamse || function() {
         resizeCanvas();
         window.addEventListener("resize", resizeCanvas, false);
         
+        this.control = {
+            clickable : false,
+            draggable : false,
+            isDragged : false,
+            dragOffset : {x:0, y:0}
+        };
+        
         function handleClick(e) {
             var mx = e.offsetX / canvasScale,
                 my = e.offsetY / canvasScale;
             
-            // console.log(mx,my);
-            
-            for (var i in objects) {
-                var obj = objects[i];
-                if (obj.visible && obj.image) {
-                    
-                    var w = obj.image.width * obj.scale * 0.5,
-                        h = obj.image.height * obj.scale * 0.5,
-                        left = obj.x - w,
-                        right = obj.x + w,
-                        top = obj.y - h,
-                        bottom = obj.y + h;
-                    
-                    if (mx >= left &&
-                        mx <= right &&
-                        my >= top &&
-                        my <= bottom) {
-                        console.log("click" + i);
-                        triggerEvent("click", obj);
-                    }
-                }
-            }
+            rootNode.children.forEach(function(node, i) {
+                                      if (node.control.clickable && node.containsPoint(mx, my)) {
+                                            // console.log("click" + i);
+                                            triggerEvent("click", node);
+                                      }});
         }
         canvas.onclick = handleClick;
         
+        function handleMouseDown(e) {
+            var mx = e.offsetX / canvasScale,
+                my = e.offsetY / canvasScale;
+            
+            rootNode.children.forEach(function(node, i) {
+                                        if (node.control.draggable && node.containsPoint(mx, my)) {
+                                            // console.log("down" + i);
+                                            triggerEvent("mousedown", node);
+                                            node.control.isDragged = true;
+                                            node.control.dragOffset.x = node.x - mx;
+                                            node.control.dragOffset.y = node.y - my;
+                                        }
+                                      });
+        }
+        function handleMouseMove(e) {
+            var mx = e.offsetX / canvasScale,
+                my = e.offsetY / canvasScale;
+            
+            rootNode.children.forEach(function(node, i) {
+                                        if (node.control.isDragged) {
+                                            // console.log("move" + i);
+                                            triggerEvent("mousemove", node);
 
+                                            node.x = mx + node.control.dragOffset.x;
+                                            node.y = my + node.control.dragOffset.y;
+                                        }
+                                      });
+        }
+        function handleMouseUp(e) {
+            rootNode.children.forEach(function(node, i) {
+                                        node.control.isDragged = false;
+                                        // console.log("up" + i);
+                                        triggerEvent("mouseup", node);
+                                      });
+        }
+        canvas.onmousedown = handleMouseDown;
+        canvas.onmousemove = handleMouseMove;
+        canvas.onmouseup = handleMouseUp;
+        
+        
         function addEventListener(name, callback) {
             var listeners = eventListeners[name] || [];
             listeners.push(callback);
@@ -248,11 +678,17 @@ var Bamse = Bamse || function() {
                 return canvas;
             }
             
+            // Resize the canvas?
+            width = Number(data.canvas && data.canvas.width) || width;
+            height = Number(data.canvas && data.canvas.height) || height;
+            aspect = width / height;
+            resizeCanvas();
+            
             // Clear old objects and sprites
-            objects = [];
-            objectsById = {};
             sprites = {};
             templates = {};
+            rootNode = new Node("scene");
+            rootNode.scene = this;
             
             var name, desc, sprite, i;
             for (name in data.sprites) {
@@ -267,9 +703,9 @@ var Bamse = Bamse || function() {
                     for (i in desc) {
                         sprite.push(imageWithSrc(desc[i]));
                     }
-                } else if (desc.rows && desc.cols && desc.frames) {
+                } /*else if (desc.rows && desc.cols && desc.frames) {
                     // extract subimages
-                }
+                }*/
                 
                 if (sprite) {
                     sprites[name] = sprite;
@@ -284,7 +720,7 @@ var Bamse = Bamse || function() {
             // Set the title
             if (data.title) {
                 // TODO: Create the title element instead?
-                var header = document.createElement("h1"),
+                var header = document.createElement("h2"),
                     text = document.createTextNode(data.title),
                     titleContainer = document.getElementById("title");
                 
@@ -299,88 +735,53 @@ var Bamse = Bamse || function() {
             // file = obj;
         };
         
-        this.addObject = function(newObj) {
-            if (newObj) {
-                objects.push(newObj);
-                
-                // Replace old object if one with the same id exists
-                var oldObj = objectsById[newObj.id];
-                if (oldObj) {
-                    arrayRemove(objects, oldObj);
-                }
-                objectsById[newObj.id] = newObj;
-            }
+        this.addObject = function(obj) {
+            rootNode.addObject(obj);
+            obj.scene = this;
         };
         
         this.removeObject = function(obj) {
-            
-            if (isString(obj)) {
-                obj = objectsById[obj];
-            }
-            
-            if (obj) {
-                arrayRemove(objects, obj);
-                delete objectsById[obj.id];
-            }
+            rootNode.removeObject(obj);
+            obj.scene = null;
+        };
+        
+        this.addAction = function(action) {
+            rootNode.addAction(action);
+        };
+        
+        this.removeAction = function(action) {
+            rootNode.removeAction(action);
         };
         
         this.update = function() {
-           
-            var i, len = objects.length, obj;
-            
-            for (i = 0; i < len; i++) {
-                obj = objects[i];
-                obj.runActions();
-            }
+            rootNode.update();
         };
         
         this.render = function() {
-            
-            var i, len = objects.length, obj, sprite,
-                x, y, w, h, img;
-            
-            context.clearRect(0, 0, canvas.width, canvas.height);
-            
-            for (i = 0; i < len; i++) {
-                
-                obj = objects[i];
-                obj.image = null;
-                
-                if (obj.visible && obj.alpha > 0) {
-                    
-                    sprite = sprites[obj.spriteName];
-                    
-                    if (sprite) {
-                        
-                        obj.spriteIndex = obj.spriteIndex % sprite.length;
-                        
-                        img = sprite[obj.spriteIndex];
-                        
-                        if (img) {
-                            x = obj.x * canvasScale;
-                            y = obj.y * canvasScale;
-                            w = img.width * obj.scale * canvasScale;
-                            h = img.height * obj.scale * canvasScale;
-                            
-                            context.save();
-                            context.translate(x, y);
-                            context.rotate(obj.rotation);
-                            context.globalAlpha = obj.alpha;
-                            context.drawImage(img, -w * 0.5, -h * 0.5, w, h);
-                            context.restore();
-                            
-                            obj.image = img;
-                        }
-                    }
-                }
-            }
+            // context.clearRect(0, 0, canvas.width, canvas.height);
+            context.fillStyle = "white";
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.save();
+            context.scale(canvasScale, canvasScale);
+            rootNode.render(context, sprites);
+            context.restore();
         };
         
         this.getTemplates = function() {
             return templates;
         };
+        this.getRootNode = function() {
+            return rootNode;
+        };
         this.getObjectById = function(id) {
-            return objectsById[id];
+            return rootNode.children.objectWithId(id);
+        };
+        
+        this.createAction = function(desc) {
+            return Action.createFromDescription(desc, templates);
+        };
+        this.createObject = function(desc) {
+            return Node.createFromDescription(desc, templates);
         };
         
         this.canvas = canvas;
@@ -389,173 +790,34 @@ var Bamse = Bamse || function() {
     }
     Scene.createFromDescription = function(desc) {};
     
-
-    // ********************
-    // Character constructor
-    // ********************
-
-    function Character(id) {
-        
-        this.id = id || uniqueName();
-        
-        this.spriteName = null;
-        this.spriteIndex = 0;
-        this.alpha = 1;
-        this.visible = true;
-        this.image = null; // Last rendered image
-        
-        this.x = 0;
-        this.y = 0;
-        this.dx = 0;
-        this.dy = 0;
-        this.scale = 1;
-        this.rotation = 0; // not currently in use
-        
-        this.responseId = null;
-        this.responseType = null;
-        
-        var actions = [],
-            actionsByName = {},
-            newActions = [],
-            removedActions = [];
-        
-        this.addAction = function(action, name) {
-            
-            // Check if action with the same name already exists
-            if (name) {
-                var oldAction = actionsByName[name];
-                
-                // Replace it if it exists
-                if (oldAction) {
-                    this.removeAction(oldAction);
-                }
-                
-                actionsByName[name] = action;
-            }
-            
-            newActions.push(action);
-        };
-        
-        /**
-         @param action - a running Action or its name string
-         */
-        this.removeAction = function(action) {
-            
-            if (isString(action)) {
-                var namedAction = actionsByName[action];
-                if (namedAction) {
-                    removedActions.push(namedAction);
-                    delete actionsByName[action];
-                }
-            } else {
-                // Assume action is instance of Action
-                removedActions.push(action);
-            }
-        };
-        
-        this.clearActions = function() {
-            removedActions.length = 0;
-            newActions.length = 0;
-            actions.length = 0;
-            actionsByName = {};
-        };
-        
-        this.runActions = function() {
-            
-            var i, index, action;
-            
-            for (i in removedActions) {
-                action = removedActions[i];
-                index = actions.indexOf(action);
-                if (index >= 0) {
-                    actions.splice(index, 1);
-                }
-            }
-            removedActions.length = 0;
-            
-            for (i in newActions) {
-                action = newActions[i];
-                actions.push(action);
-            }
-            newActions.length = 0;
-            
-            for (i in actions) {
-                action = actions[i];
-                action.run(this);
-            }
-        };
-        
-        this.resetTransform = function() {
-            this.rotation = 0;
-            this.scale = 1;
-            this.x = 0;
-            this.y = 0;
-        };
+    function Controller() {
     }
-
-    Character.createFromDescription = function(data, templates) {
-        
-        var obj = new Character(data.id),
-            template = templates[data.template] || {},
-            sprite = data.sprite || template.sprite,
-            inputs = [data, template];
-        
-        if (sprite) {
-            // data.sprite can be either just the name OR {name:index:}
-            obj.spriteName = sprite.name || sprite;
-            obj.spriteIndex = sprite.index || obj.spriteIndex;
+    
+    Controller.Draggable = function(obj) {
+        function mouseDown(e) {
+            
         }
-        
-        obj.x = poda(inputs, "x", Math.random() * DEFAULT_WIDTH);
-        obj.y = poda(inputs, "y", Math.random() * DEFAULT_HEIGHT);
-        
-        var dir = Math.random() * Math.PI * 2;
-        obj.dx = poda(inputs, "dx", Math.cos(dir) * poda(inputs, "speed", 5));
-        obj.dy = poda(inputs, "dy", Math.sin(dir) * poda(inputs, "speed", 5));
-        
-        obj.scale = poda(inputs, "scale", obj.scale);
-        obj.rotation = poda(inputs, "rotation", obj.rotation);
-        obj.alpha = poda(inputs, "alpha", obj.alpha);
-        
-        if (data.response) {
-            obj.responseId = data.response.id;
-            obj.responseType = data.response.type;
-        }
-        obj.visible = true;
-        
-        function addActions(a) {
-            for (var i in a) {
-                var action = Action.createFromDescription(a[i]);
-                if (action) {
-                    obj.addAction(action);
-                }
-            }
-        }
-        
-        if (template.actions) {
-            addActions(template.actions);
-        }
-        if (data.actions) {
-            addActions(data.actions);
-        }
-        
-        return obj;
     };
-
+    
     
     // ********************
     // Character actions
     // ********************
 
-    function Action(stepFunc, time, completion) {
+    function Action(stepFunc, time, completion, setup) {
         
         var completions = [],
             forever = time < 0,
             totalFrames = Action.toFrames(time),
-            frames = totalFrames;
+            frames = totalFrames,
+            needsSetup = true;
         
         if (typeof stepFunc !== "function") {
             stepFunc = noop;
+        }
+        if (typeof setup !== "function") {
+            setup = noop;
+            needsSetup = false;
         }
         
         function runCompletions(obj) {
@@ -567,6 +829,7 @@ var Bamse = Bamse || function() {
         
         this.reset = function() {
             frames = totalFrames;
+            needsSetup = true;
         };
         
         this.addCompletion = function(callback) {
@@ -577,6 +840,12 @@ var Bamse = Bamse || function() {
         
         this.run = function(obj) {
             var done = false;
+            
+            if (needsSetup) {
+                setup(obj);
+                needsSetup = false;
+            }
+            
             if (forever) {
                 done = stepFunc(obj);
             } else {
@@ -607,16 +876,34 @@ var Bamse = Bamse || function() {
      @param name - name of the action
      @param args - list of arguments to the constructor/factory method
      */
-    Action.createFromDescription = function(desc) {
-        var name = desc.name,
-            args = desc.args,
-            constr = Action[name];
-        if (constr) {
-            return constr.apply(this, args);
+    Action.createFromDescription = function(desc, templates) {
+        
+        var action;
+        
+        if (templates && desc.template) {
+            var template = templates[desc.template];
+            if (template) {
+                action = Action.createFromDescription(template, templates);
+            }
+        } else {
+            var name = desc.name,
+                args = desc.args,
+                constr = Action[name];
+            if (constr) {
+                action = constr.apply(this, args);
+            }
         }
+        
+        if (action) {
+            action.id = desc.id;
+        }
+        
+        return action;
     };
-
+    
+    
     Action.Sequence = function(data, completion) {
+        
         var actions = [],
             action, index = 0, i,
             time = Number(data.time) || Infinity,
@@ -633,6 +920,13 @@ var Bamse = Bamse || function() {
             }
         }
         
+        function setup(c) {
+            for (var i = 0; i < actions.length; i++) {
+                actions[i].reset();
+            }
+            index = 0;
+        }
+        
         function swap(c) {
             index++;
         }
@@ -644,7 +938,7 @@ var Bamse = Bamse || function() {
             actions[index].run(c);
         }
         
-        return new Action(step, time, completion);
+        return new Action(step, time, completion, setup);
     };
     
     Action.Group = function(data, completion) {
@@ -669,6 +963,14 @@ var Bamse = Bamse || function() {
             }
         }
         
+        function setup(c) {
+            for (i = 0; i < actions.length; i++) {
+                run[i] = true;
+                actions[i].reset();
+                doneCount = 0;
+            }
+        }
+        
         function doneFunc(index) {
             return function() {
                 run[index] = false;
@@ -687,20 +989,36 @@ var Bamse = Bamse || function() {
             }
         }
         
-        return new Action(step, time, completion);
+        return new Action(step, time, completion, setup);
     };
 
     Action.Wait = function(data, completion) {
         var time = Number(data) || Number(data.time) || 1;
         return new Action(null, time, completion);
-    }
+    };
+    
+    var ALLOWED_NUMBER_PROPERTIES = ["x", "y", "dx", "dy", "width", "height", "scale", "alpha", "rotation", "spriteIndex" ],
+        ALLOWED_STRING_PROPERTIES = ["spriteName"];
+    
+    Action.SetProperty = function(data, completion) {
+        function step(c) {
+            for (var prop in data) {
+                if (ALLOWED_STRING_PROPERTIES.indexOf(prop) >= 0) {
+                    c[prop] = String(data[prop]);
+                } else if (ALLOWED_NUMBER_PROPERTIES.indexOf(prop) >= 0) {
+                    c[prop] = Number(data[prop]) || 0;
+                }
+            }
+        }
+        return new Action(step, 0, completion);
+    };
     
     /**
      */
     Action.Move = function(data, completion) {
-        var step, dx, dy, time, frames, calcAction, moveAction;
+        var step, dx, dy, time, frames;
         
-        function first(c) {
+        function setup(c) {
             dx = (data.to.x - c.x) / frames;
             dy = (data.to.y - c.y) / frames;
         }
@@ -714,10 +1032,7 @@ var Bamse = Bamse || function() {
                 c.y += dy;
             }
             
-            calcAction = new Action(first, 0);
-            moveAction = new Action(step, time);
-            
-            return Action.Sequence([calcAction, moveAction], completion);
+            return new Action(step, time, completion, setup);
         }
         
         step = function(c) {
@@ -918,10 +1233,9 @@ var Bamse = Bamse || function() {
         
         var dstScale = Number((data && data.speed) || data) || 0, // TODO: don't use data.speed like this!
             time = isNaN(data.time) ? 1 : Number(data.time),
-            scalingSpeed,
-            calcAction, scaleAction;
+            scalingSpeed;
         
-        function first(c) {
+        function setup(c) {
             scalingSpeed = (dstScale - c.scale) / Action.toFrames(time);
             // console.log("first", scalingSpeed);
         }
@@ -930,10 +1244,7 @@ var Bamse = Bamse || function() {
             // console.log("step");
         }
         
-        calcAction = new Action(first, 0);
-        scaleAction = new Action(step, time);
-        
-        return Action.Sequence([calcAction, scaleAction], completion);
+        return new Action(step, time, completion, setup);
     };
 
     Action.Animate = function(data, completion) {
@@ -983,20 +1294,15 @@ var Bamse = Bamse || function() {
         
         var dstAlpha = Number(data.alpha || data) || 0,
             time = isNaN(data.time) ? 1 : Number(data.time),
-            fadeSpeed,
-            calcAction, fadeAction;
+            fadeSpeed;
         
-        function first(c) {
+        function setup(c) {
             fadeSpeed = (dstAlpha - c.alpha) / Action.toFrames(time);
         }
         function step(c) {
-            c.alpha += fadeSpeed;
+            c.alpha = Math.max(0, c.alpha + fadeSpeed);
         }
-        
-        calcAction = new Action(first, 0);
-        fadeAction = new Action(step, time);
-        
-        return Action.Sequence([calcAction, fadeAction], completion);
+        return new Action(step, time, completion, setup);
     };
 
     Action.FadeIn = function(time, completion) {
@@ -1006,30 +1312,170 @@ var Bamse = Bamse || function() {
         return Action.FadeToAlpha({alpha:0, time:time}, completion);
     };
     
+    Action.CreateObject = function(data, completion) {
+        function createObject(node) {
+            var scene = node.scene,
+                parent, obj, i;
+            
+            obj = scene ? scene.createObject(data.obj) : Node.createFromDescription(data.obj);
+            parent = node.find(data.parent);
+            parent.addObject(obj);
+        }
+        return new Action(createObject, 0, completion);
+    };
+    
+    Action.RemoveAction = function(data, completion) {
+        function step(node) {
+            for (var i in data.actions) {
+                node.removeAction(data.actions[i]);
+            }
+        }
+        return new Action(step, 0, completion);
+    };
+    
+    Action.ClearActions = function(data, completion) {
+        function step(node) {
+            node.actions.empty();
+        }
+        return new Action(step, 0, completion);
+    };
+    
+    Action.ChildAction = function(data, completion) {
+
+        var child, childName = data.child,
+            action = data.action,
+            isDone = false,
+            isSetup = false;
+        
+        function setup(node) {
+            if (!isSetup) {
+                if (typeof (action && action.run) !== "function") {
+                    action = node.scene ? node.scene.createAction(action) : Action.createFromDescription(action);
+                }
+                action.addCompletion(done);
+                isSetup = true;
+            }
+            
+            child = node.find(childName);
+            action.reset();
+            isDone = false;
+        }
+        
+        function done(node) {
+            isDone = true;
+        }
+        
+        function step(node) {
+            if (child) {
+                action.run(child);
+            }
+            return isDone;
+        }
+        
+        return new Action(step, -1, completion, setup);
+    };
+    
+    Action.Repeat = function(data, completion) {
+        
+        var times = isNaN(data.times) ? Infinity : Math.max(data.times, 1),
+            totalTimes = times,
+            action = data.action,
+            isSetup = false;
+        
+        // if (data.action.template) { /* ... */ }
+        
+        function setup(node) {
+            if (!isSetup) {
+                if (typeof action.run !== "function") {
+                    action = node.scene.createAction(action);
+                }
+                action.addCompletion(repeat);
+                isSetup = true;
+            } else {
+                action.reset();
+            }
+            times = totalTimes;
+        }
+        function repeat(node) {
+            action.reset();
+            times--;
+        }
+        function step(node) {
+            if (times > 0) {
+                action.run(node);
+                return false;
+            }
+            return true;
+        }
+        
+        return new Action(step, -1, completion, setup);
+    };
+    
+    Action.Completions = {};
+    Action.Completions.Remove = function(obj) {
+        obj.scene.removeObject(obj);
+    }
+    
     return {
         Scene : Scene,
-        Character : Character,
+        Node : Node,
         Action : Action
     };
 }();
+
+/*
+ 
+ minified:
+ 
+var Bamse=Bamse||function(){function r(){}function m(a,f,e){var b,c,d=a.length;for(c=0;c<d;c++)if(b=a[c],b.hasOwnProperty(f))return b[f];return e}function s(a){return a&&Number(a)?0>a?-1:1:0}function v(){var a=[],f={},e=[],b=[];this.add=function(a){if(a){b.push(a);var d=f[a.id];d&&e.push(d);a.id&&(f[a.id]=a)}};this.remove=function(a){a+""===a&&(a=f[a]);return a?(e.push(a),delete f[a.id],!0):!1};this.empty=function(){for(var b in a)e.push(a[b]);f={}};this.count=function(){return a.length};this.flush=
+function(){var c,d;for(c in e){d=e[c];var h=a;d=h.indexOf(d);0<=d&&h.splice(d,1)}e.length=0;for(c in b)d=b[c],a.push(d);b.length=0};this.forEach=function(b){for(var d=0;d<a.length;d++)b(a[d],d)};this.objectWithId=function(a){return f[a]};this.objectAtIndex=function(b){return a[b]}}function p(a){function f(a){a.run(d)}function e(a){a.update()}var b=new v,c=new v,d=this;this.parent=this.scene=null;this.children=b;this.actions=c;this.id=a||(1E17*Math.random()).toFixed(0).toString();this.spriteName=null;
+this.spriteIndex=0;this.alpha=1;this.visible=!0;this.image=null;this.dy=this.dx=this.y=this.x=0;this.scale=1;this.rotation=0;this.responseUrl=this.responseType=this.responseId=null;this.addObject=function(a,c){a&&(a.id=c||a.id,b.add(a),a.parent=this)};this.removeObject=function(a){b.remove(a)&&(a.parent=null)};this.addAction=function(a,b){a&&(a.id=b||a.id,c.add(a))};this.removeAction=function(a){c.remove(a)};this.update=function(){c.flush();b.flush();c.forEach(f);b.forEach(e)};this.render=function(a,
+c){function d(b){b.render(a,c)}var e,f,g;(e=c[this.spriteName])?(this.spriteIndex%=e.length,g=e[this.spriteIndex]):g=null;a.save();a.translate(this.x,this.y);a.rotate(this.rotation);a.scale(this.scale,this.scale);a.globalAlpha*=this.alpha;g&&(e=g.width,f=g.height,a.drawImage(g,0.5*-e,0.5*-f,e,f),this.image=g);b.count()&&b.forEach(d);a.restore()};this.resetTransform=function(){this.rotation=0;this.scale=1;this.y=this.x=0;this.alpha=1}}function w(a){function f(){var a=b.offsetHeight,d=a*e;c.width=d;
+c.height=a;h=d/t;c.style.marginLeft=0.5*-d+"px";c.style.marginTop=0.5*-a+"px"}var e=t/u,b=document.getElementById(a),c,d,h=1,k={},l={},q={},n=new p("root");n.scene=this;(a=b.getElementsByTagName("canvas"))&&0<a.length?c=a[0]:(c=document.createElement("canvas"),b.appendChild(c));c.style.left="50%";c.style.top="50%";d=c.getContext("2d");f();window.addEventListener("resize",f,!1);c.onclick=function(a){var b=a.offsetX/h,c=a.offsetY/h;n.children.forEach(function(a,d){if(a.visible&&a.image){var e=a.image.width*
+a.scale*0.5,g=a.image.height*a.scale*0.5,f=a.x+e,l=a.y-g,g=a.y+g;if(b>=a.x-e&&b<=f&&c>=l&&c<=g&&(console.log("click"+d),e=q.click))for(f=0;f<e.length;f++)e[f](a)}})};this.addEventListener=this.on=function(a,b){var c=q[a]||[];c.push(b);q[a]=c};this.removeEventListener=this.off=function(a,b){var c;if(b){if(c=q[a])c=c.indexOf(b),0<=c&&q.splice(c,1)}else delete q[a]};this.load=function(a){function b(a){var c=new Image,d=document.createElement("canvas"),e=d.getContext("2d");c.onload=function(){d.width=
+c.width;d.height=c.height;e.drawImage(c,0,0,c.width,c.height)};c.src=a;return d}k={};l={};n=new p("scene");n.scene=this;var c,d,e,f;for(c in a.sprites){d=a.sprites[c];e=[];if(d+""===d)e.push(b(d));else if(Array.isArray(d))for(f in d)e.push(b(d[f]));e&&(k[c]=e)}for(f in a.templates)l[f]=a.templates[f];if(a.title&&(c=document.createElement("h2"),a=document.createTextNode(a.title),d=document.getElementById("title"))){for(;d.hasChildNodes();)d.removeChild(d.lastChild);c.appendChild(a);d.appendChild(c)}};
+this.addObject=function(a){n.addObject(a);a.scene=this};this.removeObject=function(a){n.removeObject(a);a.scene=null};this.addAction=function(a){n.addAction(a)};this.removeAction=function(a){n.removeAction(a)};this.update=function(){n.update()};this.render=function(){d.fillStyle="white";d.fillRect(0,0,c.width,c.height);d.save();d.scale(h,h);n.render(d,k);d.restore()};this.getTemplates=function(){return l};this.getRootNode=function(){return n};this.getObjectById=function(a){return n.children.objectWithId(a)};
+this.createAction=function(a){return g.createFromDescription(a,l)};this.createObject=function(a){return p.createFromDescription(a,l)};this.canvas=c;this.context=d;this.container=b}function g(a,f,e,b){var c=[],d=0>f,h=g.toFrames(f),k=h,l=!0;"function"!==typeof a&&(a=r);"function"!==typeof b&&(b=r,l=!1);this.reset=function(){k=h;l=!0};this.addCompletion=function(a){"function"===typeof a&&c.push(a)};this.run=function(e){var f=!1;l&&(b(e),l=!1);d?f=a(e):0<k?(k--,f=a(e)):f=!0;if(f){e.removeAction(this);
+for(var g in c)c[g](e)}};this.addCompletion(e)}var t=800,u=600;p.createFromDescription=function(a,f){function e(a){for(var c in a){var d=g.createFromDescription(a[c],f);d&&b.addAction(d)}}var b=new p(a.id),c=f&&f[a.template]||{},d=a.sprite||c.sprite,h=[a,c];d&&(b.spriteName=d.name||d,b.spriteIndex=d.index||b.spriteIndex);b.x=m(h,"x",Math.random()*t);b.y=m(h,"y",Math.random()*u);d=m(h,"dir",Math.random()*Math.PI*2);b.dx=m(h,"dx",Math.cos(d)*m(h,"speed",5));b.dy=m(h,"dy",Math.sin(d)*m(h,"speed",5));
+b.scale=m(h,"scale",b.scale);b.rotation=m(h,"rotation",b.rotation);b.alpha=m(h,"alpha",b.alpha);a.response&&(b.responseId=a.response.id,b.responseType=a.response.type,b.responseUrl=a.response.url);b.visible=!0;c.actions&&e(c.actions);a.actions&&e(a.actions);return b};w.createFromDescription=function(a){};g.FPS=60;g.toFrames=function(a){a=isNaN(a)?Infinity:Math.max(1,a*g.FPS);return isFinite(a)?a|0:a};g.createFromDescription=function(a,f){if(f&&a.template){var e=f[a.template];return e?g.createFromDescription(e,
+f):null}var e=a.args,b=g[a.name];if(b)return b.apply(this,e)};g.Sequence=function(a,f){function e(a){d++}var b=[],c,d=0,h,k=Number(a.time)||Infinity,l=a.actions||a;for(h=0;h<l.length;h++)c=l[h],"function"!==typeof c.run&&(c=g.createFromDescription(c)),c&&(c.addCompletion(e),b.push(c));return new g(function(a){if(d>=b.length)return!0;b[d].run(a)},k,f,function(a){for(a=0;a<b.length;a++)b[a].reset();d=0})};g.Group=function(a,f){function e(a){return function(){c[a]=!1;d++}}var b=[],c=[],d=0,h,k,l=Number(a.time)||
+Infinity,q=a.actions||a;for(k=0;k<q.length;k++)h=q[k],"function"!==typeof h.run&&(h=g.createFromDescription(h)),h&&(h.addCompletion(e(c.length)),c.push(!0),b.push(h));return new g(function(a){if(d>=b.length)return!0;for(k in b)c[k]&&b[k].run(a)},l,f,function(a){for(k=0;k<b.length;k++)c[k]=!0,b[k].reset(),d=0})};g.Wait=function(a,f){return new g(null,Number(a)||Number(a.time)||1,f)};var x="x y dx dy scale alpha rotation spriteIndex".split(" "),y=["spriteName"];g.SetProperty=function(a,f){return new g(function(e){for(var b in a)0<=
+y.indexOf(b)?e[b]=String(a[b]):0<=x.indexOf(b)&&(e[b]=Number(a[b])||0)},0,f)};g.Move=function(a,f){function e(b){c=(a.to.x-b.x)/k;d=(a.to.y-b.y)/k}var b,c,d,h,k;if(a&&a.to)return h=isNaN(a.time)?1:Number(a.time),k=g.toFrames(h),b=function(a){a.x+=c;a.y+=d},new g(b,h,f,e);b=function(a){a.x+=a.dx;a.y+=a.dy};return new g(b,a&&a.time,f)};g.Accelerate=function(a,f){a=a||{};var e=Number(a.x)||0,b=s(e),c=Number(a.y)||0,d=s(c),h=Math.abs(Number(a.maxDx))||Infinity,k=Math.abs(Number(a.maxDy))||Infinity;return new g(0==
+e&&0==c?r:function(a){var f=a.dx+e,g=a.dy+c,m=s(f),p=s(g);m===b&&f*m>h&&(f=h*m);p==d&&g*p>k&&(g=k*p);a.dx=f;a.dy=g},a.time,f)};g.Bounce=function(a,f){a=a||{};var e=Number(a.minX||a.left)||0,b=Number(a.minY||a.top)||0,c=Number(a.maxX||a.right)||t,d=Number(a.maxY||a.bottom)||u,h=1,k=1;a.restitution&&(isNaN(a.restitution)?(h=isNaN(a.restitution.x)?1:Number(a.restitution.x),k=isNaN(a.restitution.y)?1:Number(a.restitution.y)):h=k=Number(a.restitution));return new g(function(a){a.x<e?(a.x=e,a.dx=-a.dx*
+h):a.x>c&&(a.x=c,a.dx=-a.dx*h);a.y<b?(a.y=b,a.dy=-a.dy*k):a.y>d&&(a.y=d,a.dy=-a.dy*k)},a.time,f)};g.Friction=function(a,f){var e=Math.abs(Number(a&&a.x))||0,b=Math.abs(Number(a&&a.y))||0;return new g(0==e&&0==b?r:function(a){Math.abs(a.dx)<e?a.dx=0:a.dx=0>a.dx?a.dx+e:a.dx-e;Math.abs(a.dy)<b?a.dy=0:a.dy=0>a.dy?a.dy+b:a.dy-b},a.time,f)};g.Rotate=function(a,f){var e,b,c=a.time,d=0<c?g.toFrames(c):g.FPS;Number(a)?e=Number(a):a.rotation?e=Number(a.rotation):a.speed&&(e=Number(a.speed)*(0<c?c:1));a.radians||
+(e=e*Math.PI/180);b=e/d;return new g(function(a){a.rotation+=b},c,f)};g.Scale=function(a,f){var e=Number(a&&a.speed||a)||0,b=isNaN(a.time)?1:Number(a.time),c;return new g(function(a){a.scale+=c},b,f,function(a){c=(e-a.scale)/g.toFrames(b)})};g.Animate=function(a,f){var e=a.name,b=Number(a.first)||0,c=1/g.toFrames(Number(a.speed)||1);return e?new g(function(a){b+=c;a.spriteName=e;a.spriteIndex=b|0},a.time,f):new g(null,0)};g.FadeToAlpha=function(a,f){var e=Number(a.alpha||a)||0,b=isNaN(a.time)?1:Number(a.time),
+c;return new g(function(a){a.alpha=Math.max(0,a.alpha+c)},b,f,function(a){c=(e-a.alpha)/g.toFrames(b)})};g.FadeIn=function(a,f){return g.FadeToAlpha({alpha:1,time:a},f)};g.FadeOut=function(a,f){return g.FadeToAlpha({alpha:0,time:a},f)};g.CreateObject=function(a,f){return new g(function(e){var b=e.scene,c;c=b?b.createObject(a.obj):p.createFromDescription(a.obj);(b&&"root"===a.parent?b.getRootNode:e).addObject(c)},0,f)};g.RemoveAction=function(a,f){return new g(function(e){for(var b in a.actions)e.removeAction(a.actions[b])},
+0,f)};g.ClearActions=function(a,f){return new g(function(a){a.actions.empty()},0,f)};g.ChildAction=function(a,f){function e(a){h=!0}var b,c=a.child,d=a.action,h=!1,k=!1;return new g(function(a){b&&d.run(b);return h},-1,f,function(a){if(!k){"function"!==typeof(d&&d.run)&&(d=a.scene?a.scene.createAction(d):g.createFromDescription(d));d.addCompletion(e);if(Array.isArray(c)){b=a;for(var f in c)b=b.children.objectWithId(c[f])}else b=a.children.objectWithId(c);k=!0}d.reset();h=!1})};g.Repeat=function(a,
+f){function e(a){d.reset();b--}var b=isNaN(a.times)?1:Math.max(a.times,1),c=b,d=a.action,h=!1;return new g(function(a){return 0<b?(d.run(a),!1):!0},-1,f,function(a){h||("function"!==typeof d.run&&(d=a.scene.createAction(d)),d.addCompletion(e),h=!0);b=c})};g.Completions={};g.Completions.Remove=function(a){a.scene.removeObject(a)};return{Scene:w,Node:p,Action:g}}();
+*/
+
+/*
+var msg = "",
+    seed = 7,
+    secret = [229, 88, 114, 103, 72, 228,
+              103, 32, 51, 112, 111, 73,
+              32, 32, 76, 33, 117, 108,
+              121, 84, 85, 81, 32, 97,
+              115, 97, 80, 79, 81, 87];
+
+function rnd() {
+    seed = (seed * 214013 + 2531011) % 32768;
+    return seed;
+}
+
+for (var i = seed * 2; i > 0; i--) {
+    msg += String.fromCharCode(secret[rnd() % secret.length]);
+}
+
+alert(msg);
+*/
+
 
 
 /*
 
  minified:
  
-var Bamse=Bamse||function(){function l(a,c,f){var d,b,e=a.length;for(b=0;b<e;b++)if(d=a[b],d.hasOwnProperty(c))return d[c];return f}function s(a){return a&&Number(a)?0>a?-1:1:0}function v(a,c){var f=a.indexOf(c);0<=f&&a.splice(f,1);return a}function z(a){function c(){var a=d.offsetHeight,e=a*f;b.width=e;b.height=a;g=e/p;b.style.marginLeft=0.5*-e+"px";b.style.marginTop=0.5*-a+"px"}var f=p/t,d=document.getElementById(a),b,e,g=1,m={},n=[],r={},l={},q={};(a=d.getElementsByTagName("canvas"))&&0<a.length?
-b=a[0]:(b=document.createElement("canvas"),d.appendChild(b));b.style.left="50%";b.style.top="50%";e=b.getContext("2d");c();window.addEventListener("resize",c,!1);b.onclick=function(a){var e=a.offsetX/g;a=a.offsetY/g;console.log(e,a);for(var d in n){var b=n[d];if(b.visible&&b.image){var c=b.image.width*b.scale*0.5,f=b.image.height*b.scale*0.5,m=b.x+c,k=b.y-f,f=b.y+f;if(e>=b.x-c&&e<=m&&a>=k&&a<=f&&(console.log("click"+d),c=q.click,m=void 0,c))for(m=0;m<c.length;m++)c[m](b)}}};this.addEventListener=
-this.on=function(a,e){var b=q[a]||[];b.push(e);q[a]=b};this.removeEventListener=this.off=function(a,e){var b;if(e){if(b=q[a])b=b.indexOf(e),0<=b&&q.splice(b,1)}else delete q[a]};this.load=function(a){function e(a){var b=new Image;b.src=a;return b}n=[];r={};m={};l={};var b,g,d,c;for(b in a.sprites){g=a.sprites[b];d=[];if(g+""===g)d.push(e(g));else if(Array.isArray(g))for(c in g)d.push(e(g[c]));d&&(m[b]=d)}for(c in a.templates)l[c]=a.templates[c];a.title&&(b=document.createElement("h1"),a=document.createTextNode(a.title),
-b.appendChild(a),document.getElementById("title").appendChild(b))};this.addObject=function(a){if(a){n.push(a);var e=r[a.id];e&&v(n,e);r[a.id]=a}};this.removeObject=function(a){a+""===a&&(a=r[a]);a&&(v(n,a),delete r[a.id])};this.update=function(){var a,e=n.length,b;for(a=0;a<e;a++)b=n[a],b.runActions()};this.render=function(){var a,d=n.length,c;e.clearRect(0,0,b.width,b.height);for(a=0;a<d;a++)if(c=n[a],c.image=null,c.visible&&0<c.alpha&&(sprite=m[c.spriteName]))if(c.spriteIndex%=sprite.length,img=
-sprite[c.spriteIndex])x=c.x*g,y=c.y*g,w=img.width*c.scale*g,h=img.height*c.scale*g,e.save(),e.translate(x,y),e.rotate(c.rotation),e.globalAlpha=c.alpha,e.drawImage(img,0.5*-w,0.5*-h,w,h),e.restore(),c.image=img};this.getTemplates=function(){return l};this.canvas=b;this.context=e;this.container=d}function u(a){this.id=a||(1E17*Math.random()).toFixed(0).toString();this.spriteName=null;this.spriteIndex=0;this.alpha=1;this.visible=!0;this.image=null;this.dy=this.dx=this.y=this.x=0;this.scale=1;this.rotation=
-0;this.responseType=this.responseId=null;var c=[],f={},d=[],b=[];this.addAction=function(a,b){if(b){var c=f[b];c&&this.removeAction(c);f[b]=a}d.push(a)};this.removeAction=function(a){if(a+""===a){var c=f[a];c&&(b.push(c),delete f[a])}else b.push(a)};this.clearActions=function(){b.length=0;d.length=0;c.length=0;f={}};this.runActions=function(){var a,g;for(a in b)g=b[a],g=c.indexOf(g),0<=g&&c.splice(g,1);b.length=0;for(a in d)g=d[a],c.push(g);d.length=0;for(a in c)g=c[a],g.run(this)};this.resetTransform=
-function(){this.rotation=0;this.scale=1;this.y=this.x=0}}function f(a,c,k){var d=0>c,b=f.toFrames(c),e=b;"function"!==typeof k&&(k=function(){});"function"!==typeof a&&(a=function(){});this.reset=function(){e=b};this.run=function(b){d?a(b):0<e?(a(b),e--):(k(b),b.removeAction(this))}}var p=800,t=600;z.createFromDescription=function(a){};u.createFromDescription=function(a,c){function k(a){for(var b in a){var c=f.createFromDescription(a[b]);c&&d.addAction(c)}}var d=new u(a.id),b=c[a.template]||{},e=
-a.sprite||b.sprite,g=[a,b];e&&(d.spriteName=e.name||e,d.spriteIndex=e.index||d.spriteIndex);d.x=l(g,"x",Math.random()*p);d.y=l(g,"y",Math.random()*t);e=Math.random()*Math.PI*2;d.dx=l(g,"dx",Math.cos(e)*l(g,"speed",5));d.dy=l(g,"dy",Math.sin(e)*l(g,"speed",5));d.scale=l(g,"scale",d.scale);d.rotation=l(g,"rotation",d.rotation);d.alpha=l(g,"alpha",d.alpha);d.responseId=a.responseId;d.responseType=a.responseType;d.visible=!0;b.actions&&k(b.actions);a.actions&&k(a.actions);return d};f.FPS=60;f.toFrames=
-function(a){return isNaN(a)?Infinity:Math.max(1,a*f.FPS)|0};f.createFromDescription=function(a){var c=a.args;if(a=f[a.name])return a.apply(this,c)};f.Move=function(){return new f(function(a){a.x+=a.dx;a.y+=a.dy})};f.Accelerate=function(a,c,k){a=a||{};var d=Number(a.x)||0,b=s(d),e=Number(a.y)||0,g=s(e),m=Math.abs(Number(a.maxDx))||Infinity,l=Math.abs(Number(a.maxDy))||Infinity;return new f(0==d&&0==e?function(){}:function(a){var c=a.dx+d,f=a.dy+e,k=s(c),p=s(f);k===b&&c*k>m&&(c=m*k);p==g&&f*p>l&&(f=
-l*p,console.log("maxy"));a.dx=c;a.dy=f},c,k)};f.Bounce=function(a){a=a||{};var c=Number(a.minX||a.left)||0,k=Number(a.minY||a.top)||0,d=Number(a.maxX||a.right)||p,b=Number(a.maxY||a.bottom)||t,e=1,g=1;a.restitution&&(isNaN(a.restitution)?(e=isNaN(a.restitution.x)?1:Number(a.restitution.x),g=isNaN(a.restitution.y)?1:Number(a.restitution.y)):e=g=Number(a.restitution));return new f(function(a){a.x<c?(a.x=c,a.dx=-a.dx*e):a.x>d&&(a.x=d,a.dx=-a.dx*e);a.y<k?(a.y=k,a.dy=-a.dy*g):a.y>b&&(a.y=b,a.dy=-a.dy*
-g)},-1)};f.Friction=function(a,c,k){var d=Math.abs(Number(a&&a.x))||0,b=Math.abs(Number(a&&a.y))||0;return new f(0==d&&0==b?function(){}:function(a){Math.abs(a.dx)<d?a.dx=0:a.dx=0>a.dx?a.dx+d:a.dx-d;Math.abs(a.dy)<b?a.dy=0:a.dy=0>a.dy?a.dy+b:a.dy-b},c,k)};f.Rotate=function(a,c,k){var d,b,e=0<c?f.toFrames(c):f.FPS;Number(a)?d=Number(a):a.speed&&(d=Number(a.speed)*(0<c?c:1));a.radians||(d=d*Math.PI/180);b=d/e;return new f(function(a){a.rotation+=b},c,k)};f.Scale=function(a,c,k){function d(a){a.scale+=
-e}var b=Number(a&&a.speed||a)||0,e;return new f(function(a){e=(b-a.scale)/f.toFrames(c)},0,function(a){a.addAction(new f(d,c,k))})};f.Animate=function(a,c,k){var d=a.name,b=Number(a.first)||0,e=1/f.toFrames(Number(a.speed)||1);return d?new f(function(a){b+=e;a.spriteName=d;a.spriteIndex=b|0},c,k):new f(null,0)};f.FadeToAlpha=function(a,c,k){function d(a){a.alpha+=e}var b=Number(a)||0,e;return new f(function(a){e=(b-a.alpha)/f.toFrames(c)},0,function(a){a.addAction(new f(d,c,k))})};f.FadeIn=function(a,
-c){return f.FadeToAlpha(1,a,c)};f.FadeOut=function(a,c){return f.FadeToAlpha(0,a,c)};return{Scene:z,Character:u,Action:f}}();
+
  
  */
