@@ -4,6 +4,8 @@
 <html>
     <head>
         
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+            
         <title>Bamse</title>
 		
         <style type="text/css">
@@ -17,7 +19,7 @@
         html, body {
             height:100%;
             width:100%;
-            font-family:Helvetica Neue;
+            font-family:Helvetica Neue, Helvetica;
         }
         
         #wrap {
@@ -46,11 +48,11 @@
         
         #content {
             position:absolute;
-            left:200px;
-            right:200px;
+            left:0px; /*200px;*/
+            right:0px; /*200px;*/
             top:0px;
             bottom:0;
-            /*background-color:lightgreen;*/
+            background-color:#efefef;
         }
         
         /********
@@ -65,6 +67,7 @@
         
         #title * {
             position:relative;
+            z-index:2;
             text-align:center;
         }
         
@@ -74,14 +77,19 @@
         #scene-container {
             position:absolute;
             width:100%;
-            top:50px;
-            bottom:45px;
+            top:0; /*50px;*/
+            bottom:0; /*45px;*/
             /*background-color:pink;*/
         }
         
         canvas {
+            background-color:white;
             position:absolute;
-            border: 2px solid black;
+            /*border: 2px solid black;*/
+            
+            touch-action-delay: none;
+			/*touch-action: none;
+			-ms-touch-action: none;*/
         }
         
         /********
@@ -208,6 +216,7 @@
             scene = new Bamse.Scene("scene-container");
             scene.on("click", onObjectClicked);
             
+            /*
             var textArea = document.getElementById("chat-input");
             textArea.onkeypress = function(evt) {
                 if (evt.keyCode === 13) {
@@ -216,6 +225,7 @@
                 }
                 return true;
             };
+            */
             
             var roomId = parseParam("room");
             if (roomId) {
@@ -235,7 +245,7 @@
             
             console.log(message);
             
-            var data = message.data, obj, action, a, i;
+            var data = message.data, obj, action, a, i, templates = scene.getTemplates();
             
             // try {
             switch (message.type) {
@@ -243,7 +253,7 @@
                     scene.load(message.file);
                     break;
                 case "add-object":
-                    scene.addObject(Bamse.Character.createFromDescription(data, scene.getTemplates()));
+                    scene.addObject(Bamse.Node.createFromDescription(data, templates));
                     break;
                 case "remove-object":
                     scene.removeObject(data.id);
@@ -254,16 +264,27 @@
                     if (obj) {
                         if (Array.isArray(a)) {
                             for (i in a) {
-                                action = Bamse.Action.createFromDescription(a[i]);
+                                action = Bamse.Action.createFromDescription(a[i], templates);
                                 if (action) {
                                     obj.addAction(action);
                                 }
                             }
                         } else {
-                            action = Bamse.Action.createFromDescription(a);
+                            action = Bamse.Action.createFromDescription(a, templates);
+                            obj.addAction(action);
                         }
                     }
                     break;
+                case "clear-actions":
+                    obj = scene.getObjectById(data.id);
+                    console.log("clearing actions for " + data.id);
+                    console.log(obj);
+                    if (obj) {
+                        obj.clearActions();
+                    }
+                    break;
+                case "remove-action":
+                    obj = scene.getObjectById(data.id);
                 case "msg":
                     showChatMessage("Master", data);
                     break;
@@ -278,7 +299,7 @@
         
         function onObjectClicked(obj) {
             if (obj.responseType == "click") {
-                Slave.sendMessage({type:"click", data:{id:obj.responseId}});
+                Slave.sendMessage({type:"click", data:{id:obj.responseId, url:obj.responseUrl}});
                 /*
                 obj.clearActions();
                 obj.addAction(Bamse.Action.Rotate(720, 1));
@@ -295,8 +316,10 @@
         function render() {
             // fps++;
             animFrameId = requestAnimFrame(render);
-            scene.update();
+            /*scene.update();
+            scene.render();*/
             scene.render();
+            scene.update();
         }
         
         
@@ -329,7 +352,7 @@
 		
 		<div id="wrap">
 			
-			<div id="sidebar-left"></div>
+			<!--div id="sidebar-left"></div-->
 			
 			<div id="content">
                 
@@ -342,15 +365,15 @@
                     </p-->
 				</div>
                 
-				<div id="text-chat">
-					<!--textarea id="chat-area" disabled=true>Text chat!</textarea-->
+				<!--div id="text-chat">
+					<!--textarea id="chat-area" disabled=true>Text chat!</textarea-- >
 					<textarea id="chat-input"></textarea>
 					<button id="send-button" onclick="sendChatMessage();">Send</button>
-				</div>
+				</div-->
                 
 			</div>
 			
-			<div id="sidebar-right"></div>
+			<!--div id="sidebar-right"></div-->
             
         </div>
     </body>
