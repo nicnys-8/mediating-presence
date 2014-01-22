@@ -20,8 +20,10 @@
                 position:absolute;
 				left:0px;
 				top:0px;
+                bottom:0px;
 				width:200px;
-				height:100%;
+                border-right:1px solid black;
+				/*height:100%;*/
 				/*background-color:lightgreen;*/
 			}
 			
@@ -36,18 +38,18 @@
 			
 			#content {
 				position:absolute;
-				left:200px;
-				right:200px;
-				top:0;
-				bottom:0;
+				left:220px;
+				right:20px; /*200px;*/
+				top:20px;
+				bottom:20px;
 				/*background-color:lightgreen;*/
 			}
 			
 			#video-container {
 				position:absolute;
 				width:100%;
-				top:1em;
-				bottom:125px;
+				top:0; /*1em;*/
+				bottom:0; /*125px;*/
 				/*background-color:pink;*/
 			}
 			#large-video {
@@ -56,6 +58,9 @@
 			}
 			
 			#room-link {
+                display:inline-block;
+                padding-left:20px;
+                padding-top:10px;
 				font-size:12px;
 			}
         
@@ -63,7 +68,8 @@
                 /*position:relative;
                 left:50%;
                 margin-left:-64px;*/
-                padding:10px;
+                margin-top:40px;
+                margin-left:10px;
             }
         
             table {
@@ -73,6 +79,10 @@
                 text-align:left;
                 border-collapse:collapse;
                 background-color:#efefff;
+            }
+        
+            #score-table {
+                margin-top:50px;
             }
         
             td, th {
@@ -149,7 +159,7 @@
 					nameCell = document.createElement("td"),
 					scoreCell = document.createElement("td");
 
-				nameCell.innerHTML = id;
+				nameCell.innerHTML = String(id).substr(0, 9) + "...";
 				scoreCell.innerHTML = 0;
 				
 				row.appendChild(nameCell);
@@ -167,7 +177,7 @@
 				};
 			}
 		
-			function ActiveEvent(startTime, TTL, events) {
+			function ActiveEvent(startTime, TTL, events, url) {
 				
 				var points = Master.getUserIds().length,
 					responses = {};
@@ -179,9 +189,12 @@
 				this.endTime = startTime + TTL;
 				
 				this.onResponse = function(userId) {
-					if (!responses.hasOwnProperty(userId)) {
+                    if (url) {
+                        console.log(url);
+                        window.location.href = url;
+                    } else if (!responses.hasOwnProperty(userId)) {
 						responses[userId] = points;
-						users[userId].addPoints(points);
+						users[userId].addPoints(points * 5);
 						points--;
                         
                         if (events) {
@@ -193,6 +206,10 @@
 				}
 			}
 		
+            function dispatchEvent(dst, event) {
+                
+            }
+        
 			window.onload = function() {
 				
 				// VideoJS initialization
@@ -203,7 +220,7 @@
 					}
 				};
 				videojs("the-video", options, initializeVideoPlayer);
-				
+				/*
 				// Text chat (remove?)
 				var textArea = document.getElementById("chat-input");
 				textArea.onkeypress = function(evt) {
@@ -213,7 +230,7 @@
 					}
 					return true;
 				};
-				
+				*/
 				// WebRTC communication
 				Master.on("init", function() {
 						  
@@ -228,8 +245,8 @@
 						  
 						  // Generate a QR code for the URL
 						  $("#qrcode").qrcode({
-                                              width:128,
-                                              height:128,
+                                              width:180,
+                                              height:180,
                                               text:fullURL
                                               });
 						  });
@@ -272,7 +289,11 @@
 						showChatMessage(evt.userId, message.data);
 						break;
 					case "click":
-						handleClickResponse(evt.userId, message.data.id);
+                        if (message.data.url) {
+                            window.location.href = message.data.url;
+                        } else {
+                            handleClickResponse(evt.userId, message.data.id);
+                        }
 						break;
 				}
 			}
@@ -318,7 +339,7 @@
 					// Create an ActiveEvent if the event is "respondable"
 					if (nextEvent.data && nextEvent.data.response) {
 						var resp = nextEvent.data.response,
-                            ae = new ActiveEvent(nextEvent.time, resp.time, resp.events);
+                            ae = new ActiveEvent(nextEvent.time, resp.time, resp.events, resp.url);
 						activeEvents[ae.id] = ae;
 						resp.id = ae.id;
 					}
@@ -335,7 +356,7 @@
 			function loadVideo(obj) {
 				// Embed with VideoJS
 				videoPlayer.src(obj.src);
-                Master.sendMessage("all", { type:"file", file:file });
+                Master.sendMessage("all", { type:"file", file:obj });
 				eventIndex = 0;
 				lastTimeUpdate = 0;
 				nextEvent = obj.events[0];
@@ -348,27 +369,28 @@
 					return;
 				}
 				
-				var ASPECT = 4 / 3,
-					container = $("#video-container"),
-					width = Math.min(container.innerWidth(), container.innerHeight() * ASPECT),
-					height = width / ASPECT;
-				$("#the-video").css({
-									marginTop: -height * 0.5,
-									marginLeft: -width * 0.5,
-									});
-									
-				videoPlayer.dimensions(width, height);
+                if (videoPlayer.isFullScreen) {
+                    $("#the-video").css({top:0, left:0, marginTop:0, marginLeft:0});
+                } else {
+                    var ASPECT = 4 / 3,
+                        container = $("#video-container"),
+                        width = Math.min(container.innerWidth(), container.innerHeight() * ASPECT),
+                        height = width / ASPECT;
+                    $("#the-video").css({
+                                        top:"50%",
+                                        left:"50%",
+                                        marginTop: -height * 0.5,
+                                        marginLeft: -width * 0.5
+                                        });
+                    videoPlayer.dimensions(width, height);
+                }
 			}
 			
 			function initializeVideoPlayer() {
 				
 				videoPlayer = this;
 				
-				$("#the-video").css({
-									position:"absolute",
-									top:"50%",
-									left:"50%"
-									});
+				$("#the-video").css({position:"absolute"});
 									
 				$(window).resize(resizeVideoPlayer);
 				resizeVideoPlayer();
@@ -475,23 +497,26 @@
                     </tbody>
 				</table>
                 
+                <div id="qrcode"></div>
+                <a href="#" id="room-link"></a>
+                
 			</div>
 			
 			<div id="content">
 				<div id="video-container">
 					<video id="the-video" controls class='video-js vjs-default-skin'></video>
 				</div>
-				<div id="text-chat">
+				<!--div id="text-chat">
 					<textarea id="chat-area" disabled=true>Text chat!</textarea>
 					<textarea id="chat-input"></textarea>
 					<button id="send-button" onclick="sendChatMessage();">Send</button>
-				</div>
+				</div-->
 			</div>
 			
-			<div id="sidebar-right">
+			<!--div id="sidebar-right">
                 <div id="qrcode"></div>
                 <a href="#" id="room-link"></a>
-            </div>
+            </div-->
 			
 		</div>
     </body>
